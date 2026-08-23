@@ -57,8 +57,13 @@ Options:
 
   -h, --help            Show this help
 
+Note: TAILSCALE_AUTHKEY is required unless --skip-tailscale is passed -
+Cockpit/Rancher/k3s are only reachable over Tailscale, so this refuses to
+run without it rather than produce an unreachable VPS.
+
 Environment variables (see README.md for the full list):
-  TAILSCALE_AUTHKEY, RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
+  TAILSCALE_AUTHKEY, TAILSCALE_SERVE_PORT, TAILSCALE_ENABLE_FUNNEL,
+  RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
   COCKPIT_HTTP_PORT, COCKPIT_HTTPS_PORT, RANCHER_HTTP_PORT, RANCHER_HTTPS_PORT,
   VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY, INSTALL_DOCKER,
   COCKPIT_DOCKERMANAGER_VERSION
@@ -106,6 +111,21 @@ fi
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "[vps-setup] This script must be run as root (use sudo)." >&2
+  exit 1
+fi
+
+# ufw (scripts/02) only opens Cockpit/Rancher/the k3s API to the
+# tailscale0 interface, so running the rest of the install without
+# Tailscale authenticated would leave all of them unreachable. Refuse to
+# proceed rather than silently produce a VPS nothing can be managed on.
+if [[ "$SKIP_TAILSCALE" -eq 0 && -z "${TAILSCALE_AUTHKEY:-}" ]]; then
+  echo "[vps-setup] TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." >&2
+  echo "[vps-setup] Cockpit, Rancher, and the k3s API are reachable ONLY over Tailscale" >&2
+  echo "[vps-setup] (see README's Security model) - continuing without it would leave" >&2
+  echo "[vps-setup] all of them unreachable once ufw locks the box down. Either:" >&2
+  echo "[vps-setup]   - set TAILSCALE_AUTHKEY (see README's 'Getting the keys you'll need'), or" >&2
+  echo "[vps-setup]   - pass --skip-tailscale to proceed anyway (you can run 'tailscale up'" >&2
+  echo "[vps-setup]     manually later, then: sudo bash setup.sh --only-tailscale)." >&2
   exit 1
 fi
 
