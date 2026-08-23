@@ -61,6 +61,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
 require_root
+
+# WORKAROUND (apt): laranode-installer.sh runs `add-apt-repository -y
+# ppa:ondrej/php` unconditionally (every time it's invoked, including the
+# runs below), which on an unsupported release (see WORKAROUND (PHP)
+# below) leaves behind a source file with no valid Release - and
+# `apt-get update` returns nonzero if ANY configured source fails, not
+# just the broken one, so that leftover breaks every apt operation on
+# this box afterwards, not just Laranode's, until removed. Called both
+# before touching apt ourselves (in case a previous run left it behind)
+# and after invoking the installer (since it re-adds it every time).
+clean_broken_ondrej_php_source() {
+  local f
+  for f in /etc/apt/sources.list.d/*ondrej*php*; do
+    [[ -f "$f" ]] || continue
+    if grep -q 'ppa\.launchpadcontent\.net/ondrej/php' "$f" 2>/dev/null; then
+      warn "Removing a broken ppa:ondrej/php source (${f}) - it doesn't support" \
+           "$(lsb_release -sc 2>/dev/null || echo "this release") and would block all" \
+           "apt operations on this box otherwise."
+      rm -f "$f"
+    fi
+  done
+}
+
+clean_broken_ondrej_php_source
 apt_update_once
 
 # See WORKAROUND (sudoers) note above. Idempotent: a no-op once the clause
@@ -162,6 +186,8 @@ else
   retry curl -fsSL https://raw.githubusercontent.com/crivion/laranode/main/laranode-scripts/bin/laranode-installer.sh -o /tmp/laranode-installer.sh
   bash /tmp/laranode-installer.sh
   rm -f /tmp/laranode-installer.sh
+  clean_broken_ondrej_php_source
+  apt-get update -y >/dev/null 2>&1 || true
   [[ -d "${LARANODE_APP_DIR}/vendor" ]] || die "laranode-installer.sh finished but ${LARANODE_APP_DIR}/vendor is missing -" \
     "composer install likely failed silently (the installer has no 'set -e'). Check its output above."
   fix_laranode_sudoers

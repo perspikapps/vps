@@ -352,6 +352,15 @@ directly on the host, so it runs natively rather than in k3s.
   `scripts/08-laranode.sh` removes just that clause - verified safe with
   `visudo -c` before touching `/etc/sudoers`, and left untouched if that
   check fails.
+- **Apt-poisoning workaround**: `add-apt-repository -y ppa:ondrej/php`
+  (part of the PHP workaround above) leaves behind a broken source file
+  when the release is unsupported, and the installer runs it
+  unconditionally on every invocation - `apt-get update` returns nonzero
+  if *any* configured source fails, not just that one, so left in place
+  it breaks every subsequent apt operation on the box, not just
+  Laranode's. `scripts/08-laranode.sh` detects and removes it both before
+  touching apt itself and again after the installer runs (since it keeps
+  re-adding it).
 
 ## Coder (optional dev-environment platform)
 
