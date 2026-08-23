@@ -70,9 +70,13 @@ fi
 
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   echo "[vps-setup] Updating existing checkout in $INSTALL_DIR..."
+  # A one-off `fetch origin <ref>` populates FETCH_HEAD but does NOT create
+  # or update a remote-tracking ref like origin/<ref> (that only happens
+  # with the repo's configured fetch refspec) - so reset against FETCH_HEAD
+  # directly, which works for branches, tags, and commit SHAs alike.
   git -C "$INSTALL_DIR" fetch --depth 1 origin "$REPO_REF"
-  git -C "$INSTALL_DIR" checkout -q "$REPO_REF" || true
-  git -C "$INSTALL_DIR" reset --hard "origin/$REPO_REF"
+  git -C "$INSTALL_DIR" checkout -q -B "$REPO_REF" FETCH_HEAD
+  git -C "$INSTALL_DIR" reset --hard FETCH_HEAD
 elif [[ -d "$INSTALL_DIR" ]]; then
   echo "[vps-setup] $INSTALL_DIR exists and is not a git checkout; running scripts in place."
 else
