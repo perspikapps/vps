@@ -30,6 +30,11 @@ SKIP_COCKPIT=0
 SKIP_K3S=0
 SKIP_RANCHER=0
 SKIP_DOCKERMANAGER=0
+# Laranode and Coder are large, distinct, optional apps (a LAMP hosting
+# panel and a dev-environment platform) - opt-in only, via --with-<step>
+# for a full run or --only-<step> to run just that one standalone.
+SKIP_LARANODE=1
+SKIP_CODER=1
 declare -a ONLY_STEPS=()
 
 usage() {
@@ -44,6 +49,8 @@ Options:
   --skip-k3s            Skip k3s/kubectl/helm install (scripts/05)
   --skip-rancher        Skip Rancher install (scripts/06)
   --skip-dockermanager  Skip cockpit-packagekit/files/dockermanager (scripts/07)
+  --skip-laranode       No-op: Laranode is opt-in already (see --with-laranode)
+  --skip-coder          No-op: Coder is opt-in already (see --with-coder)
 
   --only-system         Run ONLY scripts/01 (base system update)
   --only-security       Run ONLY scripts/02 (firewall/SSH/fail2ban)
@@ -52,8 +59,17 @@ Options:
   --only-k3s            Run ONLY scripts/05 (k3s/kubectl/helm)
   --only-rancher        Run ONLY scripts/06 (Rancher)
   --only-dockermanager  Run ONLY scripts/07 (cockpit-packagekit/files/dockermanager)
+  --only-laranode       Run ONLY scripts/08 (Laranode)
+  --only-coder          Run ONLY scripts/09 (Coder)
                         (repeat --only-* to run more than one step; any
-                        --only-* flag overrides all --skip-* flags)
+                        --only-* flag overrides all --skip-*/--with-* flags)
+
+  --with-laranode       Also install Laranode (scripts/08) on a full run -
+                        opt-in: a LAMP hosting panel installed natively on
+                        the host, not part of the default step set
+  --with-coder          Also deploy Coder (scripts/09) on a full run -
+                        opt-in: a dev-environment platform deployed as a
+                        Helm release into k3s, not part of the default set
 
   -h, --help            Show this help
 
@@ -66,7 +82,9 @@ Environment variables (see README.md for the full list):
   RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
   COCKPIT_HTTP_PORT, COCKPIT_HTTPS_PORT, RANCHER_HTTP_PORT, RANCHER_HTTPS_PORT,
   VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY, INSTALL_DOCKER,
-  COCKPIT_DOCKERMANAGER_VERSION
+  COCKPIT_DOCKERMANAGER_VERSION, LARANODE_TAILSCALE_ONLY,
+  CODER_HOSTNAME, CODER_HTTP_PORT, CODER_ADMIN_USERNAME, CODER_ADMIN_EMAIL,
+  CODER_ADMIN_PASSWORD
 EOF
 }
 
@@ -79,6 +97,10 @@ for arg in "$@"; do
     --skip-k3s) SKIP_K3S=1 ;;
     --skip-rancher) SKIP_RANCHER=1 ;;
     --skip-dockermanager) SKIP_DOCKERMANAGER=1 ;;
+    --skip-laranode) SKIP_LARANODE=1 ;;
+    --skip-coder) SKIP_CODER=1 ;;
+    --with-laranode) SKIP_LARANODE=0 ;;
+    --with-coder) SKIP_CODER=0 ;;
     --only-system) ONLY_STEPS+=(system) ;;
     --only-security) ONLY_STEPS+=(security) ;;
     --only-tailscale) ONLY_STEPS+=(tailscale) ;;
@@ -86,6 +108,8 @@ for arg in "$@"; do
     --only-k3s) ONLY_STEPS+=(k3s) ;;
     --only-rancher) ONLY_STEPS+=(rancher) ;;
     --only-dockermanager) ONLY_STEPS+=(dockermanager) ;;
+    --only-laranode) ONLY_STEPS+=(laranode) ;;
+    --only-coder) ONLY_STEPS+=(coder) ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage; exit 1 ;;
   esac
@@ -95,7 +119,7 @@ done
 # and re-enable just the requested step(s).
 if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
   SKIP_SYSTEM=1 SKIP_SECURITY=1 SKIP_TAILSCALE=1 SKIP_COCKPIT=1
-  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1
+  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1 SKIP_LARANODE=1 SKIP_CODER=1
   for step in "${ONLY_STEPS[@]}"; do
     case "$step" in
       system) SKIP_SYSTEM=0 ;;
@@ -105,6 +129,8 @@ if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
       k3s) SKIP_K3S=0 ;;
       rancher) SKIP_RANCHER=0 ;;
       dockermanager) SKIP_DOCKERMANAGER=0 ;;
+      laranode) SKIP_LARANODE=0 ;;
+      coder) SKIP_CODER=0 ;;
     esac
   done
 fi
@@ -184,4 +210,6 @@ run_step "04-cockpit.sh"           "$SKIP_COCKPIT"       "Cockpit install"      
 run_step "05-k3s.sh"               "$SKIP_K3S"           "k3s / kubectl / helm install"                k3s
 run_step "06-rancher.sh"           "$SKIP_RANCHER"       "Rancher install"                            rancher
 run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install" dockermanager
+run_step "08-laranode.sh"          "$SKIP_LARANODE"      "Laranode install"                           laranode
+run_step "09-coder.sh"             "$SKIP_CODER"         "Coder install"                              coder
 bash "$INSTALL_DIR/scripts/99-summary.sh"

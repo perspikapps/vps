@@ -92,3 +92,21 @@ ensure_line() {
   local line="$1" file="$2"
   grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
 }
+
+# Rebind a Helm chart's named Service port to a different port number.
+# k3s's built-in ServiceLB (Klipper) binds host ports to whatever a
+# LoadBalancer Service's `port` field says, so exposing a chart's app on a
+# specific host port (instead of the chart's own default) means patching
+# the Service after install - this is that patch, shared by every script
+# that installs a Helm chart and wants it on a non-default port.
+patch_service_port() {
+  local namespace="$1" service="$2" port_name="$3" new_port="$4"
+  local idx
+  idx="$(kubectl -n "$namespace" get service "$service" -o json | jq ".spec.ports | map(.name) | index(\"${port_name}\")")"
+  if [[ "$idx" == "null" ]]; then
+    warn "Service ${service} in ${namespace} has no port named '${port_name}'; leaving its ports unchanged."
+    return 1
+  fi
+  kubectl -n "$namespace" patch service "$service" --type=json \
+    -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/${idx}/port\",\"value\":${new_port}}]"
+}

@@ -20,14 +20,20 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`setup.sh` runs seven numbered steps in order: `system` (01), `security`
-(02), `tailscale` (03), `cockpit` (04), `k3s` (05), `rancher` (06), and
-`dockermanager` (07). Two flag families control which of them run:
+`setup.sh` runs nine numbered steps in order: `system` (01), `security`
+(02), `tailscale` (03), `cockpit` (04), `k3s` (05), `rancher` (06),
+`dockermanager` (07), `laranode` (08), and `coder` (09). Three flag
+families control which of them run:
 
 - **`--skip-<step>`** - run everything *except* the named step(s).
 - **`--only-<step>`** - run *only* the named step(s); pass it more than
   once to run a few together. Any `--only-*` flag overrides every
-  `--skip-*` flag on the command line.
+  `--skip-*`/`--with-*` flag on the command line.
+- **`--with-<step>`** - `laranode` and `coder` are opt-in (see
+  [Laranode](#laranode-optional-lamp-hosting-panel) and
+  [Coder](#coder-optional-dev-environment-platform) below) and skipped by
+  default even on a full run; `--with-laranode`/`--with-coder` turns one
+  on for that run.
 
 When you already have `setup.sh` on disk (e.g. after the
 [full copy-paste example](#full-copy-paste-example)'s `-o /tmp/setup.sh`
@@ -271,8 +277,14 @@ entirely - there's no `sudo` involved.
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
+- `scripts/08-laranode.sh` - **opt-in** (`--with-laranode`/`--only-laranode`):
+  installs [Laranode](https://laranode.com), a LAMP hosting panel, natively
+  on the host via its official installer.
+- `scripts/09-coder.sh` - **opt-in** (`--with-coder`/`--only-coder`):
+  deploys [Coder](https://coder.com) plus a minimal Postgres as Helm
+  releases into k3s, exposed on port 8090.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
-  the Cockpit/Rancher credentials at the end.
+  the Cockpit/Rancher/Coder credentials at the end.
 
 ## Security model
 
@@ -317,6 +329,58 @@ Replace `/var/www/vps-placeholder` with your own app's files, or point
 different app/port entirely - `tailscale serve`/`funnel` just proxy to
 whatever's listening on `127.0.0.1:$TAILSCALE_SERVE_PORT`.
 
+## Laranode (optional LAMP hosting panel)
+
+`scripts/08-laranode.sh` is **opt-in** (`--with-laranode` on a full run, or
+standalone with `--only-laranode`) and installs
+[Laranode](https://laranode.com), an open-source Laravel/LAMP hosting
+control panel, via its official installer. Unlike everything else in this
+repo, Laranode has no container image or Helm chart upstream - it's a
+traditional VPS panel that installs its own Apache/MySQL/PHP-FPM stack
+directly on the host, so it runs natively rather than in k3s.
+
+- **Public by default, on purpose**: the installer opens ufw for 80, 443,
+  and 8080 (its Reverb websocket service) to the whole internet, and this
+  repo leaves that in place - unlike Cockpit/Rancher, Laranode's entire
+  purpose is hosting public-facing websites, and its one-click Let's
+  Encrypt feature needs port 80 reachable for ACME HTTP-01 validation.
+  Set `LARANODE_TAILSCALE_ONLY=true` if you want it private instead (this
+  also disables its Let's Encrypt issuance).
+- **Port collision**: Laranode hardcodes port 8080 for Reverb, the same as
+  this repo's default `RANCHER_HTTP_PORT`. If you're installing both, set
+  `RANCHER_HTTP_PORT` to something else first.
+- Credentials (MySQL root password, Laranode's own DB user password) are
+  generated and printed once by the installer itself - not saved to a
+  file by Laranode, and not re-shown by `scripts/99-summary.sh`, so copy
+  them down when you see them.
+
+## Coder (optional dev-environment platform)
+
+`scripts/09-coder.sh` is **opt-in** (`--with-coder` on a full run, or
+standalone with `--only-coder`) and deploys
+[Coder](https://coder.com), a self-hosted remote development platform, as
+a Helm release into the k3s cluster from `scripts/05` - it then shows up
+in Rancher's own Apps view like any other in-cluster Helm release, since
+Rancher lists Helm releases already present in the cluster regardless of
+how they were installed.
+
+- Coder's chart ships no bundled database, so this also deploys a minimal
+  single-replica Postgres (official `postgres` image + a PVC on k3s's
+  default `local-path` StorageClass) - fine for this repo's single-node
+  scope, not meant to be HA.
+- Exposed on `CODER_HTTP_PORT` (default `8090`) via k3s's built-in
+  ServiceLB, the same pattern as Rancher - Tailscale-only by default,
+  same as everything else (see [Security model](#security-model)).
+- Runs over plain HTTP inside the cluster: the transport is already
+  encrypted by Tailscale itself. Set `coder.tls.secretNames` yourself via
+  `CODER_EXTRA_HELM_ARGS` if you want the chart to terminate TLS instead.
+- The initial admin user is created non-interactively (`coder server
+  create-admin-user`, run as a one-off Kubernetes Job), since Coder has no
+  bootstrap-password chart value the way Rancher does. Username
+  (`CODER_ADMIN_USERNAME`, default `admin`), email (`CODER_ADMIN_EMAIL`),
+  and password (`CODER_ADMIN_PASSWORD`, default random, saved to
+  `/root/.coder-admin-password`) are all overridable.
+
 ## Cockpit and Rancher logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
@@ -352,6 +416,14 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `RANCHER_BOOTSTRAP_PASSWORD` | random | Rancher initial admin password |
 | `INSTALL_DOCKER` | `true` | Install `docker.io` for cockpit-dockermanager to manage |
 | `COCKPIT_DOCKERMANAGER_VERSION` | `latest` | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
+| `LARANODE_TAILSCALE_ONLY` | `false` | Restrict Laranode's ports to Tailscale instead of leaving them public |
+| `CODER_HOSTNAME` | node IP | Hostname used in `CODER_ACCESS_URL` |
+| `CODER_HTTP_PORT` | `8090` | Coder's exposed port |
+| `CODER_ADMIN_USERNAME` / `CODER_ADMIN_EMAIL` | `admin` / `admin@<hostname>` | Initial Coder admin account |
+| `CODER_ADMIN_PASSWORD` | random | Initial Coder admin password |
+| `CODER_POSTGRES_PASSWORD` | random | Password for Coder's bundled Postgres |
+| `CODER_CHART_VERSION` | latest | Pin the Coder Helm chart version |
+| `CODER_EXTRA_HELM_ARGS` | unset | Extra args appended to Coder's `helm upgrade --install` |
 
 Each script can also be run standalone from the `scripts/` directory
 after `lib/common.sh` is present alongside it (this is what `setup.sh

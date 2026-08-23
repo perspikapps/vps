@@ -31,6 +31,9 @@ COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not s
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
 RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run scripts/06-rancher.sh')"
 
+CODER_HTTP_PORT="${CODER_HTTP_PORT:-8090}"
+CODER_HOSTNAME="${CODER_HOSTNAME:-$HOST_FOR_URLS}"
+
 cat <<EOF
 
 ======================================================================
@@ -64,6 +67,32 @@ cat <<EOF
  Placeholder webserver: $(systemctl is-active --quiet vps-webserver.service 2>/dev/null && echo "running (127.0.0.1:${TAILSCALE_SERVE_PORT})" || echo "not running (run scripts/03-tailscale.sh)")
                        tailnet:  https://${HOST_FOR_SERVE}:${TAILSCALE_SERVE_PORT}
                        public:   $(tailscale funnel status 2>/dev/null | grep -q "${TAILSCALE_SERVE_PORT}" && echo "on - see: tailscale funnel status" || echo "off (TAILSCALE_ENABLE_FUNNEL=false, or Funnel rejected this port)")
+
+EOF
+
+if systemctl list-unit-files 2>/dev/null | grep -q '^laranode'; then
+  LARANODE_STATE="$(systemctl is-active --quiet laranode-queue.service 2>/dev/null && echo running || echo installed)"
+  cat <<EOF
+
+ Laranode (opt-in):   ${LARANODE_STATE} - reachable on the ports its own
+                       installer opened (public by default; see
+                       LARANODE_TAILSCALE_ONLY). Credentials were printed
+                       once by its installer, not re-shown here.
+EOF
+fi
+
+if command_exists kubectl && kubectl -n coder get deploy coder >/dev/null 2>&1; then
+  CODER_ADMIN_PASSWORD="$(cat /root/.coder-admin-password 2>/dev/null || echo 'not set - run scripts/09-coder.sh')"
+  cat <<EOF
+
+ Coder (opt-in):      http://${CODER_HOSTNAME}:${CODER_HTTP_PORT}
+                       user:     ${CODER_ADMIN_USERNAME:-admin}
+                       password: ${CODER_ADMIN_PASSWORD}
+                       (saved to /root/.coder-admin-password)
+EOF
+fi
+
+cat <<EOF
 
  Firewall:            ufw is enabled; only SSH is public. Cockpit, Rancher
                        and the k3s API are reachable ONLY over the

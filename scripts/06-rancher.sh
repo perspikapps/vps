@@ -79,16 +79,8 @@ helm upgrade --install rancher rancher-latest/rancher \
   --wait --timeout 10m
 
 log "Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
-HTTP_IDX="$(kubectl -n cattle-system get service rancher -o json | jq '.spec.ports | map(.name) | index("http")')"
-HTTPS_IDX="$(kubectl -n cattle-system get service rancher -o json | jq '.spec.ports | map(.name) | index("https")')"
-PATCH_OPS="[]"
-[[ "$HTTP_IDX" != "null" ]] && PATCH_OPS="$(jq -c ". + [{\"op\":\"replace\",\"path\":\"/spec/ports/${HTTP_IDX}/port\",\"value\":${RANCHER_HTTP_PORT}}]" <<<"$PATCH_OPS")"
-[[ "$HTTPS_IDX" != "null" ]] && PATCH_OPS="$(jq -c ". + [{\"op\":\"replace\",\"path\":\"/spec/ports/${HTTPS_IDX}/port\",\"value\":${RANCHER_HTTPS_PORT}}]" <<<"$PATCH_OPS")"
-if [[ "$PATCH_OPS" != "[]" ]]; then
-  kubectl -n cattle-system patch service rancher --type=json -p "$PATCH_OPS"
-else
-  warn "Could not find named http/https ports on the rancher Service; leaving defaults (80/443)."
-fi
+patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
+patch_service_port cattle-system rancher https "$RANCHER_HTTPS_PORT" || true
 
 log "Waiting for Rancher pods to be ready..."
 kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
