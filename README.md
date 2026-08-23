@@ -18,6 +18,71 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
      bash setup.sh
 ```
 
+## Full copy-paste example
+
+A realistic one-shot install on a fresh Ubuntu VPS, run as root right after
+first boot. Replace the SSH key and auth key with your own (see
+[Getting the keys you'll need](#getting-the-keys-youll-need) below):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh -o /tmp/setup.sh
+
+VPS_ADMIN_USER=ops \
+VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" \
+TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+RANCHER_HOSTNAME="rancher.tailnet-name.ts.net" \
+RANCHER_BOOTSTRAP_PASSWORD="$(openssl rand -base64 24)" \
+bash /tmp/setup.sh
+```
+
+This creates the `ops` sudo user with your key, disables SSH password
+login, joins your tailnet immediately, and installs Cockpit + k3s +
+Rancher. When it finishes, connect over Tailscale and open Cockpit
+(`https://<tailscale-ip>:9080`) and Rancher
+(`https://rancher.tailnet-name.ts.net:8083`) from a machine on the same
+tailnet. Save the printed Rancher bootstrap password (also written to
+`/root/.rancher-bootstrap-password`) to log in.
+
+## Getting the keys you'll need
+
+**SSH key pair** (for `VPS_ADMIN_SSH_KEY`) - generate one on your own
+machine, never on the VPS:
+
+```bash
+ssh-keygen -t ed25519 -C "you@laptop" -f ~/.ssh/vps_ed25519
+cat ~/.ssh/vps_ed25519.pub   # paste this whole line as VPS_ADMIN_SSH_KEY
+```
+
+- If you already have a key, it's usually at `~/.ssh/id_ed25519.pub` or
+  `~/.ssh/id_rsa.pub` (`cat` either one).
+- GitHub/GitLab users already have a public key on file:
+  `curl https://github.com/<your-username>.keys` returns it directly.
+- Docs: [GitHub - Generating a new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent),
+  [Ubuntu - OpenSSH keys](https://ubuntu.com/server/docs/service-openssh).
+
+**Tailscale auth key** (for `TAILSCALE_AUTHKEY`) - generate one in the
+Tailscale admin console:
+
+1. Go to <https://login.tailscale.com/admin/settings/keys>.
+2. Click "Generate auth key". For a server, prefer a **reusable**,
+   **ephemeral: off**, and **pre-approved** (if your tailnet requires
+   device approval) key with a short expiry.
+3. Copy the `tskey-auth-...` value into `TAILSCALE_AUTHKEY`.
+
+Docs: [Tailscale - Auth keys](https://tailscale.com/kb/1085/auth-keys).
+Without this variable, `scripts/03-tailscale.sh` still installs Tailscale;
+just run `tailscale up` manually afterwards and follow the login link.
+
+**Rancher bootstrap password** (for `RANCHER_BOOTSTRAP_PASSWORD`) - any
+string works; generate a random one with:
+
+```bash
+openssl rand -base64 24
+```
+
+If you don't set it, `scripts/06-rancher.sh` generates and saves one for
+you automatically.
+
 ## Layout
 
 - `setup.sh` - leading script: clones/updates this repo, runs `scripts/*`
