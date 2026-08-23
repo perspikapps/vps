@@ -266,8 +266,7 @@ entirely - there's no `sudo` involved.
   (default-deny inbound; SSH public, everything else Tailscale-only),
   sshd hardening, fail2ban, and a Cockpit/console login password.
 - `scripts/03-tailscale.sh` - installs Tailscale, enables `tailscaled` as a
-  systemd service, joins the tailnet, and serves/funnels a placeholder
-  webserver on port 8052 (see [Tailscale serve/funnel](#tailscale-servefunnel-a-placeholder-webserver-on-8052)).
+  systemd service, and joins the tailnet.
 - `scripts/04-cockpit.sh` - installs Cockpit, served on ports 9080/9083.
 - `scripts/05-k3s.sh` - installs k3s (Traefik disabled), kubectl, Helm.
 - `scripts/06-rancher.sh` - installs cert-manager (required by Rancher's
@@ -300,34 +299,6 @@ lock down ufw and leave Cockpit/Rancher/k3s unreachable by anything. Pass
 `--skip-tailscale` if you genuinely want to run without Tailscale (you can
 join manually later with `tailscale up`, then `sudo bash setup.sh
 --only-tailscale`).
-
-## Tailscale serve/funnel: a placeholder webserver on 8052
-
-`scripts/03-tailscale.sh` also starts a minimal placeholder webserver
-(Python's `http.server`, bound to `127.0.0.1` only, run as
-`vps-webserver.service`) and exposes it two ways using Tailscale's own
-reverse proxy - no ufw rule needed for either, since both ride over
-`tailscaled`'s own networking rather than a normal listening socket:
-
-- **`tailscale serve`** - HTTPS on port `TAILSCALE_SERVE_PORT` (default
-  `8052`) to the tailnet only, at your node's MagicDNS name (e.g.
-  `https://myvps.your-tailnet.ts.net:8052`) - the cert Tailscale issues is
-  for that name, not the bare Tailscale IP, so use the name shown by
-  `scripts/99-summary.sh` or `tailscale status`.
-- **`tailscale funnel`** - the same port, also exposed to the public
-  internet, unless `TAILSCALE_ENABLE_FUNNEL=false`. Funnel has
-  historically only supported ports 443, 8443, and 10000 on some
-  tailnets, and needs HTTPS certs + Funnel enabled for the node in your
-  tailnet's admin console (see
-  [Tailscale Funnel docs](https://tailscale.com/kb/1223/funnel)) - if
-  enabling it on 8052 is rejected, `scripts/03-tailscale.sh` prints a
-  warning and leaves the tailnet-only `serve` above working regardless.
-  Check `tailscale funnel status` for the current public URL.
-
-Replace `/var/www/vps-placeholder` with your own app's files, or point
-`vps-webserver.service`'s `ExecStart` (and `TAILSCALE_SERVE_PORT`) at a
-different app/port entirely - `tailscale serve`/`funnel` just proxy to
-whatever's listening on `127.0.0.1:$TAILSCALE_SERVE_PORT`.
 
 ## Laranode (optional LAMP hosting panel)
 
@@ -408,8 +379,6 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `ALLOW_PUBLIC_WEB` | `false` | Also open 80/443 publicly |
 | `TAILSCALE_AUTHKEY` | unset | Auto-join a tailnet (**required** unless `--skip-tailscale`) |
 | `TAILSCALE_EXTRA_ARGS` | unset | Extra flags appended to `tailscale up` |
-| `TAILSCALE_SERVE_PORT` | `8052` | Port served/funneled from the placeholder webserver |
-| `TAILSCALE_ENABLE_FUNNEL` | `true` | Also expose `TAILSCALE_SERVE_PORT` publicly via Funnel |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083` | Cockpit ports |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `8080` / `8083` | Rancher ports |
 | `RANCHER_HOSTNAME` | node IP | Hostname used in Rancher's cert |
