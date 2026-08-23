@@ -336,10 +336,22 @@ directly on the host, so it runs natively rather than in k3s.
   [Sury's repo](https://packages.sury.org/php/) (the PPA's own
   replacement recommendation for unsupported releases) before handing off
   to the installer, so its own broken PPA step becomes a harmless no-op.
-  If Sury doesn't support your release either, it fails fast with a clear
-  message instead of proceeding into the same broken state. It also
-  detects and removes a partial install from a previous failed run (its
-  `git clone` isn't idempotent) before retrying.
+  Sury can lag too, though - if the running release isn't supported there
+  either, it falls back to Sury's Ubuntu 24.04 ("noble") packages (PHP
+  userspace packages are ABI-compatible across adjacent Ubuntu releases,
+  a common, safe workaround), and only fails fast with a clear message if
+  neither works. It also detects and removes a partial install from a
+  previous failed run (its `git clone` isn't idempotent) before retrying.
+- **Sudoers workaround**: the installer also writes a sudoers rule with a
+  wildcard inside a command *argument* (`/bin/rm
+  .../sites-available/*.conf`) - sudo only ever permits wildcards in the
+  command path, never in arguments, so this specific clause is invalid on
+  any system and sudo silently skips it (with a recurring "wildcards are
+  not allowed in command arguments" warning every time the file is
+  parsed). That permission was never actually granted, so
+  `scripts/08-laranode.sh` removes just that clause - verified safe with
+  `visudo -c` before touching `/etc/sudoers`, and left untouched if that
+  check fails.
 
 ## Coder (optional dev-environment platform)
 

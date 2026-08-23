@@ -19,19 +19,35 @@
 # repo's own RANCHER_HTTP_PORT default (also 8080) if you install both -
 # set RANCHER_HTTP_PORT to something else first if so.
 #
-# WORKAROUND: laranode-installer.sh adds `ppa:ondrej/php` and installs
-# php8.4 from it, but that PPA lags new Ubuntu releases by months (e.g. it
-# 404s outright on 26.04/"resolute" - Launchpad's own page for it names
-# https://packages.sury.org/php/ as the replacement for that case). Worse,
-# the installer has `# set -e` commented out, so when that apt step fails
-# it doesn't stop - it carries on straight into `composer install` and
-# `php artisan ...` with no PHP installed at all, failing "command not
+# WORKAROUND (PHP): laranode-installer.sh adds `ppa:ondrej/php` and
+# installs php8.4 from it, but that PPA lags new Ubuntu releases by months
+# (e.g. it 404s outright on 26.04/"resolute"). Sury's repo
+# (https://packages.sury.org/php/, the PPA's own recommended replacement)
+# can lag too - as of this writing it also has no "resolute" packages.
+# Worse, the installer has `# set -e` commented out, so when the apt step
+# fails it doesn't stop - it carries on straight into `composer install`
+# and `php artisan ...` with no PHP installed at all, failing "command not
 # found" on every one of them and leaving a broken, half-built install
 # (cloned repo, npm/vite assets built, ufw rules added, but no
 # vendor/.env/migrations). This script pre-installs PHP 8.4 + Composer
-# from Sury's repo before handing off to the installer, so its own
-# ppa:ondrej/php + apt-install step becomes a no-op (packages already
-# satisfied) regardless of whether that PPA supports the running release.
+# from Sury before handing off to the installer, trying the host's own
+# codename first and falling back to Ubuntu 24.04's ("noble") packages if
+# Sury doesn't support the running release yet - PHP userspace packages
+# are ABI/glibc-compatible across adjacent Ubuntu releases, so this is a
+# well-known, widely-used workaround for exactly this situation. Either
+# way, Laranode's own ppa:ondrej/php + apt-install step then becomes a
+# harmless no-op since the packages are already satisfied.
+#
+# WORKAROUND (sudoers): laranode-installer.sh also writes a sudoers rule
+# with a wildcard inside a command ARGUMENT (`/bin/rm
+# .../sites-available/*.conf`) - sudo's parser only permits wildcards in
+# the command path, never in arguments, so this specific clause is
+# permanently invalid on any system/version and sudo silently skips it
+# (with a recurring "wildcards are not allowed in command arguments"
+# warning every time the file is parsed). That permission was never
+# actually granted in the first place, so this script removes just that
+# clause - verified safe with `visudo -c` before applying, and leaving it
+# untouched if that check fails.
 #
 # Env vars:
 #   LARANODE_TAILSCALE_ONLY - "true" to restrict Laranode's ports
@@ -46,6 +62,32 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 require_root
 apt_update_once
+
+# See WORKAROUND (sudoers) note above. Idempotent: a no-op once the clause
+# is gone. Never touches /etc/sudoers unless the corrected copy validates
+# cleanly with `visudo -c` first.
+fix_laranode_sudoers() {
+  local sudoers=/etc/sudoers
+  local broken=', /bin/rm /etc/apache2/sites-available/*.conf'
+  [[ -f "$sudoers" ]] || return 0
+  grep -qF "$broken" "$sudoers" 2>/dev/null || return 0
+  log "Removing Laranode's invalid sudoers clause (wildcard in a command argument - sudo" \
+      "always rejects this and already silently skips it; this permission was never granted)..."
+  local tmp
+  tmp="$(mktemp)"
+  local escaped
+  escaped="$(printf '%s' "$broken" | sed -e 's/[.[\*^$/\\]/\\&/g')"
+  sed "s/${escaped}//" "$sudoers" > "$tmp"
+  if visudo -c -f "$tmp" >/dev/null 2>&1; then
+    install -m 0440 -o root -g root "$tmp" "$sudoers"
+    ok "Fixed: removed the invalid clause, validated with visudo -c before applying."
+  else
+    warn "Could not safely fix the sudoers clause (the corrected file failed visudo -c) -" \
+         "leaving /etc/sudoers untouched. This permission was already non-functional before," \
+         "so nothing is newly broken."
+  fi
+  rm -f "$tmp"
+}
 
 LARANODE_TAILSCALE_ONLY="${LARANODE_TAILSCALE_ONLY:-false}"
 
@@ -65,6 +107,7 @@ LARANODE_APP_DIR="/home/laranode_ln/panel"
 if systemctl list-unit-files 2>/dev/null | grep -q '^laranode' && [[ -d "${LARANODE_APP_DIR}/vendor" ]]; then
   log "Laranode already installed (systemd units + ${LARANODE_APP_DIR}/vendor present); skipping installer."
   log "Re-run its installer manually to upgrade: see https://laranode.com"
+  fix_laranode_sudoers
 else
   if [[ -d "$LARANODE_APP_DIR" ]]; then
     warn "Found a partial/broken previous Laranode install at ${LARANODE_APP_DIR}" \
@@ -75,20 +118,39 @@ else
   apt_install lsb-release ca-certificates curl gnupg
   if ! command_exists php || ! command_exists composer; then
     log "Pre-installing PHP 8.4 + Composer from Sury's repo (see WORKAROUND note above)..."
-    if [[ ! -f /etc/apt/sources.list.d/php.list ]]; then
+    if [[ ! -f /usr/share/keyrings/debsuryorg-archive-keyring.gpg ]]; then
       retry curl -fsSL -o /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
       dpkg -i /tmp/debsuryorg-archive-keyring.deb
       rm -f /tmp/debsuryorg-archive-keyring.deb
-      echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
-      apt-get update -y
     fi
+
+    NATIVE_CODENAME="$(lsb_release -sc)"
+    PHP_CODENAME=""
+    for codename in "$NATIVE_CODENAME" noble; do
+      echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ ${codename} main" > /etc/apt/sources.list.d/php.list
+      apt-get update -y >/dev/null 2>&1 || true
+      if apt-cache show php8.4 >/dev/null 2>&1; then
+        PHP_CODENAME="$codename"
+        break
+      fi
+    done
+
+    if [[ -z "$PHP_CODENAME" ]]; then
+      rm -f /etc/apt/sources.list.d/php.list
+      die "PHP 8.4 isn't available from Sury's repo for ${NATIVE_CODENAME} or the noble (24.04)" \
+          "fallback. Laranode isn't installable on this Ubuntu release yet; try 22.04 or 24.04."
+    fi
+    [[ "$PHP_CODENAME" != "$NATIVE_CODENAME" ]] && warn "${NATIVE_CODENAME} isn't supported by" \
+      "Sury's repo yet - using its noble (24.04) packages instead (PHP userspace packages are" \
+      "ABI-compatible across adjacent Ubuntu releases; this is a common, safe workaround)."
+
     apt_install php8.4 php8.4-fpm php8.4-cli php8.4-common php8.4-curl \
       php8.4-mbstring php8.4-xml php8.4-bcmath php8.4-zip php8.4-mysql \
       php8.4-sqlite3 php8.4-pgsql php8.4-gd php8.4-imagick php8.4-intl \
       php8.4-readline php8.4-tokenizer php8.4-fileinfo php8.4-soap \
       php8.4-opcache unzip
-    command_exists php || die "PHP install failed even via Sury's repo for $(lsb_release -sc)." \
-      "Laranode isn't installable on this Ubuntu release yet; try 22.04 or 24.04."
+    command_exists php || die "php8.4 packages reported available but the php binary is still" \
+      "missing after apt_install - check apt output above."
     if ! command_exists composer; then
       retry curl -sS https://getcomposer.org/installer -o /tmp/composer-installer.php
       php /tmp/composer-installer.php --install-dir=/usr/local/bin --filename=composer
@@ -102,6 +164,7 @@ else
   rm -f /tmp/laranode-installer.sh
   [[ -d "${LARANODE_APP_DIR}/vendor" ]] || die "laranode-installer.sh finished but ${LARANODE_APP_DIR}/vendor is missing -" \
     "composer install likely failed silently (the installer has no 'set -e'). Check its output above."
+  fix_laranode_sudoers
   ok "Laranode installer finished - credentials it printed above are shown only once, save them now."
 fi
 
