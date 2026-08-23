@@ -139,6 +139,23 @@ else
          "Removing it so the installer's 'git clone' (not idempotent) can start fresh."
     rm -rf "$LARANODE_APP_DIR"
   fi
+
+  # WORKAROUND (apache): the installer restarts apache2 early in its run -
+  # before (re-)cloning the app - so if an enabled vhost from a PREVIOUS
+  # run still points at ${LARANODE_APP_DIR} (whether removed just above or
+  # already gone from an earlier attempt), apache2 fails to start outright
+  # (it can't open the vhost's error log in a directory that doesn't
+  # exist), which breaks everything after it in the same run. Checked
+  # against whether the directory exists *right now*, not just whether
+  # this run removed it, since it may already have been missing coming
+  # in. Laranode's own installer recreates this vhost correctly once the
+  # app is (re-)cloned, so it's safe to just disable the stale one now.
+  if [[ ! -d "$LARANODE_APP_DIR" && -f /etc/apache2/sites-enabled/000-default.conf ]] && \
+     grep -qF "$LARANODE_APP_DIR" /etc/apache2/sites-enabled/000-default.conf 2>/dev/null; then
+    warn "Disabling a stale Apache vhost pointing at a Laranode directory that no longer" \
+         "exists, so apache2 can start again before the installer recreates it."
+    a2dissite 000-default >/dev/null 2>&1 || rm -f /etc/apache2/sites-enabled/000-default.conf
+  fi
   apt_install lsb-release ca-certificates curl gnupg
   if ! command_exists php || ! command_exists composer; then
     log "Pre-installing PHP 8.4 + Composer from Sury's repo (see WORKAROUND note above)..."

@@ -361,6 +361,16 @@ directly on the host, so it runs natively rather than in k3s.
   Laranode's. `scripts/08-laranode.sh` detects and removes it both before
   touching apt itself and again after the installer runs (since it keeps
   re-adding it).
+- **Apache vhost workaround**: the installer restarts apache2 early in its
+  run, before it (re-)clones the app - so if an Apache vhost from a
+  previous failed run still points at `/home/laranode_ln/panel` (e.g.
+  after `scripts/08-laranode.sh` removed that directory per the partial-
+  install cleanup above), apache2 fails to start at all (it can't open
+  the vhost's error log in a directory that no longer exists), which
+  breaks the rest of that run too. `scripts/08-laranode.sh` disables that
+  stale vhost whenever the directory it points at doesn't currently
+  exist; Laranode's own installer recreates it correctly once the app is
+  (re-)cloned.
 
 ## Coder (optional dev-environment platform)
 
