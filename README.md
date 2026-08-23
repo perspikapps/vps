@@ -324,6 +324,22 @@ directly on the host, so it runs natively rather than in k3s.
   generated and printed once by the installer itself - not saved to a
   file by Laranode, and not re-shown by `scripts/99-summary.sh`, so copy
   them down when you see them.
+- **PHP/Composer workaround**: Laranode's installer adds `ppa:ondrej/php`
+  and installs PHP from it, but that PPA lags brand-new Ubuntu releases by
+  months (it 404s outright on 26.04/"resolute" as of this writing) - and
+  since the installer runs with `set -e` disabled, a failure there doesn't
+  stop it; it carries on into `composer install`/`php artisan ...` with no
+  PHP at all, failing loudly on each one and leaving a half-built install
+  (repo cloned, assets built, ufw rules added, but no `vendor/`, `.env`,
+  or migrations). `scripts/08-laranode.sh` works around this by
+  pre-installing PHP 8.4 + Composer from
+  [Sury's repo](https://packages.sury.org/php/) (the PPA's own
+  replacement recommendation for unsupported releases) before handing off
+  to the installer, so its own broken PPA step becomes a harmless no-op.
+  If Sury doesn't support your release either, it fails fast with a clear
+  message instead of proceeding into the same broken state. It also
+  detects and removes a partial install from a previous failed run (its
+  `git clone` isn't idempotent) before retrying.
 
 ## Coder (optional dev-environment platform)
 
