@@ -206,6 +206,10 @@ entirely - there's no `sudo` involved.
 - `scripts/06-rancher.sh` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
   Helm, exposed on ports 8080/8083 through k3s's built-in ServiceLB.
+- `scripts/07-cockpit-dockermanager.sh` - installs `cockpit-packagekit`,
+  `cockpit-files`, Docker (`docker.io`, as a dependency), and the
+  third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
+  plugin for managing Docker containers/images from Cockpit.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
   the Cockpit/Rancher credentials at the end.
 
@@ -247,6 +251,8 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `8080` / `8083` | Rancher ports |
 | `RANCHER_HOSTNAME` | node IP | Hostname used in Rancher's cert |
 | `RANCHER_BOOTSTRAP_PASSWORD` | random | Rancher initial admin password |
+| `INSTALL_DOCKER` | `true` | Install `docker.io` for cockpit-dockermanager to manage |
+| `COCKPIT_DOCKERMANAGER_VERSION` | `latest` | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
 
 Each script can also be run standalone from the `scripts/` directory
 after `lib/common.sh` is present alongside it, for example to re-run just

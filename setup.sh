@@ -24,6 +24,7 @@ SKIP_TAILSCALE=0
 SKIP_COCKPIT=0
 SKIP_K3S=0
 SKIP_RANCHER=0
+SKIP_DOCKERMANAGER=0
 
 usage() {
   cat <<'EOF'
@@ -35,12 +36,14 @@ Options:
   --skip-cockpit        Skip Cockpit install (scripts/04)
   --skip-k3s              Skip k3s/kubectl/helm install (scripts/05)
   --skip-rancher      Skip Rancher install (scripts/06)
+  --skip-dockermanager  Skip cockpit-packagekit/files/dockermanager (scripts/07)
   -h, --help                Show this help
 
 Environment variables (see README.md for the full list):
   TAILSCALE_AUTHKEY, RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
   COCKPIT_HTTP_PORT, COCKPIT_HTTPS_PORT, RANCHER_HTTP_PORT, RANCHER_HTTPS_PORT,
-  VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY
+  VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY, INSTALL_DOCKER,
+  COCKPIT_DOCKERMANAGER_VERSION
 EOF
 }
 
@@ -51,6 +54,7 @@ for arg in "$@"; do
     --skip-cockpit) SKIP_COCKPIT=1 ;;
     --skip-k3s) SKIP_K3S=1 ;;
     --skip-rancher) SKIP_RANCHER=1 ;;
+    --skip-dockermanager) SKIP_DOCKERMANAGER=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage; exit 1 ;;
   esac
@@ -110,4 +114,5 @@ run_step "03-tailscale.sh"         "$SKIP_TAILSCALE" "Tailscale install"
 run_step "04-cockpit.sh"           "$SKIP_COCKPIT"  "Cockpit install"
 run_step "05-k3s.sh"               "$SKIP_K3S"      "k3s / kubectl / helm install"
 run_step "06-rancher.sh"           "$SKIP_RANCHER"  "Rancher install"
+run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install"
 bash "$INSTALL_DIR/scripts/99-summary.sh"

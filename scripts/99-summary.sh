@@ -47,6 +47,10 @@ cat <<EOF
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 
+ Docker (Cockpit):    $(command_exists docker && echo "installed - see the Containers tab in Cockpit" || echo "not installed (run scripts/07-cockpit-dockermanager.sh)")
+                       If VPS_ADMIN_USER was just added to the docker group,
+                       log out/in (or reboot) before it takes effect.
+
  Firewall:            ufw is enabled; only SSH is public. Cockpit, Rancher
                        and the k3s API are reachable ONLY over the
                        tailscale0 interface - connect via Tailscale first.
