@@ -61,6 +61,13 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+echo "[vps-setup] repo=${REPO_URL} ref=${REPO_REF} dir=${INSTALL_DIR}"
+if [[ -z "${VPS_SETUP_REPO_REF:-}" && "$REPO_REF" == "main" ]]; then
+  echo "[vps-setup] (VPS_SETUP_REPO_REF not set - using 'main'. Note: a plain" >&2
+  echo "[vps-setup]  shell 'export' before '| sudo bash' is dropped by sudo;" >&2
+  echo "[vps-setup]  set it on the sudo line instead, e.g. 'sudo VPS_SETUP_REPO_REF=... bash'.)" >&2
+fi
+
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   echo "[vps-setup] Updating existing checkout in $INSTALL_DIR..."
   git -C "$INSTALL_DIR" fetch --depth 1 origin "$REPO_REF"

@@ -47,7 +47,44 @@ tailnet. Save the printed Rancher bootstrap password (also written to
 
 The one-liner above always fetches `setup.sh` from `main`, but `setup.sh`
 itself clones the repo again to install `scripts/*` - so to test a branch
-end-to-end you need to point *both* fetches at it with `VPS_SETUP_REPO_REF`:
+end-to-end you need to point *both* fetches at it with `VPS_SETUP_REPO_REF`.
+
+> [!WARNING]
+> **`export FOO=bar` then `... | sudo bash` will NOT work.** `sudo` resets
+> the environment by default, so a plain shell `export` is invisible to the
+> command it runs - `setup.sh` will silently fall back to `main` even
+> though `echo $VPS_SETUP_REPO_REF` shows the right value in your shell.
+> Either put the assignment directly on the `sudo` line (it is passed
+> through even with env reset on), or use `sudo -E`. Don't do this:
+>
+> ```bash
+> export VPS_SETUP_REPO_REF=my-branch          # WRONG: lost by sudo
+> curl -fsSL ".../my-branch/setup.sh" | sudo bash
+> ```
+
+Piped directly (no intermediate file), with the var set on the `sudo` line
+so it survives:
+
+```bash
+BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
+
+curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/setup.sh" \
+  | sudo VPS_SETUP_REPO_REF="$BRANCH" bash
+```
+
+Or equivalently, keep your `export` but tell `sudo` to preserve it with `-E`
+(only works if your sudoers config allows it - the explicit form above
+always works and needs no special sudoers setup):
+
+```bash
+export VPS_SETUP_REPO_REF=claude/vps-setup-ubuntu-scripts-br4ddo
+curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${VPS_SETUP_REPO_REF}/setup.sh" \
+  | sudo -E bash
+```
+
+Downloading to a file first (useful when passing several variables, as in
+the [full example](#full-copy-paste-example) above) works the same way -
+put every variable on the same line as `sudo`, before `bash`:
 
 ```bash
 BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
