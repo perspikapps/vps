@@ -29,16 +29,45 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
   once to run a few together. Any `--only-*` flag overrides every
   `--skip-*` flag on the command line.
 
+When you already have `setup.sh` on disk (e.g. after the
+[full copy-paste example](#full-copy-paste-example)'s `-o /tmp/setup.sh`
+download), pass flags after the filename like any script:
+
 ```bash
 # Re-run just Rancher, e.g. after changing RANCHER_HOSTNAME:
-sudo RANCHER_HOSTNAME=new.example.com bash setup.sh --only-rancher
+sudo RANCHER_HOSTNAME=new.example.com bash /tmp/setup.sh --only-rancher
 
 # Re-run Cockpit and the dockermanager plugin together, skipping everything else:
-sudo bash setup.sh --only-cockpit --only-dockermanager
+sudo bash /tmp/setup.sh --only-cockpit --only-dockermanager
 
 # Full run except Rancher (e.g. you're not using Kubernetes on this box):
-sudo bash setup.sh --skip-rancher --skip-k3s
+sudo bash /tmp/setup.sh --skip-rancher --skip-k3s
 ```
+
+> [!WARNING]
+> **With the piped one-liner (`curl ... | sudo bash`), you cannot just
+> append flags after `bash`** - `sudo bash --only-rancher` fails with
+> `bash: --only-rancher: invalid option`, because bash parses
+> `--only-rancher` as an option *to bash itself* (it looks like one:
+> `--only-rancher` starts with `--`, same shape as bash's own
+> `--norc`/`--posix`/etc.), not as an argument to hand the script being
+> read from stdin. You must add `-s --` first: `-s` tells bash to read
+> the script from stdin, and `--` marks the end of bash's own options so
+> everything after it is passed through as `$1`, `$2`, ... to `setup.sh`:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh \
+>   | sudo bash -s -- --only-rancher
+> ```
+>
+> This composes with env vars the usual way (see the
+> [sudo env-var gotcha](#running-from-a-non-standard-branch-or-fork)
+> above - put them on the `sudo` line, not in a plain `export`):
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh \
+>   | sudo RANCHER_HOSTNAME=new.example.com bash -s -- --only-rancher
+> ```
 
 This is equivalent to (and a convenience wrapper around) invoking a
 script directly, as shown in [Layout](#layout) below - `--only-rancher`
