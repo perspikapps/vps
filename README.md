@@ -157,10 +157,41 @@ openssl rand -base64 24
 If you don't set it, `scripts/06-rancher.sh` generates and saves one for
 you automatically.
 
+## Provisioning via cloud-init / Kairos
+
+[`cloud-init/kairos-vps-setup.yaml`](cloud-init/kairos-vps-setup.yaml) is a
+`#cloud-config` user-data file that runs `setup.sh` unattended on first
+boot - no interactive SSH session needed to kick it off. It works with:
+
+- **[Kairos](https://kairos.io)** Ubuntu-flavored images, passed as the
+  install config (e.g. `kairos-agent install --config
+  kairos-vps-setup.yaml`, or via the ISO/PXE/network install config).
+- Any plain **cloud-init** VPS provider (DigitalOcean, Hetzner Cloud,
+  OpenStack, etc.) that lets you paste "User data" at creation time -
+  Kairos and stock cloud-init share the same document format for the
+  `users` / `write_files` / `runcmd` keys this file uses.
+
+To use it:
+
+1. Copy the file and fill in the placeholders: your SSH public key (in two
+   places - `users[].ssh_authorized_keys` and `VPS_ADMIN_SSH_KEY`), your
+   Tailscale auth key, and `RANCHER_HOSTNAME`. See
+   [Getting the keys you'll need](#getting-the-keys-youll-need) above.
+2. Paste it into your provider's "User data" / cloud-init field (or pass it
+   to Kairos) when creating the VPS.
+3. On first boot the VPS installs itself unattended; check
+   `/var/log/vps-setup.log` for progress/output.
+
+Because `runcmd` already executes as root, this sidesteps the
+[`export ... | sudo bash` env-var gotcha](#running-from-a-non-standard-branch-or-fork)
+entirely - there's no `sudo` involved.
+
 ## Layout
 
 - `setup.sh` - leading script: clones/updates this repo, runs `scripts/*`
   in order, idempotent and re-runnable.
+- `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
+  runs `setup.sh` unattended on first boot.
 - `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
   every script (style borrowed from `devcontainers/features` common-utils:
   strict bash mode, non-interactive apt, "already done" checks).
