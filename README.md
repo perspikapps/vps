@@ -18,6 +18,36 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
      bash setup.sh
 ```
 
+## Running a single step (or a subset)
+
+`setup.sh` runs seven numbered steps in order: `system` (01), `security`
+(02), `tailscale` (03), `cockpit` (04), `k3s` (05), `rancher` (06), and
+`dockermanager` (07). Two flag families control which of them run:
+
+- **`--skip-<step>`** - run everything *except* the named step(s).
+- **`--only-<step>`** - run *only* the named step(s); pass it more than
+  once to run a few together. Any `--only-*` flag overrides every
+  `--skip-*` flag on the command line.
+
+```bash
+# Re-run just Rancher, e.g. after changing RANCHER_HOSTNAME:
+sudo RANCHER_HOSTNAME=new.example.com bash setup.sh --only-rancher
+
+# Re-run Cockpit and the dockermanager plugin together, skipping everything else:
+sudo bash setup.sh --only-cockpit --only-dockermanager
+
+# Full run except Rancher (e.g. you're not using Kubernetes on this box):
+sudo bash setup.sh --skip-rancher --skip-k3s
+```
+
+This is equivalent to (and a convenience wrapper around) invoking a
+script directly, as shown in [Layout](#layout) below - `--only-rancher`
+just means "run `scripts/06-rancher.sh` through `setup.sh`'s usual repo
+clone/update and final summary, instead of calling it by hand." Because
+every script is idempotent, re-running a single step to pick up a
+changed env var (like `RANCHER_HOSTNAME` above) is safe and won't disturb
+the others. See `-h`/`--help` for the full flag list.
+
 ## Full copy-paste example
 
 A realistic one-shot install on a fresh Ubuntu VPS, run as root right after
@@ -255,8 +285,11 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `COCKPIT_DOCKERMANAGER_VERSION` | `latest` | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
 
 Each script can also be run standalone from the `scripts/` directory
-after `lib/common.sh` is present alongside it, for example to re-run just
-the Rancher install with a new hostname:
+after `lib/common.sh` is present alongside it (this is what `setup.sh
+--only-<step>`, described in
+[Running a single step (or a subset)](#running-a-single-step-or-a-subset)
+above, does for you), for example to re-run just the Rancher install
+with a new hostname:
 
 ```bash
 sudo RANCHER_HOSTNAME=new.example.com bash scripts/06-rancher.sh

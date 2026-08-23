@@ -19,25 +19,43 @@ REPO_URL="${VPS_SETUP_REPO_URL:-https://github.com/perspikapps/vps.git}"
 REPO_REF="${VPS_SETUP_REPO_REF:-main}"
 INSTALL_DIR="${VPS_SETUP_DIR:-/opt/vps-setup}"
 
+# Every step below can be skipped with --skip-<step>, or you can invert
+# that and run just a subset with one or more --only-<step> flags (see
+# the ONLY_STEPS handling further down and README.md's "Running a single
+# step" section).
+SKIP_SYSTEM=0
 SKIP_SECURITY=0
 SKIP_TAILSCALE=0
 SKIP_COCKPIT=0
 SKIP_K3S=0
 SKIP_RANCHER=0
 SKIP_DOCKERMANAGER=0
+declare -a ONLY_STEPS=()
 
 usage() {
   cat <<'EOF'
 Usage: setup.sh [options]
 
 Options:
-  --skip-security     Skip firewall/SSH/fail2ban hardening (scripts/02)
-  --skip-tailscale     Skip Tailscale install (scripts/03)
+  --skip-system         Skip base system update/essentials (scripts/01)
+  --skip-security       Skip firewall/SSH/fail2ban hardening (scripts/02)
+  --skip-tailscale      Skip Tailscale install (scripts/03)
   --skip-cockpit        Skip Cockpit install (scripts/04)
-  --skip-k3s              Skip k3s/kubectl/helm install (scripts/05)
-  --skip-rancher      Skip Rancher install (scripts/06)
+  --skip-k3s            Skip k3s/kubectl/helm install (scripts/05)
+  --skip-rancher        Skip Rancher install (scripts/06)
   --skip-dockermanager  Skip cockpit-packagekit/files/dockermanager (scripts/07)
-  -h, --help                Show this help
+
+  --only-system         Run ONLY scripts/01 (base system update)
+  --only-security       Run ONLY scripts/02 (firewall/SSH/fail2ban)
+  --only-tailscale      Run ONLY scripts/03 (Tailscale)
+  --only-cockpit        Run ONLY scripts/04 (Cockpit)
+  --only-k3s            Run ONLY scripts/05 (k3s/kubectl/helm)
+  --only-rancher        Run ONLY scripts/06 (Rancher)
+  --only-dockermanager  Run ONLY scripts/07 (cockpit-packagekit/files/dockermanager)
+                        (repeat --only-* to run more than one step; any
+                        --only-* flag overrides all --skip-* flags)
+
+  -h, --help            Show this help
 
 Environment variables (see README.md for the full list):
   TAILSCALE_AUTHKEY, RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
@@ -49,16 +67,42 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
+    --skip-system) SKIP_SYSTEM=1 ;;
     --skip-security) SKIP_SECURITY=1 ;;
     --skip-tailscale) SKIP_TAILSCALE=1 ;;
     --skip-cockpit) SKIP_COCKPIT=1 ;;
     --skip-k3s) SKIP_K3S=1 ;;
     --skip-rancher) SKIP_RANCHER=1 ;;
     --skip-dockermanager) SKIP_DOCKERMANAGER=1 ;;
+    --only-system) ONLY_STEPS+=(system) ;;
+    --only-security) ONLY_STEPS+=(security) ;;
+    --only-tailscale) ONLY_STEPS+=(tailscale) ;;
+    --only-cockpit) ONLY_STEPS+=(cockpit) ;;
+    --only-k3s) ONLY_STEPS+=(k3s) ;;
+    --only-rancher) ONLY_STEPS+=(rancher) ;;
+    --only-dockermanager) ONLY_STEPS+=(dockermanager) ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage; exit 1 ;;
   esac
 done
+
+# Any --only-<step> flag overrides --skip-*: start from "skip everything"
+# and re-enable just the requested step(s).
+if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
+  SKIP_SYSTEM=1 SKIP_SECURITY=1 SKIP_TAILSCALE=1 SKIP_COCKPIT=1
+  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1
+  for step in "${ONLY_STEPS[@]}"; do
+    case "$step" in
+      system) SKIP_SYSTEM=0 ;;
+      security) SKIP_SECURITY=0 ;;
+      tailscale) SKIP_TAILSCALE=0 ;;
+      cockpit) SKIP_COCKPIT=0 ;;
+      k3s) SKIP_K3S=0 ;;
+      rancher) SKIP_RANCHER=0 ;;
+      dockermanager) SKIP_DOCKERMANAGER=0 ;;
+    esac
+  done
+fi
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "[vps-setup] This script must be run as root (use sudo)." >&2
@@ -108,7 +152,7 @@ run_step() {
   ok "=== Done: ${label} ==="
 }
 
-run_step "01-system-update.sh"     0               "Base system update & essentials"
+run_step "01-system-update.sh"     "$SKIP_SYSTEM"   "Base system update & essentials"
 run_step "02-security-harden.sh"   "$SKIP_SECURITY" "Firewall / SSH / fail2ban hardening"
 run_step "03-tailscale.sh"         "$SKIP_TAILSCALE" "Tailscale install"
 run_step "04-cockpit.sh"           "$SKIP_COCKPIT"  "Cockpit install"
