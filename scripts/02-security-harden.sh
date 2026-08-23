@@ -9,6 +9,12 @@
 # Env vars:
 #   VPS_ADMIN_USER      - optional non-root user to create (default: unset/skip)
 #   VPS_ADMIN_SSH_KEY   - public key to authorize for VPS_ADMIN_USER and root
+#   VPS_ADMIN_PASSWORD  - Cockpit/console login password for VPS_ADMIN_USER (or
+#                         root if unset). Default: random, saved to
+#                         /root/.cockpit-admin-password. This is separate from
+#                         SSH: SSH password auth stays disabled once a key is
+#                         present, this password is only for logging into
+#                         Cockpit (and the local console) via PAM.
 #   SSH_PORT            - SSH port to keep open (default: 22)
 #   COCKPIT_HTTP_PORT   - default 9080
 #   COCKPIT_HTTPS_PORT  - default 9083
@@ -58,6 +64,25 @@ if [[ -n "${VPS_ADMIN_SSH_KEY:-}" ]]; then
   ensure_line "$VPS_ADMIN_SSH_KEY" /root/.ssh/authorized_keys
   chmod 600 /root/.ssh/authorized_keys
 fi
+
+# Cockpit authenticates via PAM against a real Linux account/password, which
+# is independent of SSH key auth - without this, adduser --disabled-password
+# above leaves no way to log into Cockpit at all.
+COCKPIT_USER="${VPS_ADMIN_USER:-root}"
+COCKPIT_PW_FILE=/root/.cockpit-admin-password
+if [[ -n "${VPS_ADMIN_PASSWORD:-}" ]]; then
+  COCKPIT_PASSWORD="$VPS_ADMIN_PASSWORD"
+elif [[ -f "$COCKPIT_PW_FILE" ]]; then
+  COCKPIT_PASSWORD="$(cat "$COCKPIT_PW_FILE")"
+else
+  COCKPIT_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+fi
+echo "${COCKPIT_USER}:${COCKPIT_PASSWORD}" | chpasswd
+umask 077
+echo "$COCKPIT_PASSWORD" > "$COCKPIT_PW_FILE"
+echo "$COCKPIT_USER" > /root/.cockpit-admin-user
+umask 022
+ok "Cockpit login set: user=${COCKPIT_USER} (password saved to ${COCKPIT_PW_FILE})."
 
 # Only disable password auth if at least one authorized_keys file has a key,
 # otherwise we'd lock everyone out.

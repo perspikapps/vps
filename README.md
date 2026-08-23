@@ -199,13 +199,15 @@ entirely - there's no `sudo` involved.
   unattended security upgrades.
 - `scripts/02-security-harden.sh` - optional non-root admin user, ufw
   (default-deny inbound; SSH public, everything else Tailscale-only),
-  sshd hardening, fail2ban.
+  sshd hardening, fail2ban, and a Cockpit/console login password.
 - `scripts/03-tailscale.sh` - installs Tailscale and joins the tailnet.
 - `scripts/04-cockpit.sh` - installs Cockpit, served on ports 9080/9083.
 - `scripts/05-k3s.sh` - installs k3s (Traefik disabled), kubectl, Helm.
-- `scripts/06-rancher.sh` - installs the latest Rancher via Helm, exposed
-  on ports 8080/8083 through k3s's built-in ServiceLB.
-- `scripts/99-summary.sh` - prints connection info at the end.
+- `scripts/06-rancher.sh` - installs cert-manager (required by Rancher's
+  self-signed TLS even with ingress disabled) and the latest Rancher via
+  Helm, exposed on ports 8080/8083 through k3s's built-in ServiceLB.
+- `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
+  the Cockpit/Rancher credentials at the end.
 
 ## Security model
 
@@ -215,12 +217,29 @@ by `ufw` to the `tailscale0` interface only, so you must join the same
 tailnet to reach them. Set `ALLOW_PUBLIC_WEB=true` if you want ports 80/443
 open publicly (e.g. to front Rancher with your own ingress/TLS setup).
 
+## Cockpit and Rancher logins
+
+- **Cockpit** authenticates via PAM against a real Linux account and
+  password - separate from SSH, which stays key-only. `scripts/02-security-harden.sh`
+  sets a password for `VPS_ADMIN_USER` (or `root` if that's unset): either
+  `VPS_ADMIN_PASSWORD` if you set it, or a random one saved to
+  `/root/.cockpit-admin-password` (username in `/root/.cockpit-admin-user`).
+- **Rancher** username is always `admin`; the initial password is
+  `RANCHER_BOOTSTRAP_PASSWORD` if set, otherwise a random one saved to
+  `/root/.rancher-bootstrap-password`. Rancher prompts you to change it on
+  first login.
+
+Both credentials, along with the Tailscale IP/URL to reach them on, are
+printed by `scripts/99-summary.sh` at the end of the install (and any time
+you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
+
 ## Key environment variables
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `VPS_ADMIN_USER` | unset | Create this sudo user |
 | `VPS_ADMIN_SSH_KEY` | unset | Authorized key for the admin user and root |
+| `VPS_ADMIN_PASSWORD` | random | Cockpit/console login password (separate from SSH) |
 | `SSH_PORT` | `22` | SSH port kept open publicly |
 | `ALLOW_PUBLIC_WEB` | `false` | Also open 80/443 publicly |
 | `TAILSCALE_AUTHKEY` | unset | Auto-join a tailnet |

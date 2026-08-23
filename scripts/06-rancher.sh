@@ -13,6 +13,10 @@
 #   RANCHER_HTTP_PORT           - default 8080
 #   RANCHER_HTTPS_PORT          - default 8083
 #   RANCHER_CHART_VERSION       - pin a chart version (optional, default: latest)
+#   CERT_MANAGER_VERSION        - pin cert-manager's chart version (optional)
+#
+# Installs cert-manager first: Rancher's default self-signed TLS source
+# requires it to issue certs even when ingress is disabled.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,9 +43,24 @@ fi
 umask 077
 echo "$RANCHER_BOOTSTRAP_PASSWORD" > "$PW_FILE"
 
-log "Adding rancher-latest Helm repo..."
+log "Adding jetstack (cert-manager) and rancher-latest Helm repos..."
+helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
 helm repo add rancher-latest https://releases.rancher.com/server-charts/latest >/dev/null 2>&1 || true
 helm repo update >/dev/null
+
+# Rancher's default self-signed TLS source ("rancher") issues certs through
+# cert-manager regardless of whether an ingress is deployed, so without this
+# the rancher pod never becomes Ready and `helm ... --wait` below times out,
+# aborting the whole setup.sh run.
+log "Installing cert-manager (required by Rancher, even with ingress disabled)..."
+kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+CERT_MANAGER_VERSION_ARG=()
+[[ -n "${CERT_MANAGER_VERSION:-}" ]] && CERT_MANAGER_VERSION_ARG=(--version "$CERT_MANAGER_VERSION")
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --set crds.enabled=true \
+  "${CERT_MANAGER_VERSION_ARG[@]}" \
+  --wait --timeout 5m
 
 kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
 
