@@ -8,8 +8,8 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-9080}"
 COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
-RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-8080}"
-RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-8083}"
+RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
+RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
 
 TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
 HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
@@ -21,7 +21,7 @@ COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not s
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
 RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run scripts/06-rancher.sh')"
 
-CODER_HTTP_PORT="${CODER_HTTP_PORT:-8090}"
+CODER_HTTP_PORT="${CODER_HTTP_PORT:-6080}"
 CODER_HOSTNAME="${CODER_HOSTNAME:-$HOST_FOR_URLS}"
 
 cat <<EOF
@@ -80,8 +80,8 @@ fi
 
 cat <<EOF
 
- Firewall:            ufw is enabled; only SSH is public. Cockpit, Rancher
-                       and the k3s API are reachable ONLY over the
+ Firewall:            ufw is enabled; only SSH is public. Cockpit, Rancher,
+                       Coder, and the k3s API are reachable ONLY over the
                        tailscale0 interface - connect via Tailscale first.
 ======================================================================
 EOF

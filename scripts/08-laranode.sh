@@ -15,9 +15,10 @@
 # would defeat its own core purpose. Set LARANODE_TAILSCALE_ONLY=true if
 # you specifically want it private instead (e.g. an internal-only panel).
 #
-# NOTE: Laranode hardcodes port 8080 for Reverb, which collides with this
-# repo's own RANCHER_HTTP_PORT default (also 8080) if you install both -
-# set RANCHER_HTTP_PORT to something else first if so.
+# NOTE: Laranode hardcodes port 8080 for Reverb. This repo's own Rancher
+# defaults to the 7xxx range specifically to stay out of the way, but if
+# you've set RANCHER_HTTP_PORT=8080 yourself, change it before installing
+# both.
 #
 # WORKAROUND (PHP): laranode-installer.sh adds `ppa:ondrej/php` and
 # installs php8.4 from it, but that PPA lags new Ubuntu releases by months
@@ -115,9 +116,9 @@ fix_laranode_sudoers() {
 
 LARANODE_TAILSCALE_ONLY="${LARANODE_TAILSCALE_ONLY:-false}"
 
-if [[ "${RANCHER_HTTP_PORT:-8080}" == "8080" ]]; then
-  warn "Laranode's Reverb websocket service hardcodes port 8080, the same" \
-       "as this repo's default RANCHER_HTTP_PORT. If you're installing" \
+if [[ "${RANCHER_HTTP_PORT:-7080}" == "8080" ]]; then
+  warn "Laranode's Reverb websocket service hardcodes port 8080, and" \
+       "RANCHER_HTTP_PORT is set to the same value. If you're installing" \
        "both, set RANCHER_HTTP_PORT to something else before running" \
        "scripts/06-rancher.sh."
 fi

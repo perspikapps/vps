@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the latest SUSE Rancher release onto the k3s cluster from
 # scripts/05, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
-# 8080/8083) via k3s's built-in ServiceLB (Klipper), which binds those
+# 7080/7083) via k3s's built-in ServiceLB (Klipper), which binds those
 # host ports directly -- no external load balancer needed for a single node.
 #
 # Env vars:
@@ -10,8 +10,8 @@
 #   RANCHER_BOOTSTRAP_PASSWORD  - initial admin password (default: random,
 #                                 printed at the end and saved to
 #                                 /root/.rancher-bootstrap-password)
-#   RANCHER_HTTP_PORT           - default 8080
-#   RANCHER_HTTPS_PORT          - default 8083
+#   RANCHER_HTTP_PORT           - default 7080
+#   RANCHER_HTTPS_PORT          - default 7083
 #   RANCHER_CHART_VERSION       - pin a chart version (optional, default: latest)
 #   CERT_MANAGER_VERSION        - pin cert-manager's chart version (optional)
 #
@@ -28,8 +28,8 @@ export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
 command_exists helm || die "helm not found; run scripts/05-k3s.sh first."
 
-RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-8080}"
-RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-8083}"
+RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
+RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 
 PW_FILE=/root/.rancher-bootstrap-password

@@ -104,7 +104,7 @@ This creates the `ops` sudo user with your key, disables SSH password
 login, joins your tailnet immediately, and installs Cockpit + k3s +
 Rancher. When it finishes, connect over Tailscale and open Cockpit
 (`https://<tailscale-ip>:9080`) and Rancher
-(`https://rancher.tailnet-name.ts.net:8083`) from a machine on the same
+(`https://rancher.tailnet-name.ts.net:7083`) from a machine on the same
 tailnet. Save the printed Rancher bootstrap password (also written to
 `/root/.rancher-bootstrap-password`) to log in.
 
@@ -271,7 +271,7 @@ entirely - there's no `sudo` involved.
 - `scripts/05-k3s.sh` - installs k3s (Traefik disabled), kubectl, Helm.
 - `scripts/06-rancher.sh` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
-  Helm, exposed on ports 8080/8083 through k3s's built-in ServiceLB.
+  Helm, exposed on ports 7080/7083 through k3s's built-in ServiceLB.
 - `scripts/07-cockpit-dockermanager.sh` - installs `cockpit-packagekit`,
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
@@ -281,7 +281,7 @@ entirely - there's no `sudo` involved.
   on the host via its official installer.
 - `scripts/09-coder.sh` - **opt-in** (`--with-coder`/`--only-coder`):
   deploys [Coder](https://coder.com) plus a minimal Postgres as Helm
-  releases into k3s, exposed on port 8090.
+  releases into k3s, exposed on port 6080.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
   the Cockpit/Rancher/Coder credentials at the end.
 
@@ -317,9 +317,11 @@ directly on the host, so it runs natively rather than in k3s.
   Encrypt feature needs port 80 reachable for ACME HTTP-01 validation.
   Set `LARANODE_TAILSCALE_ONLY=true` if you want it private instead (this
   also disables its Let's Encrypt issuance).
-- **Port collision**: Laranode hardcodes port 8080 for Reverb, the same as
-  this repo's default `RANCHER_HTTP_PORT`. If you're installing both, set
-  `RANCHER_HTTP_PORT` to something else first.
+- **Port range**: Laranode's Reverb port (`8080`, hardcoded upstream) is
+  the only thing in the `8xxx` range - Rancher defaults to `7xxx` and
+  Coder to `6xxx` specifically to stay out of its way (see
+  [Key environment variables](#key-environment-variables)). If you've set
+  `RANCHER_HTTP_PORT=8080` yourself, change it before installing both.
 - Credentials (MySQL root password, Laranode's own DB user password) are
   generated and printed once by the installer itself - not saved to a
   file by Laranode, and not re-shown by `scripts/99-summary.sh`, so copy
@@ -386,7 +388,7 @@ how they were installed.
   single-replica Postgres (official `postgres` image + a PVC on k3s's
   default `local-path` StorageClass) - fine for this repo's single-node
   scope, not meant to be HA.
-- Exposed on `CODER_HTTP_PORT` (default `8090`) via k3s's built-in
+- Exposed on `CODER_HTTP_PORT` (default `6080`) via k3s's built-in
   ServiceLB, the same pattern as Rancher - Tailscale-only by default,
   same as everything else (see [Security model](#security-model)).
 - Runs over plain HTTP inside the cluster: the transport is already
@@ -426,20 +428,27 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `ALLOW_PUBLIC_WEB` | `false` | Also open 80/443 publicly |
 | `TAILSCALE_AUTHKEY` | unset | Auto-join a tailnet (**required** unless `--skip-tailscale`) |
 | `TAILSCALE_EXTRA_ARGS` | unset | Extra flags appended to `tailscale up` |
-| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083` | Cockpit ports |
-| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `8080` / `8083` | Rancher ports |
+| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083` | Cockpit ports (`9xxx`) |
+| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083` | Rancher ports (`7xxx`) |
 | `RANCHER_HOSTNAME` | node IP | Hostname used in Rancher's cert |
 | `RANCHER_BOOTSTRAP_PASSWORD` | random | Rancher initial admin password |
 | `INSTALL_DOCKER` | `true` | Install `docker.io` for cockpit-dockermanager to manage |
 | `COCKPIT_DOCKERMANAGER_VERSION` | `latest` | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
 | `LARANODE_TAILSCALE_ONLY` | `false` | Restrict Laranode's ports to Tailscale instead of leaving them public |
 | `CODER_HOSTNAME` | node IP | Hostname used in `CODER_ACCESS_URL` |
-| `CODER_HTTP_PORT` | `8090` | Coder's exposed port |
+| `CODER_HTTP_PORT` | `6080` | Coder's exposed port (`6xxx`) |
 | `CODER_ADMIN_USERNAME` / `CODER_ADMIN_EMAIL` | `admin` / `admin@<hostname>` | Initial Coder admin account |
 | `CODER_ADMIN_PASSWORD` | random | Initial Coder admin password |
 | `CODER_POSTGRES_PASSWORD` | random | Password for Coder's bundled Postgres |
 | `CODER_CHART_VERSION` | latest | Pin the Coder Helm chart version |
 | `CODER_EXTRA_HELM_ARGS` | unset | Extra args appended to Coder's `helm upgrade --install` |
+
+Ports follow a per-app range so they're easy to tell apart at a glance:
+Cockpit `9xxx`, Rancher `7xxx`, Coder `6xxx`, and Laranode's hardcoded
+Reverb port lands in `8xxx` (see
+[Laranode](#laranode-optional-lamp-hosting-panel) - everything else about
+Laranode's ports, including 80/443, is upstream's own and not
+configurable here).
 
 Each script can also be run standalone from the `scripts/` directory
 after `lib/common.sh` is present alongside it (this is what `setup.sh

@@ -10,7 +10,7 @@
 # default local-path StorageClass) to back it - fine for this repo's
 # single-node scope, not meant to be HA.
 #
-# Exposed on CODER_HTTP_PORT (default 8090) via k3s's built-in ServiceLB,
+# Exposed on CODER_HTTP_PORT (default 6080) via k3s's built-in ServiceLB,
 # same pattern as scripts/06-rancher.sh. Plain HTTP: the transport is
 # already encrypted by Tailscale itself since this is Tailscale-only by
 # default (see scripts/02-security-harden.sh); set coder.tls.secretNames
@@ -25,7 +25,7 @@
 # Env vars:
 #   CODER_HOSTNAME              - FQDN/IP used in CODER_ACCESS_URL
 #                                 (default: the node's primary IP)
-#   CODER_HTTP_PORT             - default 8090
+#   CODER_HTTP_PORT             - default 6080
 #   CODER_ADMIN_USERNAME        - default "admin"
 #   CODER_ADMIN_EMAIL           - default "admin@<CODER_HOSTNAME>"
 #   CODER_ADMIN_PASSWORD        - initial admin password (default: random,
@@ -45,7 +45,7 @@ export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
 command_exists helm || die "helm not found; run scripts/05-k3s.sh first."
 
-CODER_HTTP_PORT="${CODER_HTTP_PORT:-8090}"
+CODER_HTTP_PORT="${CODER_HTTP_PORT:-6080}"
 CODER_HOSTNAME="${CODER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 CODER_ADMIN_USERNAME="${CODER_ADMIN_USERNAME:-admin}"
 CODER_ADMIN_EMAIL="${CODER_ADMIN_EMAIL:-admin@${CODER_HOSTNAME}}"
