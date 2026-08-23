@@ -43,6 +43,43 @@ Rancher. When it finishes, connect over Tailscale and open Cockpit
 tailnet. Save the printed Rancher bootstrap password (also written to
 `/root/.rancher-bootstrap-password`) to log in.
 
+## Running from a non-standard branch or fork
+
+The one-liner above always fetches `setup.sh` from `main`, but `setup.sh`
+itself clones the repo again to install `scripts/*` - so to test a branch
+end-to-end you need to point *both* fetches at it with `VPS_SETUP_REPO_REF`:
+
+```bash
+BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
+
+curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/setup.sh" -o /tmp/setup.sh
+
+sudo VPS_SETUP_REPO_REF="$BRANCH" \
+     VPS_ADMIN_USER=ops VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAA..." \
+     bash /tmp/setup.sh
+```
+
+Env vars for this:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VPS_SETUP_REPO_URL` | `https://github.com/perspikapps/vps.git` | Clone a fork instead |
+| `VPS_SETUP_REPO_REF` | `main` | Branch, tag, or commit to check out |
+| `VPS_SETUP_DIR` | `/opt/vps-setup` | Where the repo is cloned/updated |
+
+To point at a fork as well as a branch, set both:
+
+```bash
+sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
+     VPS_SETUP_REPO_REF=my-feature \
+     bash /tmp/setup.sh
+```
+
+`setup.sh` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
+`reset --hard` if it's already a checkout), so re-running it after pushing
+new commits to the same branch picks them up automatically - no need to
+re-download `setup.sh` itself unless you're switching branches/forks.
+
 ## Getting the keys you'll need
 
 **SSH key pair** (for `VPS_ADMIN_SSH_KEY`) - generate one on your own
