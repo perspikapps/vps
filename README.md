@@ -323,3 +323,32 @@ with a new hostname:
 ```bash
 sudo RANCHER_HOSTNAME=new.example.com bash scripts/06-rancher.sh
 ```
+
+## Troubleshooting: a step fails or "just stops"
+
+Every script runs under `set -euo pipefail` and sources `lib/common.sh`,
+which installs an error trap: the first command that fails without being
+explicitly handled (i.e. not part of an `if`/`&&`/`||`) prints its exact
+file, line number, and the failing command, then the script exits. For
+example:
+
+```
+[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/scripts/06-rancher.sh line 52: helm upgrade --install rancher ...
+```
+
+When a step fails during a full `setup.sh` run, it also prints which
+numbered step failed and how to re-run just that one after fixing the
+issue:
+
+```
+[vps-setup] Step 'Rancher install' (06-rancher.sh) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo bash setup.sh --only-rancher
+```
+
+If you ever see a step stop with truly no output at all (not even its own
+first `log` line), that most often means a *prerequisite* step was
+skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
+full run) was never done first, so `kubectl`/`helm` don't exist yet.
+`scripts/06-rancher.sh` and `scripts/05-k3s.sh` check for their
+prerequisites explicitly and `die` with a clear message in that case; if
+you hit a silent stop anywhere else, please open an issue with the exact
+command you ran and the last few lines of output.

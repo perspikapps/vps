@@ -16,6 +16,21 @@ ok()   { printf '%s[vps-setup]%s %s\n' "$COLOR_GREEN" "$COLOR_RESET" "$*"; }
 warn() { printf '%s[vps-setup]%s %s\n' "$COLOR_YELLOW" "$COLOR_RESET" "$*" >&2; }
 die()  { printf '%s[vps-setup]%s %s\n' "$COLOR_RED" "$COLOR_RESET" "$*" >&2; exit 1; }
 
+# Under `set -e`, an unguarded command failing (anything not part of an
+# if/while/&&/||) kills the script immediately with only whatever *that
+# command's* own stderr happened to print - which can be nothing (a
+# transient network blip, a command that fails silently). Without this,
+# that looks exactly like "the script just stopped with no message".
+# This trap prints the failing command, file, and line before bash exits,
+# so every script sourcing common.sh gets this diagnostic for free.
+_vps_setup_on_error() {
+  local exit_code=$?
+  printf '%s[vps-setup]%s ERROR: command failed (exit %s) at %s line %s: %s\n' \
+    "$COLOR_RED" "$COLOR_RESET" "$exit_code" \
+    "${BASH_SOURCE[1]:-$0}" "${BASH_LINENO[0]:-?}" "$BASH_COMMAND" >&2
+}
+trap _vps_setup_on_error ERR
+
 require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
     die "This script must be run as root (use sudo)."

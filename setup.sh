@@ -142,21 +142,26 @@ require_root
 require_ubuntu
 
 run_step() {
-  local script="$1" skip="$2" label="$3"
+  local script="$1" skip="$2" label="$3" flag_name="$4"
   if [[ "$skip" -eq 1 ]]; then
     warn "Skipping ${label} (${script})"
     return
   fi
   log "=== Running ${label} (${script}) ==="
-  bash "$INSTALL_DIR/scripts/${script}"
+  local rc=0
+  bash "$INSTALL_DIR/scripts/${script}" || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    die "Step '${label}' (${script}) failed (exit ${rc}) - see the error above." \
+        "Fix it and re-run just this step with: sudo bash setup.sh --only-${flag_name}"
+  fi
   ok "=== Done: ${label} ==="
 }
 
-run_step "01-system-update.sh"     "$SKIP_SYSTEM"   "Base system update & essentials"
-run_step "02-security-harden.sh"   "$SKIP_SECURITY" "Firewall / SSH / fail2ban hardening"
-run_step "03-tailscale.sh"         "$SKIP_TAILSCALE" "Tailscale install"
-run_step "04-cockpit.sh"           "$SKIP_COCKPIT"  "Cockpit install"
-run_step "05-k3s.sh"               "$SKIP_K3S"      "k3s / kubectl / helm install"
-run_step "06-rancher.sh"           "$SKIP_RANCHER"  "Rancher install"
-run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install"
+run_step "01-system-update.sh"     "$SKIP_SYSTEM"        "Base system update & essentials"           system
+run_step "02-security-harden.sh"   "$SKIP_SECURITY"      "Firewall / SSH / fail2ban hardening"        security
+run_step "03-tailscale.sh"         "$SKIP_TAILSCALE"     "Tailscale install"                          tailscale
+run_step "04-cockpit.sh"           "$SKIP_COCKPIT"       "Cockpit install"                            cockpit
+run_step "05-k3s.sh"               "$SKIP_K3S"           "k3s / kubectl / helm install"                k3s
+run_step "06-rancher.sh"           "$SKIP_RANCHER"       "Rancher install"                            rancher
+run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install" dockermanager
 bash "$INSTALL_DIR/scripts/99-summary.sh"
