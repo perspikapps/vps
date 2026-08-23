@@ -77,6 +77,16 @@ retry() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# Generate a random alphanumeric string of the given length (default 24).
+# The `|| true` matters: `head -c N` closes its end of the pipe once it has
+# read enough bytes, which sends SIGPIPE to `tr` - under `set -o pipefail`
+# (which every script has via `set -euo pipefail`) that SIGPIPE (exit 141)
+# becomes the pipeline's reported exit status even though `head` succeeded
+# and the output is exactly right, killing the script under `set -e`.
+random_password() {
+  tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${1:-24}" || true
+}
+
 # Idempotent line-in-file helper (append only if not already present).
 ensure_line() {
   local line="$1" file="$2"

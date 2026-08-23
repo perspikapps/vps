@@ -75,7 +75,7 @@ if [[ -n "${VPS_ADMIN_PASSWORD:-}" ]]; then
 elif [[ -f "$COCKPIT_PW_FILE" ]]; then
   COCKPIT_PASSWORD="$(cat "$COCKPIT_PW_FILE")"
 else
-  COCKPIT_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+  COCKPIT_PASSWORD="$(random_password 24)"
 fi
 echo "${COCKPIT_USER}:${COCKPIT_PASSWORD}" | chpasswd
 umask 077

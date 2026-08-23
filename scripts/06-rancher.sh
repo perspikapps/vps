@@ -37,7 +37,7 @@ if [[ -z "${RANCHER_BOOTSTRAP_PASSWORD:-}" ]]; then
   if [[ -f "$PW_FILE" ]]; then
     RANCHER_BOOTSTRAP_PASSWORD="$(cat "$PW_FILE")"
   else
-    RANCHER_BOOTSTRAP_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+    RANCHER_BOOTSTRAP_PASSWORD="$(random_password 24)"
   fi
 fi
 umask 077
