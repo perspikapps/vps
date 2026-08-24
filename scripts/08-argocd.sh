@@ -8,8 +8,8 @@
 # dashboard (see scripts/02-security-harden.sh's Security model).
 #
 # Env vars:
-#   ARGOCD_HTTP_PORT      - default 7090
-#   ARGOCD_HTTPS_PORT     - default 7093
+#   ARGOCD_HTTP_PORT      - default from ../network.yaml (argocd_http)
+#   ARGOCD_HTTPS_PORT     - default from ../network.yaml (argocd_https)
 #   ARGOCD_CHART_VERSION  - pin a chart version (optional, default: latest)
 
 set -euo pipefail
@@ -22,8 +22,8 @@ export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
 command_exists helm || die "helm not found; run scripts/05-k3s.sh first."
 
-ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-7090}"
-ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-7093}"
+ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-$(net_port argocd_http)}"
+ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-$(net_port argocd_https)}"
 
 log "Adding argo Helm repo..."
 helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true

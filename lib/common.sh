@@ -77,6 +77,38 @@ retry() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# Repo root, computed from this file's own location so it resolves
+# correctly whether a script runs via setup.sh (from /opt/vps-setup) or
+# standalone from a checkout elsewhere.
+VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NETWORK_YAML="${NETWORK_YAML:-$VPS_SETUP_ROOT/network.yaml}"
+
+# Installs mikefarah/yq (a standalone Go binary) the first time a
+# network.yaml lookup is needed. Deliberately not Ubuntu's `yq` apt
+# package, which is a different (Python/jq-based) tool with incompatible
+# syntax.
+ensure_yq() {
+  command_exists yq && return
+  log "Installing yq (YAML processor, for network.yaml)..."
+  local arch
+  arch="$(dpkg --print-architecture)"
+  retry curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}" -o /usr/local/bin/yq
+  chmod +x /usr/local/bin/yq
+}
+
+# Look up a port/access value from network.yaml by its `name` field.
+# Every caller should still layer its own env var override on top, e.g.:
+#   RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
+net_port() {
+  ensure_yq
+  yq e ".ports[] | select(.name == \"$1\") | .port" "$NETWORK_YAML"
+}
+
+net_access() {
+  ensure_yq
+  yq e ".ports[] | select(.name == \"$1\") | .access" "$NETWORK_YAML"
+}
+
 # Generate a random alphanumeric string of the given length (default 24).
 # The `|| true` matters: `head -c N` closes its end of the pipe once it has
 # read enough bytes, which sends SIGPIPE to `tr` - under `set -o pipefail`

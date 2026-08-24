@@ -254,9 +254,13 @@ entirely - there's no `sudo` involved.
   in order, idempotent and re-runnable.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `setup.sh` unattended on first boot.
+- `network.yaml` - single source of truth for every port this setup opens
+  and whether it's public or Tailscale-only - see
+  [Network config](#network-config-networkyaml).
 - `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
   every script (style borrowed from `devcontainers/features` common-utils:
-  strict bash mode, non-interactive apt, "already done" checks).
+  strict bash mode, non-interactive apt, "already done" checks), plus
+  `net_port`/`net_access` for reading `network.yaml`.
 - `scripts/01-system-update.sh` - apt update/upgrade, base tooling,
   unattended security upgrades.
 - `scripts/02-security-harden.sh` - optional non-root admin user, ufw
@@ -281,6 +285,39 @@ entirely - there's no `sudo` involved.
   k3s's built-in ServiceLB.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
   the Cockpit/Rancher/ArgoCD credentials at the end.
+
+## Network config (`network.yaml`)
+
+Every port this repo opens, and whether it's public or Tailscale-only,
+lives in one file: `network.yaml`. Each entry looks like:
+
+```yaml
+- name: rancher_http
+  port: 7080
+  access: tailscale   # or: public
+  app: rancher        # optional, informational
+  note: "..."         # optional, becomes the ufw rule's comment
+```
+
+`scripts/02-security-harden.sh` reads the whole file and builds ufw's
+rules from it generically - there's no per-service ufw logic left in that
+script, just a loop over `network.yaml`'s entries. Every other script
+that binds a port (Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads
+its own default from the same file via `lib/common.sh`'s `net_port()`
+helper, so the port ufw opens and the port the app actually listens on
+can't drift apart.
+
+To change a default port for good, edit `network.yaml` and re-run the
+affected step(s) (e.g. `--only-security --only-rancher` after changing
+`rancher_http`). To override a port for a single run without editing the
+file, use its env var - the name is always the entry's `name`, upper-cased,
+with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`, `ssh` ->
+`SSH_PORT`, and so on.
+
+Lookups are done with [mikefarah/yq](https://github.com/mikefarah/yq) (a
+standalone Go binary, auto-installed to `/usr/local/bin/yq` the first
+time any script needs it) - deliberately not Ubuntu's `yq` apt package,
+which is a different, jq-based tool with incompatible filter syntax.
 
 ## Security model
 
@@ -376,6 +413,10 @@ printed by `scripts/99-summary.sh` at the end of the install (and any time
 you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 
 ## Key environment variables
+
+All `*_PORT` variables below are per-run overrides of a default that
+actually lives in [`network.yaml`](#network-config-networkyaml) - edit
+that file to change a default for good, or set the env var for one run.
 
 | Variable | Default | Purpose |
 |---|---|---|

@@ -5,8 +5,8 @@
 # it's bound to; we just socket-activate it on two ports for convenience.
 #
 # Env vars:
-#   COCKPIT_HTTP_PORT   - default 9080
-#   COCKPIT_HTTPS_PORT  - default 9083
+#   COCKPIT_HTTP_PORT   - default from ../network.yaml (cockpit_http)
+#   COCKPIT_HTTPS_PORT  - default from ../network.yaml (cockpit_https)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,8 +16,8 @@ source "$SCRIPT_DIR/../lib/common.sh"
 require_root
 apt_update_once
 
-COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-9080}"
-COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
+COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-$(net_port cockpit_http)}"
+COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-$(net_port cockpit_https)}"
 
 log "Installing Cockpit..."
 apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged

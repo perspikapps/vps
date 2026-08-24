@@ -25,8 +25,9 @@
 #                            "false" once you're ready for real, trusted
 #                            certs (production LE has strict per-domain
 #                            rate limits, so avoid testing against it).
-#   TRAEFIK_DASHBOARD_PORT - default 8088, Tailscale-only, no login (see
-#                            README's Security model)
+#   TRAEFIK_DASHBOARD_PORT - default from ../network.yaml (traefik_dashboard),
+#                            Tailscale-only, no login (see README's Security
+#                            model)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -103,7 +104,7 @@ ok "k3s, kubectl and helm are installed. KUBECONFIG=${KUBECONFIG_PATH}"
 
 TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
 TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
-TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
+TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-$(net_port traefik_dashboard)}"
 
 if [[ "$TRAEFIK_ACME_EMAIL" == "admin@example.com" ]]; then
   warn "TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \

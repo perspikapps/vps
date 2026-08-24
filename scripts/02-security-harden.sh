@@ -2,10 +2,14 @@
 # Harden the server for exposure to the public internet:
 #   - optional non-root sudo admin user with SSH key
 #   - SSH: disable root login, disable password auth (only if a key exists)
-#   - UFW: default-deny inbound, allow SSH and HTTP/HTTPS (Traefik's
-#     ingress, see scripts/05-k3s.sh) publicly, allow Cockpit/Rancher/the
-#     Traefik dashboard/ArgoCD ONLY over the Tailscale interface
+#   - UFW: default-deny inbound, then every rule in ../network.yaml applied
+#     as either public or Tailscale-only, per its `access` field
 #   - fail2ban for SSH brute-force protection
+#
+# Ports and their public/Tailscale-only access are defined in
+# ../network.yaml, not here - see that file and README.md's "Security
+# model" section. Each port there can still be overridden for a single
+# run via an env var named after it (e.g. RANCHER_HTTP_PORT).
 #
 # Env vars:
 #   VPS_ADMIN_USER      - optional non-root user to create (default: unset/skip)
@@ -16,15 +20,7 @@
 #                         SSH: SSH password auth stays disabled once a key is
 #                         present, this password is only for logging into
 #                         Cockpit (and the local console) via PAM.
-#   SSH_PORT            - SSH port to keep open (default: 22)
-#   COCKPIT_HTTP_PORT   - default 9080
-#   COCKPIT_HTTPS_PORT  - default 9083
-#   RANCHER_HTTP_PORT   - default 7080
-#   RANCHER_HTTPS_PORT  - default 7083
-#   TRAEFIK_DASHBOARD_PORT - default 8088 (k3s's bundled Traefik, see
-#                         scripts/05-k3s.sh)
-#   ARGOCD_HTTP_PORT    - default 7090
-#   ARGOCD_HTTPS_PORT   - default 7093
+#   SSH_PORT            - SSH port to keep open (default: from network.yaml)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,14 +30,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 require_root
 apt_update_once
 
-SSH_PORT="${SSH_PORT:-22}"
-COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-9080}"
-COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
-RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
-RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
-TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
-ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-7090}"
-ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-7093}"
+SSH_PORT="${SSH_PORT:-$(net_port ssh)}"
 
 log "Installing ufw and fail2ban..."
 apt_install ufw fail2ban
@@ -128,26 +117,37 @@ EOF
 systemctl enable --now fail2ban
 systemctl restart fail2ban
 
-log "Configuring ufw..."
+log "Configuring ufw from ${NETWORK_YAML}..."
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow "${SSH_PORT}/tcp" comment "SSH"
 
-# HTTP/HTTPS are public on purpose: k3s's bundled Traefik (scripts/05-k3s.sh)
-# is this VPS's real public ingress, and Let's Encrypt's HTTP-01 challenge
-# needs port 80 reachable from the internet to issue certs at all.
-ufw allow 80/tcp comment "HTTP (Traefik)"
-ufw allow 443/tcp comment "HTTPS (Traefik)"
+# Every port and its public/Tailscale-only access comes from
+# network.yaml; a port whose `name` there is e.g. "rancher_http" can
+# still be overridden for this run via RANCHER_HTTP_PORT, same as every
+# script that opens that port for its own app.
+ensure_yq
+while IFS=$'\t' read -r name yaml_port access note; do
+  env_var="$(echo "$name" | tr '[:lower:]' '[:upper:]')_PORT"
+  port="${!env_var:-$yaml_port}"
+  case "$access" in
+    public)
+      ufw allow "${port}/tcp" comment "${note:-$name}"
+      ;;
+    tailscale)
+      # Not reachable from the public internet until scripts/03 brings
+      # tailscale0 up.
+      ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
+      ;;
+    *)
+      warn "network.yaml: unknown access '${access}' for port '${name}' - skipping."
+      ;;
+  esac
+done < <(yq e '.ports[] | [.name, .port, .access, (.note // "")] | @tsv' "$NETWORK_YAML")
 
-# Cockpit, Rancher, the Traefik dashboard, and ArgoCD are only reachable
-# over the Tailscale interface, never on the public internet, until
-# scripts/03 brings tailscale0 up.
-for port in "$COCKPIT_HTTP_PORT" "$COCKPIT_HTTPS_PORT" "$RANCHER_HTTP_PORT" "$RANCHER_HTTPS_PORT" "$TRAEFIK_DASHBOARD_PORT" "$ARGOCD_HTTP_PORT" "$ARGOCD_HTTPS_PORT"; do
-  ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only" || true
-done
-# k3s node-to-node / API traffic, also tailscale-only.
+# k3s node-to-node / API traffic, also tailscale-only (not a single fixed
+# port, so it isn't one of network.yaml's entries).
 ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
-ok "ufw enabled: SSH/HTTP/HTTPS public; Cockpit/Rancher/Traefik dashboard/ArgoCD/k3s API reachable only via Tailscale."
+ok "ufw enabled from network.yaml: public ports open to everyone, tailscale ports reachable only via Tailscale."
