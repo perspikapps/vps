@@ -35,12 +35,25 @@ source "$SCRIPT_DIR/../lib/common.sh"
 
 require_root
 
+K3S_SERVICE_FILE=/etc/systemd/system/k3s.service
+NEED_K3S_INSTALL=1
 if command_exists k3s; then
   log "k3s already installed ($(k3s --version | head -n1))."
-else
+  NEED_K3S_INSTALL=0
+  if grep -qE -- '--disable[= ]"?([a-z0-9_-]+,)*traefik' "$K3S_SERVICE_FILE" 2>/dev/null; then
+    warn "Existing k3s install has Traefik disabled (from an older version of" \
+         "this script that ran with --disable traefik) - reinstalling to" \
+         "re-enable it as the public ingress..."
+    NEED_K3S_INSTALL=1
+  fi
+fi
+
+if [[ "$NEED_K3S_INSTALL" -eq 1 ]]; then
   log "Installing k3s..."
   # Traefik stays enabled (k3s's default) - it's this VPS's public ingress,
   # configured below with a Let's Encrypt certResolver and its dashboard.
+  # Re-running the installer on an existing install regenerates
+  # k3s.service with this INSTALL_K3S_EXEC and restarts k3s.
   INSTALL_K3S_EXEC="server ${K3S_EXTRA_ARGS:-}"
   export INSTALL_K3S_EXEC
   [[ -n "${K3S_VERSION:-}" ]] && export INSTALL_K3S_VERSION="$K3S_VERSION"
