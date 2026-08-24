@@ -40,7 +40,10 @@ NEED_K3S_INSTALL=1
 if command_exists k3s; then
   log "k3s already installed ($(k3s --version | head -n1))."
   NEED_K3S_INSTALL=0
-  if grep -qE -- '--disable[= ]"?([a-z0-9_-]+,)*traefik' "$K3S_SERVICE_FILE" 2>/dev/null; then
+  # k3s.service lays each arg on its own quoted, backslash-continued line
+  # (e.g. '--disable' \n 'traefik' \), so match across lines rather than
+  # expecting both on one.
+  if [[ -f "$K3S_SERVICE_FILE" ]] && grep -Pzoq -- "(?s)--disable.{0,80}traefik" "$K3S_SERVICE_FILE"; then
     warn "Existing k3s install has Traefik disabled (from an older version of" \
          "this script that ran with --disable traefik) - reinstalling to" \
          "re-enable it as the public ingress..."
