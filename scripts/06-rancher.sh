@@ -23,6 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
@@ -79,3 +80,18 @@ kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
 ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
+}
+
+# Uninstalls the Rancher Helm release and its namespace. Leaves cert-manager
+# in place (scripts/09-epinio.sh may also depend on it - see ensure_cert_manager
+# in lib/common.sh) and k3s itself untouched.
+down() {
+  require_root
+  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  helm_teardown cattle-system rancher
+  rm -f /root/.rancher-bootstrap-password
+  ok "Rancher removed."
+}
+
+dispatch_action "$@"

@@ -147,6 +147,45 @@ ensure_cert_manager() {
     --wait --timeout 5m
 }
 
+# Generic up/down dispatcher for every scripts/*.sh. Each script defines an
+# up() function (its existing install logic) and, where meaningful, a
+# down() function (teardown), then finishes with:
+#   dispatch_action "$@"
+# Defaults to "up" so `bash scripts/NN-foo.sh` with no argument behaves
+# exactly as it did before up/down actions existed.
+dispatch_action() {
+  local action="${1:-up}"
+  case "$action" in
+    up)
+      up
+      ;;
+    down)
+      if declare -f down >/dev/null; then
+        down
+      else
+        die "This step has no 'down' action (nothing to undo)."
+      fi
+      ;;
+    *)
+      die "Unknown action '${action}' (expected 'up' or 'down')."
+      ;;
+  esac
+}
+
+# Uninstall a Helm release and delete its namespace, if present - shared
+# teardown for every script that installs via Helm into its own namespace.
+# Safe to call even if the release/namespace is already gone.
+helm_teardown() {
+  local namespace="$1" release="$2"
+  if helm status "$release" -n "$namespace" >/dev/null 2>&1; then
+    log "Uninstalling Helm release ${release} (namespace ${namespace})..."
+    helm uninstall "$release" -n "$namespace" --wait || warn "helm uninstall ${release} timed out or failed."
+  else
+    warn "Helm release ${release} not found in namespace ${namespace}; nothing to uninstall."
+  fi
+  kubectl delete namespace "$namespace" --ignore-not-found --wait=false >/dev/null 2>&1 || true
+}
+
 # Rebind a Helm chart's named Service port to a different port number.
 # k3s's built-in ServiceLB (Klipper) binds host ports to whatever a
 # LoadBalancer Service's `port` field says, so exposing a chart's app on a

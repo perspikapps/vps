@@ -27,6 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 apt_update_once
 
@@ -151,3 +152,39 @@ ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
 ok "ufw enabled from network.yaml: public ports open to everyone, tailscale ports reachable only via Tailscale."
+}
+
+# Reverts the hardening applied by up(): disables ufw (back to wide open -
+# be ready to re-run `up` or configure your own firewall before relying on
+# this), restores sshd's stock config, and disables the sshd fail2ban jail.
+# Deliberately leaves VPS_ADMIN_USER (if created) and its SSH key/Cockpit
+# password in place - removing a login account is destructive enough that
+# it should be a separate, explicit decision, not a side effect of turning
+# this step off.
+down() {
+  require_root
+
+  log "Disabling fail2ban's sshd jail..."
+  rm -f /etc/fail2ban/jail.d/sshd.local
+  systemctl disable --now fail2ban 2>/dev/null || true
+
+  log "Restoring sshd to its distro default config..."
+  rm -f /etc/ssh/sshd_config.d/99-vps-setup.conf
+  if sshd -t 2>/dev/null; then
+    systemctl reload ssh
+  else
+    warn "sshd -t failed after removing the drop-in; reload it manually once sshd_config is valid again."
+  fi
+
+  log "Disabling ufw..."
+  ufw --force disable || true
+
+  warn "Security hardening reverted: ufw is disabled (no firewall at all) and" \
+       "sshd/fail2ban are back to distro defaults. The admin user/password" \
+       "created by 'up' (if any) were left in place. Re-run this step's" \
+       "'up' action, or configure your own firewall, before exposing this" \
+       "VPS again."
+  ok "Security hardening removed."
+}
+
+dispatch_action "$@"

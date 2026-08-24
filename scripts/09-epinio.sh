@@ -57,6 +57,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
@@ -142,3 +143,17 @@ if [[ "$EPINIO_DOMAIN" == *.sslip.io ]]; then
        "EPINIO_DOMAIN at a real domain you own before deploying anything" \
        "you care about."
 fi
+}
+
+# Uninstalls the Epinio Helm release, its namespace, and the epinio CLI.
+# Leaves cert-manager and Traefik (shared infrastructure) in place.
+down() {
+  require_root
+  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  helm_teardown epinio epinio
+  rm -f /usr/local/bin/epinio /root/.epinio-admin-password
+  ok "Epinio removed."
+}
+
+dispatch_action "$@"

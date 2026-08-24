@@ -25,6 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
@@ -91,3 +92,16 @@ fi
 ok "ArgoCD installed."
 ok "UI: https://<tailscale-ip>:${ARGOCD_HTTPS_PORT} (also plain-port ${ARGOCD_HTTP_PORT}, user: admin)"
 [[ -f "$PW_FILE" ]] && ok "Admin password saved to ${PW_FILE}: $(cat "$PW_FILE")"
+}
+
+# Uninstalls the ArgoCD Helm release and its namespace.
+down() {
+  require_root
+  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  helm_teardown argocd argocd
+  rm -f /root/.argocd-admin-password
+  ok "ArgoCD removed."
+}
+
+dispatch_action "$@"

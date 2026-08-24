@@ -34,6 +34,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 
 K3S_SERVICE_FILE=/etc/systemd/system/k3s.service
@@ -162,3 +163,22 @@ kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
   warn "Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
 ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (Tailscale-only)."
+}
+
+# Uninstalls k3s entirely (via its own uninstall script) - this takes
+# Rancher, ArgoCD, Epinio, and anything else deployed on the cluster down
+# with it. setup.sh refuses to bring this step down while any of those are
+# still enabled; pass --force-down there to override.
+down() {
+  require_root
+  if [[ -x /usr/local/bin/k3s-uninstall.sh ]]; then
+    log "Uninstalling k3s (this also removes everything deployed on it: Rancher, ArgoCD, Epinio, etc.)..."
+    /usr/local/bin/k3s-uninstall.sh
+  else
+    warn "k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."
+  fi
+  rm -f /usr/local/bin/kubectl /etc/profile.d/k3s-kubeconfig.sh
+  ok "k3s removed."
+}
+
+dispatch_action "$@"

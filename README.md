@@ -7,14 +7,18 @@ and the Traefik dashboard are Tailscale-only; the ingress itself (80/443)
 is public on purpose - see [Security model](#security-model). ArgoCD and
 [Epinio](#epinio-deploy-apps-from-source) are optional, opt-in steps (see
 [Running a single step](#running-a-single-step-or-a-subset)) - everything
-else runs by default.
+else runs by default. Every step can also be turned back off later without
+reinstalling anything else - see [Removing a feature](#removing-a-feature-updown-per-step).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sudo bash
 ```
 
-Run with `-h` for flags (`--skip-tailscale`, `--skip-rancher`, etc.), or set
-env vars beforehand, e.g.:
+Run it with no arguments on an actual terminal (not piped from `curl`) and
+you get an interactive menu instead of having to remember flag names - see
+[Interactive menu](#interactive-menu). Run with `-h` for the full flag
+list (`--skip-tailscale`, `--skip-rancher`, etc.), or set env vars
+beforehand, e.g.:
 
 ```bash
 sudo TAILSCALE_AUTHKEY=tskey-... \
@@ -91,6 +95,112 @@ clone/update and final summary, instead of calling it by hand." Because
 every script is idempotent, re-running a single step to pick up a
 changed env var (like `RANCHER_HOSTNAME` above) is safe and won't disturb
 the others. See `-h`/`--help` for the full flag list.
+
+### Dependencies between steps
+
+`rancher`, `argocd`, and `epinio` all need `k3s` (they deploy onto the
+cluster it creates). Enabling any of them auto-enables `k3s` too, even if
+you didn't ask for it explicitly:
+
+```bash
+# k3s isn't named here, but this still installs it - rancher needs it:
+sudo bash setup.sh --only-rancher
+# -> [vps-setup] Also enabling 'k3s' (required by 'rancher').
+```
+
+The same table is used in reverse for [`--down-<step>`](#removing-a-feature-updown-per-step):
+bringing `k3s` down while `rancher`/`argocd`/`epinio` are still enabled is
+refused, since it would leave them broken.
+
+## Interactive menu
+
+Run `setup.sh` with **no arguments**, on an actual terminal (an SSH
+session, not `curl ... | sudo bash`, which pipes the script itself into
+stdin and never triggers this), to get a menu instead of having to
+remember flag names:
+
+```bash
+sudo bash /tmp/setup.sh
+```
+
+```
+==== VPS setup menu ====
+   1) * system         [up  ] Base system update & essentials
+   2) * security        [up  ] Firewall / SSH / fail2ban hardening
+   3) * tailscale        [up  ] Tailscale install
+   4) * cockpit          [up  ] Cockpit install
+   5) * k3s              [up  ] k3s / kubectl / helm install (includes Traefik configuration)
+   6) * rancher          [up  ] Rancher install
+   7) * dockermanager    [up  ] cockpit-packagekit/files/dockermanager install
+   8)   argocd           [skip] ArgoCD install
+   9)   epinio           [skip] Epinio install
+  (* = installed by default) Enter a number to cycle
+  skip -> up -> down -> skip for that step.
+  <enter> to proceed, 'q' to quit without changing anything.
+>
+```
+
+Type a step's number to cycle it through `skip -> up -> down -> skip`
+(`down` means uninstall it - see the next section), press **enter** to
+proceed with whatever you've selected, or **`q`** to quit without changing
+anything. This is purely a friendlier way to build the same `--skip-*`
+/ `--with-*` / `--down-*` selection described above - everything below
+about flags, env vars, and dependencies applies whether you got there via
+the menu or the command line.
+
+## Removing a feature (up/down per step)
+
+Every step can be brought back down (uninstalled/disabled) independently,
+without touching anything else already on the box - pass `--down-<step>`
+instead of installing it:
+
+```bash
+# Remove ArgoCD only (Rancher, k3s, Cockpit, etc. are untouched):
+sudo bash /tmp/setup.sh --down-argocd
+
+# Remove more than one step in the same run:
+sudo bash /tmp/setup.sh --down-argocd --down-epinio
+
+# Add ArgoCD and remove Epinio in the same run:
+sudo bash /tmp/setup.sh --with-argocd --down-epinio
+```
+
+A step whose dependency is still enabled refuses to come down, so you
+don't accidentally break something still running:
+
+```bash
+sudo bash /tmp/setup.sh --down-k3s
+# [vps-setup] Refusing to bring 'k3s' down: 'rancher' depends on it and is still enabled.
+# [vps-setup] Also pass --down-rancher, or --force-down to override (may leave 'rancher' broken).
+```
+
+Either bring the dependent step down in the same run (`--down-k3s
+--down-rancher --down-argocd --down-epinio`, to remove the whole cluster
+cleanly), or pass `--force-down` if you really want to pull `k3s` out from
+under something still enabled.
+
+What each step's `down` action actually does - and doesn't - undo:
+
+| Step | `down` removes | Left in place |
+|---|---|---|
+| `system` | *(no down action - a base package upgrade, nothing to undo)* | everything |
+| `security` | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail | the admin user/password `up` created, if any |
+| `tailscale` | logs out of the tailnet, disables `tailscaled` | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `cockpit` | the Cockpit packages and socket config | nothing else depends on it |
+| `k3s` | k3s itself (via its own uninstaller) - **takes Rancher/ArgoCD/Epinio down with it** | - |
+| `rancher` | the Helm release and its namespace | cert-manager (shared with Epinio) |
+| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files | Docker itself (`REMOVE_DOCKER=true` to also remove it) |
+| `argocd` | the Helm release and its namespace | k3s, cert-manager |
+| `epinio` | the Helm release, its namespace, and the `epinio` CLI | k3s, cert-manager, Traefik |
+
+Each script also accepts the action directly if you'd rather run it
+without going through `setup.sh` (e.g. from an existing `/opt/vps-setup`
+checkout):
+
+```bash
+sudo bash scripts/08-argocd.sh down
+sudo bash scripts/08-argocd.sh up     # same as calling it with no argument
+```
 
 ## Full copy-paste example
 
@@ -262,8 +372,10 @@ entirely - there's no `sudo` involved.
 
 ## Layout
 
-- `setup.sh` - leading script: clones/updates this repo, runs `scripts/*`
-  in order, idempotent and re-runnable.
+- `setup.sh` - leading script: clones/updates this repo, resolves which
+  steps run (flags, the [interactive menu](#interactive-menu), and
+  step dependencies), and runs `scripts/*` in order, idempotent and
+  re-runnable, either `up` or [`down`](#removing-a-feature-updown-per-step).
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `setup.sh` unattended on first boot.
 - `network.yaml` - single source of truth for every port this setup opens
@@ -271,8 +383,10 @@ entirely - there's no `sudo` involved.
   [Network config](#network-config-networkyaml).
 - `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
   every script (style borrowed from `devcontainers/features` common-utils:
-  strict bash mode, non-interactive apt, "already done" checks), plus
-  `net_port`/`net_access` for reading `network.yaml`.
+  strict bash mode, non-interactive apt, "already done" checks); `net_port`/
+  `net_access` for reading `network.yaml`; and `dispatch_action`/
+  `helm_teardown`, the shared plumbing behind every script's `up`/`down`
+  actions.
 - `scripts/01-system-update.sh` - apt update/upgrade, base tooling,
   unattended security upgrades.
 - `scripts/02-security-harden.sh` - optional non-root admin user, ufw
@@ -558,6 +672,12 @@ with a new hostname:
 ```bash
 sudo RANCHER_HOSTNAME=new.example.com bash scripts/06-rancher.sh
 ```
+
+Every script also takes an explicit `up` or `down` action as its first
+argument (`up` is the default, so the invocation above is really `...
+bash scripts/06-rancher.sh up`) - see
+[Removing a feature](#removing-a-feature-updown-per-step) for what each
+step's `down` does.
 
 ## Troubleshooting: a step fails or "just stops"
 

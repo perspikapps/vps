@@ -18,6 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../lib/common.sh"
 
+up() {
 require_root
 
 if command_exists tailscale; then
@@ -43,3 +44,29 @@ log "Joining tailnet..."
 # shellcheck disable=SC2086
 tailscale up --authkey="${TAILSCALE_AUTHKEY}" --ssh ${TAILSCALE_EXTRA_ARGS:-}
 ok "Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
+}
+
+# Logs out of the tailnet and stops tailscaled, but leaves the tailscale
+# package installed (it's a single small binary; PURGE_TAILSCALE=true also
+# removes it). Note: every Tailscale-only service in network.yaml becomes
+# unreachable once this runs - see README's Security model.
+down() {
+  require_root
+  if ! command_exists tailscale; then
+    warn "Tailscale not installed; nothing to do."
+    return
+  fi
+  log "Logging out of the tailnet..."
+  tailscale logout || true
+  systemctl disable --now tailscaled || true
+  if [[ "${PURGE_TAILSCALE:-false}" == "true" ]]; then
+    log "Purging the tailscale package (PURGE_TAILSCALE=true)..."
+    apt-get purge -y tailscale 2>/dev/null || true
+  fi
+  warn "Tailscale is disconnected. Cockpit, Rancher, ArgoCD, the Traefik" \
+       "dashboard, and the k3s API (all Tailscale-only) are now unreachable" \
+       "until you re-run this step's 'up' action."
+  ok "Tailscale brought down."
+}
+
+dispatch_action "$@"
