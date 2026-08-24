@@ -28,6 +28,9 @@ ARGOCD_PASSWORD="$(cat /root/.argocd-admin-password 2>/dev/null || echo 'not set
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 
+EPINIO_DOMAIN="${EPINIO_DOMAIN:-${NODE_PUBLIC_IP}.sslip.io}"
+EPINIO_PASSWORD="$(cat /root/.epinio-admin-password 2>/dev/null || echo 'not set - run scripts/09-epinio.sh')"
+
 cat <<EOF
 
 ======================================================================
@@ -68,12 +71,21 @@ cat <<EOF
                        (saved to /root/.argocd-admin-password; GitOps
                        deployments for the k3s cluster - see README)
 
+ Epinio:              https://epinio.${EPINIO_DOMAIN}
+                       user:     admin
+                       password: ${EPINIO_PASSWORD}
+                       (saved to /root/.epinio-admin-password; deploy an
+                       app from source with: epinio push - see README.
+                       Public via Traefik like any Ingress, not
+                       Tailscale-only - gated by this login, not ufw)
+
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
-                       this VPS's ingress). Cockpit, Rancher, the Traefik
-                       dashboard, ArgoCD, and the k3s API are reachable ONLY
-                       over the tailscale0 interface - connect via Tailscale first.
+                       this VPS's ingress, and so is Epinio, routed through
+                       it). Cockpit, Rancher, the Traefik dashboard, ArgoCD,
+                       and the k3s API are reachable ONLY over the
+                       tailscale0 interface - connect via Tailscale first.
 ======================================================================
 EOF

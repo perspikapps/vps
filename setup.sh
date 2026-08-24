@@ -31,6 +31,7 @@ SKIP_K3S=0
 SKIP_RANCHER=0
 SKIP_DOCKERMANAGER=0
 SKIP_ARGOCD=0
+SKIP_EPINIO=0
 declare -a ONLY_STEPS=()
 
 usage() {
@@ -46,6 +47,7 @@ Options:
   --skip-rancher        Skip Rancher install (scripts/06)
   --skip-dockermanager  Skip cockpit-packagekit/files/dockermanager (scripts/07)
   --skip-argocd         Skip ArgoCD install (scripts/08)
+  --skip-epinio         Skip Epinio install (scripts/09)
 
   --only-system         Run ONLY scripts/01 (base system update)
   --only-security       Run ONLY scripts/02 (firewall/SSH/fail2ban)
@@ -55,6 +57,7 @@ Options:
   --only-rancher        Run ONLY scripts/06 (Rancher)
   --only-dockermanager  Run ONLY scripts/07 (cockpit-packagekit/files/dockermanager)
   --only-argocd         Run ONLY scripts/08 (ArgoCD)
+  --only-epinio         Run ONLY scripts/09 (Epinio)
                         (repeat --only-* to run more than one step; any
                         --only-* flag overrides all --skip-* flags)
 
@@ -70,7 +73,8 @@ Environment variables (see README.md for the full list):
   VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY, INSTALL_DOCKER,
   COCKPIT_DOCKERMANAGER_VERSION, TRAEFIK_ACME_EMAIL, TRAEFIK_ACME_STAGING,
   TRAEFIK_DASHBOARD_PORT, ARGOCD_HTTP_PORT, ARGOCD_HTTPS_PORT,
-  ARGOCD_INSTALL_TIMEOUT
+  ARGOCD_INSTALL_TIMEOUT, EPINIO_DOMAIN, EPINIO_TLS_ISSUER,
+  EPINIO_ADMIN_PASSWORD, EPINIO_INSTALL_TIMEOUT
 EOF
 }
 
@@ -84,6 +88,7 @@ for arg in "$@"; do
     --skip-rancher) SKIP_RANCHER=1 ;;
     --skip-dockermanager) SKIP_DOCKERMANAGER=1 ;;
     --skip-argocd) SKIP_ARGOCD=1 ;;
+    --skip-epinio) SKIP_EPINIO=1 ;;
     --only-system) ONLY_STEPS+=(system) ;;
     --only-security) ONLY_STEPS+=(security) ;;
     --only-tailscale) ONLY_STEPS+=(tailscale) ;;
@@ -92,6 +97,7 @@ for arg in "$@"; do
     --only-rancher) ONLY_STEPS+=(rancher) ;;
     --only-dockermanager) ONLY_STEPS+=(dockermanager) ;;
     --only-argocd) ONLY_STEPS+=(argocd) ;;
+    --only-epinio) ONLY_STEPS+=(epinio) ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage; exit 1 ;;
   esac
@@ -101,7 +107,7 @@ done
 # and re-enable just the requested step(s).
 if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
   SKIP_SYSTEM=1 SKIP_SECURITY=1 SKIP_TAILSCALE=1 SKIP_COCKPIT=1
-  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1 SKIP_ARGOCD=1
+  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1 SKIP_ARGOCD=1 SKIP_EPINIO=1
   for step in "${ONLY_STEPS[@]}"; do
     case "$step" in
       system) SKIP_SYSTEM=0 ;;
@@ -112,6 +118,7 @@ if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
       rancher) SKIP_RANCHER=0 ;;
       dockermanager) SKIP_DOCKERMANAGER=0 ;;
       argocd) SKIP_ARGOCD=0 ;;
+      epinio) SKIP_EPINIO=0 ;;
     esac
   done
 fi
@@ -192,4 +199,5 @@ run_step "05-k3s.sh"               "$SKIP_K3S"           "k3s / kubectl / helm i
 run_step "06-rancher.sh"           "$SKIP_RANCHER"       "Rancher install"                            rancher
 run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install" dockermanager
 run_step "08-argocd.sh"             "$SKIP_ARGOCD"        "ArgoCD install"                              argocd
+run_step "09-epinio.sh"             "$SKIP_EPINIO"        "Epinio install"                              epinio
 bash "$INSTALL_DIR/scripts/99-summary.sh"

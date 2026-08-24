@@ -22,10 +22,10 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`setup.sh` runs eight numbered steps in order: `system` (01), `security`
+`setup.sh` runs nine numbered steps in order: `system` (01), `security`
 (02), `tailscale` (03), `cockpit` (04), `k3s` (05, includes Traefik
-configuration), `rancher` (06), `dockermanager` (07), and `argocd` (08).
-Two flag families control which of them run:
+configuration), `rancher` (06), `dockermanager` (07), `argocd` (08), and
+`epinio` (09). Two flag families control which of them run:
 
 - **`--skip-<step>`** - run everything *except* the named step(s).
 - **`--only-<step>`** - run *only* the named step(s); pass it more than
@@ -283,8 +283,12 @@ entirely - there's no `sudo` involved.
 - `scripts/08-argocd.sh` - installs ArgoCD via Helm for GitOps-managed
   deployments onto the k3s cluster, exposed on ports 7090/7093 through
   k3s's built-in ServiceLB.
+- `scripts/09-epinio.sh` - installs [Epinio](https://epinio.io) via Helm
+  for deploying apps straight from source, routed through Traefik's
+  existing ingress rather than a dedicated port - see
+  [Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
-  the Cockpit/Rancher/ArgoCD credentials at the end.
+  the Cockpit/Rancher/ArgoCD/Epinio credentials at the end.
 
 ## Network config (`network.yaml`)
 
@@ -324,7 +328,10 @@ which is a different, jq-based tool with incompatible filter syntax.
 SSH and HTTP/HTTPS (Traefik's ingress) are the only things reachable from
 the public internet. Everything else - Cockpit, Rancher, the Traefik
 dashboard, ArgoCD, the k3s API - is bound by `ufw` to the `tailscale0`
-interface only, so you must join the same tailnet to reach them.
+interface only, so you must join the same tailnet to reach them. Epinio
+is the one exception: it isn't bound to a port `ufw` can gate, since it's
+ingress-routed on the same public 80/443 as Traefik itself - see
+[Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
 
 HTTP/HTTPS are public unconditionally, not behind a flag: Traefik is this
 VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
@@ -422,6 +429,52 @@ Both credentials, along with the Tailscale IP/URL to reach them on, are
 printed by `scripts/99-summary.sh` at the end of the install (and any time
 you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 
+## Epinio (deploy apps from source)
+
+`scripts/09-epinio.sh` installs [Epinio](https://epinio.io) - "from app to
+URL in one command" - via the official `epinio/epinio` Helm chart, per
+[the getting-started guide](https://docs.epinio.io/getting-started/install-epinio)
+(mirrored here from [the chart repo's own README](https://github.com/epinio/helm-charts),
+since `docs.epinio.io` wasn't reachable while writing this script - if
+anything here drifts from the live docs, that's the site to check). It
+reuses k3s's existing Traefik as its ingress controller and installs
+cert-manager the same idempotent way `scripts/06-rancher.sh` does, so it
+works standalone even if you skipped Rancher.
+
+Unlike Cockpit/Rancher/ArgoCD, Epinio doesn't get a dedicated port: it
+creates its own Ingresses (`epinio.<domain>`, `auth.<domain>`, and one per
+app you deploy) on Traefik's existing public 80/443, the same way any
+app you `epinio push` will be. That means Epinio's dashboard is reachable
+from the public internet once its domain resolves - gated by its own
+login, not by `ufw` (see [Security model](#security-model)).
+
+- **Domain**: Epinio requires a wildcard DNS domain pointed at this VPS's
+  public IP (`EPINIO_DOMAIN`). Without one, it defaults to
+  [sslip.io](https://sslip.io) magic DNS (`<node-ip>.sslip.io`, which
+  resolves any subdomain back to that IP) - fine for trying Epinio out,
+  not something to depend on. Set `EPINIO_DOMAIN` to a real domain you
+  control before deploying anything you care about.
+- **TLS**: certs come from cert-manager via `EPINIO_TLS_ISSUER` (default
+  `epinio-ca`, a self-signed CA Epinio creates itself - browsers will
+  warn). Epinio also ships `letsencrypt-staging`/`letsencrypt-production`
+  ClusterIssuers if you'd rather use those once `EPINIO_DOMAIN` is real.
+- **Login**: username `admin`, password `EPINIO_ADMIN_PASSWORD` if set,
+  otherwise a random one saved to `/root/.epinio-admin-password`.
+- **CLI**: the `epinio` binary is installed to `/usr/local/bin/epinio`.
+  Log in with `epinio login -u admin -p '<password>' https://epinio.<domain>`,
+  then deploy an app from a source directory with `epinio push`.
+- This chart also deploys SeaweedFS (S3-compatible storage for source
+  blobs), its own container registry, and Dex, on top of Epinio itself -
+  more images to pull than Rancher or ArgoCD, so a slow first install is
+  normal. If it doesn't finish within the default `EPINIO_INSTALL_TIMEOUT`
+  (15 minutes), check `kubectl -n epinio get pods` for
+  `Pending`/`ImagePullBackOff`, then just re-run `sudo bash setup.sh
+  --only-epinio` (helm resumes the same release without re-pulling cached
+  images), or set `EPINIO_INSTALL_TIMEOUT` higher first.
+
+The login and dashboard URL are printed by `scripts/99-summary.sh` like
+every other step's credentials.
+
 ## Key environment variables
 
 All `*_PORT` variables below are per-run overrides of a default that
@@ -448,6 +501,12 @@ that file to change a default for good, or set the env var for one run.
 | `ARGOCD_HTTP_PORT` / `ARGOCD_HTTPS_PORT` | `7090` / `7093` | ArgoCD ports (`7xxx`, alongside Rancher) |
 | `ARGOCD_CHART_VERSION` | latest | Pin the `argo/argo-cd` Helm chart version |
 | `ARGOCD_INSTALL_TIMEOUT` | `15m` | How long to wait for ArgoCD's pods to come up |
+| `EPINIO_DOMAIN` | `<node-ip>.sslip.io` | Wildcard domain Epinio's Ingresses use - set to a real domain |
+| `EPINIO_TLS_ISSUER` | `epinio-ca` | cert-manager ClusterIssuer: `epinio-ca`, `selfsigned-issuer`, `letsencrypt-staging`, or `letsencrypt-production` |
+| `EPINIO_ADMIN_PASSWORD` | random | Epinio admin login password |
+| `EPINIO_CHART_VERSION` | latest | Pin the `epinio/epinio` Helm chart version |
+| `EPINIO_INSTALL_TIMEOUT` | `15m` | How long to wait for Epinio's pods to come up |
+| `CERT_MANAGER_VERSION` | latest | Pin cert-manager's chart version (shared by Rancher and Epinio) |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the
