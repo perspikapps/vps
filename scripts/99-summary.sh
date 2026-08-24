@@ -11,6 +11,8 @@ COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
 TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
+ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-7090}"
+ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-7093}"
 
 TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
 HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
@@ -21,6 +23,8 @@ COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not s
 
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
 RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run scripts/06-rancher.sh')"
+
+ARGOCD_PASSWORD="$(cat /root/.argocd-admin-password 2>/dev/null || echo 'not set - run scripts/08-argocd.sh')"
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 
@@ -57,12 +61,19 @@ cat <<EOF
                        dashboard: http://${HOST_FOR_URLS}:${TRAEFIK_DASHBOARD_PORT}/dashboard/
                        (Tailscale-only, no login - see README's Security model)
 
+ ArgoCD:              https://${HOST_FOR_URLS}:${ARGOCD_HTTPS_PORT}
+                       (also on plain port ${ARGOCD_HTTP_PORT})
+                       user:     admin
+                       password: ${ARGOCD_PASSWORD}
+                       (saved to /root/.argocd-admin-password; GitOps
+                       deployments for the k3s cluster - see README)
+
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
-                       dashboard, and the k3s API are reachable ONLY over
-                       the tailscale0 interface - connect via Tailscale first.
+                       dashboard, ArgoCD, and the k3s API are reachable ONLY
+                       over the tailscale0 interface - connect via Tailscale first.
 ======================================================================
 EOF

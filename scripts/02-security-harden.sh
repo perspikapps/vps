@@ -4,7 +4,7 @@
 #   - SSH: disable root login, disable password auth (only if a key exists)
 #   - UFW: default-deny inbound, allow SSH and HTTP/HTTPS (Traefik's
 #     ingress, see scripts/05-k3s.sh) publicly, allow Cockpit/Rancher/the
-#     Traefik dashboard ONLY over the Tailscale interface
+#     Traefik dashboard/ArgoCD ONLY over the Tailscale interface
 #   - fail2ban for SSH brute-force protection
 #
 # Env vars:
@@ -23,6 +23,8 @@
 #   RANCHER_HTTPS_PORT  - default 7083
 #   TRAEFIK_DASHBOARD_PORT - default 8088 (k3s's bundled Traefik, see
 #                         scripts/05-k3s.sh)
+#   ARGOCD_HTTP_PORT    - default 7090
+#   ARGOCD_HTTPS_PORT   - default 7093
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,6 +40,8 @@ COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
 TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
+ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-7090}"
+ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-7093}"
 
 log "Installing ufw and fail2ban..."
 apt_install ufw fail2ban
@@ -136,14 +140,14 @@ ufw allow "${SSH_PORT}/tcp" comment "SSH"
 ufw allow 80/tcp comment "HTTP (Traefik)"
 ufw allow 443/tcp comment "HTTPS (Traefik)"
 
-# Cockpit, Rancher, and the Traefik dashboard are only reachable over the
-# Tailscale interface, never on the public internet, until scripts/03
-# brings tailscale0 up.
-for port in "$COCKPIT_HTTP_PORT" "$COCKPIT_HTTPS_PORT" "$RANCHER_HTTP_PORT" "$RANCHER_HTTPS_PORT" "$TRAEFIK_DASHBOARD_PORT"; do
+# Cockpit, Rancher, the Traefik dashboard, and ArgoCD are only reachable
+# over the Tailscale interface, never on the public internet, until
+# scripts/03 brings tailscale0 up.
+for port in "$COCKPIT_HTTP_PORT" "$COCKPIT_HTTPS_PORT" "$RANCHER_HTTP_PORT" "$RANCHER_HTTPS_PORT" "$TRAEFIK_DASHBOARD_PORT" "$ARGOCD_HTTP_PORT" "$ARGOCD_HTTPS_PORT"; do
   ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only" || true
 done
 # k3s node-to-node / API traffic, also tailscale-only.
 ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
-ok "ufw enabled: SSH/HTTP/HTTPS public; Cockpit/Rancher/Traefik dashboard/k3s API reachable only via Tailscale."
+ok "ufw enabled: SSH/HTTP/HTTPS public; Cockpit/Rancher/Traefik dashboard/ArgoCD/k3s API reachable only via Tailscale."

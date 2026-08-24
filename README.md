@@ -22,10 +22,10 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`setup.sh` runs seven numbered steps in order: `system` (01), `security`
+`setup.sh` runs eight numbered steps in order: `system` (01), `security`
 (02), `tailscale` (03), `cockpit` (04), `k3s` (05, includes Traefik
-configuration), `rancher` (06), and `dockermanager` (07). Two flag
-families control which of them run:
+configuration), `rancher` (06), `dockermanager` (07), and `argocd` (08).
+Two flag families control which of them run:
 
 - **`--skip-<step>`** - run everything *except* the named step(s).
 - **`--only-<step>`** - run *only* the named step(s); pass it more than
@@ -276,15 +276,18 @@ entirely - there's no `sudo` involved.
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
+- `scripts/08-argocd.sh` - installs ArgoCD via Helm for GitOps-managed
+  deployments onto the k3s cluster, exposed on ports 7090/7093 through
+  k3s's built-in ServiceLB.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
-  the Cockpit/Rancher credentials at the end.
+  the Cockpit/Rancher/ArgoCD credentials at the end.
 
 ## Security model
 
 SSH and HTTP/HTTPS (Traefik's ingress) are the only things reachable from
 the public internet. Everything else - Cockpit, Rancher, the Traefik
-dashboard, the k3s API - is bound by `ufw` to the `tailscale0` interface
-only, so you must join the same tailnet to reach them.
+dashboard, ArgoCD, the k3s API - is bound by `ufw` to the `tailscale0`
+interface only, so you must join the same tailnet to reach them.
 
 HTTP/HTTPS are public unconditionally, not behind a flag: Traefik is this
 VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
@@ -343,6 +346,30 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   `RANCHER_BOOTSTRAP_PASSWORD` if set, otherwise a random one saved to
   `/root/.rancher-bootstrap-password`. Rancher prompts you to change it on
   first login.
+- **ArgoCD** username is always `admin`; the auto-generated initial
+  password is saved to `/root/.argocd-admin-password`. It's deleted from
+  the cluster (the `argocd-initial-admin-secret`) the first time you
+  change it in the UI/CLI, but the file this repo saved keeps working as
+  a record of what it originally was.
+
+## ArgoCD (GitOps deployments)
+
+`scripts/08-argocd.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
+via the `argo/argo-cd` Helm chart onto the k3s cluster from `scripts/05`,
+a natural pairing with Rancher for cluster management (see
+[this write-up](https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view)
+on running the two together). It's exposed on `ARGOCD_HTTP_PORT`/
+`ARGOCD_HTTPS_PORT` (default `7090`/`7093`) through k3s's built-in
+ServiceLB, Tailscale-only like Cockpit and Rancher. The server runs with
+TLS termination left to you (`server.insecure=true` in the chart, i.e.
+ArgoCD serves plain HTTP on its own port rather than trying to manage
+its own cert) since it isn't sitting behind the Traefik ingress.
+
+Point ArgoCD at your Git repos and `Application` manifests the usual way
+(`argocd repo add`, `argocd app create`, or the UI) once you've logged in
+- see the [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/getting_started/)
+for that workflow; this repo only handles getting ArgoCD itself installed
+and reachable.
 
 Both credentials, along with the Tailscale IP/URL to reach them on, are
 printed by `scripts/99-summary.sh` at the end of the install (and any time
@@ -367,11 +394,13 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `TRAEFIK_ACME_EMAIL` | placeholder | Let's Encrypt contact email - set this to a real address |
 | `TRAEFIK_ACME_STAGING` | `true` | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs |
 | `TRAEFIK_DASHBOARD_PORT` | `8088` | Traefik dashboard port (Tailscale-only) |
+| `ARGOCD_HTTP_PORT` / `ARGOCD_HTTPS_PORT` | `7090` / `7093` | ArgoCD ports (`7xxx`, alongside Rancher) |
+| `ARGOCD_CHART_VERSION` | latest | Pin the `argo/argo-cd` Helm chart version |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
-Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the ingress
-itself is always 80/443, per HTTP/HTTPS convention, not part of this
-scheme.
+Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the
+ingress itself is always 80/443, per HTTP/HTTPS convention, not part of
+this scheme.
 
 Each script can also be run standalone from the `scripts/` directory
 after `lib/common.sh` is present alongside it (this is what `setup.sh
