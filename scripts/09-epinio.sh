@@ -7,12 +7,21 @@
 # so this script follows the Helm chart repo's README/values.yaml
 # directly instead).
 #
-# Uses k3s's existing Traefik as its ingress controller (no separate
-# ingress install needed - k3s already sets it as the default
-# IngressClass) and installs cert-manager the same way scripts/06-rancher.sh
-# does, idempotently, since Epinio's chart expects cert-manager to already
-# be on the cluster (its own certManager.install value defaults to false)
-# and doesn't assume Rancher's step ran first.
+# Reuses this VPS's existing infrastructure rather than installing its
+# own copies:
+#   - Ingress: no separate ingress controller is installed. k3s's bundled
+#     Traefik (scripts/05-k3s.sh) is used, and explicitly pinned via
+#     EPINIO_INGRESS_CLASS (default "traefik") on all three of the
+#     chart's ingressClassName knobs (server, apps, container registry) -
+#     Traefik is already k3s's default IngressClass so this would work
+#     left blank too, but pinning it explicitly means Epinio keeps using
+#     Traefik even if that default ever changes.
+#   - cert-manager: installed only if not already present (idempotent
+#     check below), the same way scripts/06-rancher.sh does, since
+#     Epinio's chart expects cert-manager to already be on the cluster
+#     (its own certManager.install value defaults to false) and doesn't
+#     assume Rancher's step ran first. If Rancher already installed it,
+#     this reuses that installation as-is.
 #
 # Unlike Cockpit/Rancher/ArgoCD/the Traefik dashboard, Epinio isn't bound
 # to a port of its own: it's ingress-routed on Traefik's existing public
@@ -28,6 +37,8 @@
 #
 # Env vars:
 #   EPINIO_DOMAIN          - wildcard domain (default: <node-ip>.sslip.io)
+#   EPINIO_INGRESS_CLASS   - IngressClass to pin Epinio's Ingresses to
+#                            (default: traefik, k3s's bundled ingress)
 #   EPINIO_TLS_ISSUER      - cert-manager ClusterIssuer: epinio-ca (default,
 #                            self-signed), selfsigned-issuer,
 #                            letsencrypt-staging, or letsencrypt-production
@@ -59,6 +70,7 @@ if [[ -z "${EPINIO_DOMAIN:-}" ]]; then
        "domain you control (pointed at this VPS's public IP) before" \
        "relying on this for anything real."
 fi
+EPINIO_INGRESS_CLASS="${EPINIO_INGRESS_CLASS:-traefik}"
 EPINIO_TLS_ISSUER="${EPINIO_TLS_ISSUER:-epinio-ca}"
 EPINIO_INSTALL_TIMEOUT="${EPINIO_INSTALL_TIMEOUT:-15m}"
 
@@ -102,12 +114,15 @@ kubectl create namespace epinio --dry-run=client -o yaml | kubectl apply -f -
 CHART_VERSION_ARG=()
 [[ -n "${EPINIO_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$EPINIO_CHART_VERSION")
 
-log "Installing/upgrading Epinio (domain=${EPINIO_DOMAIN}, tlsIssuer=${EPINIO_TLS_ISSUER}, timeout ${EPINIO_INSTALL_TIMEOUT})..."
+log "Installing/upgrading Epinio (domain=${EPINIO_DOMAIN}, ingressClass=${EPINIO_INGRESS_CLASS}, tlsIssuer=${EPINIO_TLS_ISSUER}, timeout ${EPINIO_INSTALL_TIMEOUT})..."
 if ! helm upgrade --install epinio epinio/epinio \
   --namespace epinio \
   --set global.domain="$EPINIO_DOMAIN" \
   --set global.tlsIssuer="$EPINIO_TLS_ISSUER" \
   --set api.adminPassword="$EPINIO_ADMIN_PASSWORD" \
+  --set ingress.ingressClassName="$EPINIO_INGRESS_CLASS" \
+  --set server.ingressClassName="$EPINIO_INGRESS_CLASS" \
+  --set containerregistry.ingressClassName="$EPINIO_INGRESS_CLASS" \
   "${CHART_VERSION_ARG[@]}" \
   --wait --timeout "$EPINIO_INSTALL_TIMEOUT"; then
   warn "helm install/upgrade timed out or failed - pod status for diagnosis:"

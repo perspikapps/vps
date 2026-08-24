@@ -437,9 +437,15 @@ URL in one command" - via the official `epinio/epinio` Helm chart, per
 (mirrored here from [the chart repo's own README](https://github.com/epinio/helm-charts),
 since `docs.epinio.io` wasn't reachable while writing this script - if
 anything here drifts from the live docs, that's the site to check). It
-reuses k3s's existing Traefik as its ingress controller and installs
-cert-manager the same idempotent way `scripts/06-rancher.sh` does, so it
-works standalone even if you skipped Rancher.
+reuses this VPS's existing infrastructure rather than installing its own
+copies: k3s's bundled Traefik as its ingress controller, explicitly
+pinned via `EPINIO_INGRESS_CLASS` (default `traefik`) on all three of the
+chart's ingress-class settings (its own server, deployed apps, and its
+internal container registry) rather than relying on Traefik just
+happening to be k3s's default IngressClass; and cert-manager, installed
+only if not already present - the same idempotent check
+`scripts/06-rancher.sh` uses, so it reuses Rancher's cert-manager if that
+step ran, or installs its own if you skipped Rancher.
 
 Unlike Cockpit/Rancher/ArgoCD, Epinio doesn't get a dedicated port: it
 creates its own Ingresses (`epinio.<domain>`, `auth.<domain>`, and one per
@@ -502,6 +508,7 @@ that file to change a default for good, or set the env var for one run.
 | `ARGOCD_CHART_VERSION` | latest | Pin the `argo/argo-cd` Helm chart version |
 | `ARGOCD_INSTALL_TIMEOUT` | `15m` | How long to wait for ArgoCD's pods to come up |
 | `EPINIO_DOMAIN` | `<node-ip>.sslip.io` | Wildcard domain Epinio's Ingresses use - set to a real domain |
+| `EPINIO_INGRESS_CLASS` | `traefik` | IngressClass Epinio's Ingresses are pinned to (reuses k3s's bundled Traefik) |
 | `EPINIO_TLS_ISSUER` | `epinio-ca` | cert-manager ClusterIssuer: `epinio-ca`, `selfsigned-issuer`, `letsencrypt-staging`, or `letsencrypt-production` |
 | `EPINIO_ADMIN_PASSWORD` | random | Epinio admin login password |
 | `EPINIO_CHART_VERSION` | latest | Pin the `epinio/epinio` Helm chart version |
