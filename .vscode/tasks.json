@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "⏬ Upd. DevEnv",
+            "type": "shell",
+            "command": "npx --yes -- github:tomgrv/devcontainer-features update -a",
+            "presentation": {
+                "panel": "shared",
+                "close": true,
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "⏬ Upd. DevEnv",
+            "type": "shell",
+            "command": "npm exec --yes -- tomgrv/devcontainer-features -u",
+            "presentation": {
+                "panel": "shared",
+                "close": true,
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "⏬ Align",
+            "type": "shell",
+            "command": "git align",
+            "problemMatcher": []
+        },
+        {
+            "label": "⤵️ Amend",
+            "type": "shell",
+            "command": "git amend",
+            "problemMatcher": []
+        },
+        {
+            "label": "⏫ Push force",
+            "type": "shell",
+            "command": "git pf",
+            "problemMatcher": []
+        },
+        {
+            "label": "🎈 Beta",
+            "type": "shell",
+            "command": "git release beta",
+            "problemMatcher": []
+        },
+        {
+            "label": "🚀 Prod",
+            "type": "shell",
+            "command": "git release prod",
+            "problemMatcher": []
+        },
+        {
+            "label": "🚑 Hotfix",
+            "type": "shell",
+            "command": "git release hotfix",
+            "problemMatcher": []
+        }
+    ]
+}

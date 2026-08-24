@@ -1,0 +1,40 @@
+# @format
+
+name: 'Release Main'
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Set up Node.js
+        uses: tomgrv/actions/setup-node@v2
+
+      - name: Install GitUtils
+        run: npm exec --yes --legacy-peer-deps --package github:tomgrv/devcontainer-features -- devcontainer-features -- add gitutils
+
+      - name: Verify GitUtils aliases
+        run: |
+          git config --global --get alias.beta >/dev/null || { echo 'Missing git beta alias after GitUtils install; check the "Install GitUtils" step logs.'; false; }
+          git config --global --get alias.prod >/dev/null || { echo 'Missing git prod alias after GitUtils install; check the "Install GitUtils" step logs.'; false; }
+
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Run git beta then git prod
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git beta && git prod

@@ -1,0 +1,60 @@
+[
+    {
+        "color": "b60205",
+        "description": "Must be fixed before release",
+        "name": "10 must"
+    },
+    {
+        "color": "fbca04",
+        "description": "Important but not critical to fix before release",
+        "name": "20 should"
+    },
+    {
+        "color": "0e8a16",
+        "description": "Should be fixed before release if possible",
+        "name": "30 could"
+    },
+    {
+        "color": "006b75",
+        "description": "Improvements or additions to documentation",
+        "name": "50 documentation"
+    },
+    {
+        "color": "ffffff",
+        "name": "90 wontdo"
+    },
+    {
+        "color": "cfd3d7",
+        "name": "80 duplicate"
+    },
+    {
+        "color": "c5def5",
+        "description": "Further information is requested",
+        "name": "question"
+    },
+    {
+        "color": "b9f7e2",
+        "description": "New feature or request",
+        "name": "enhancement"
+    },
+    {
+        "color": "d4c5f9",
+        "description": "Tasks that could be delegated to IA or interns when capacity allows",
+        "name": "leftover"
+    },
+    {
+        "color": "c2e0c6",
+        "description": "Tasks that need to be tested",
+        "name": "31 to test"
+    },
+    {
+        "color": "bfdadc",
+        "description": "Tasks that need to be released",
+        "name": "35 to release"
+    },
+    {
+        "color": "fef2c0",
+        "description": "Tasks that are in progress",
+        "name": "21 wip"
+    }
+]

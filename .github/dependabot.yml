@@ -1,0 +1,23 @@
+# @format
+
+# Keep the third-party GitHub Actions used across .github/workflows/*.yml and
+# every composite action's action.yml (actions/checkout, setup-php,
+# reviewdog, ...) up to date. Dependabot's github-actions ecosystem scans the
+# whole repository tree under `directory`, not just .github/workflows/, so a
+# single entry covers both workflows and composite actions.
+version: 2
+updates:
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+    commit-message:
+      prefix: 'chore'
+      include: 'scope'
+    labels:
+      - 'dependencies'
+      - 'github-actions'

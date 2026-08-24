@@ -1,0 +1,49 @@
+# @format
+
+name: 'Update Features'
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-features:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: tomgrv/actions/setup-node@v2
+
+      - name: Update features
+        run: npm exec --yes -- tomgrv/devcontainer-features update -a
+
+      - name: Detect changes
+        id: changes
+        run: |
+          echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          if ! git diff --quiet -- .; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: ${{ steps.changes.outputs.has-changes == 'true' }}
+        uses: tomgrv/actions/create-pr@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          head-branch: chore/update-features-${{ github.run_id }}
+          workdir: ${{ github.workspace }}
+          commit-message: 'chore: update features'
+          pr-title: 'chore: update features'
+          pr-body: |
+            Automated weekly feature updates.
+
+            Command run:
+            - npm exec --yes -- tomgrv/devcontainer-features update -a

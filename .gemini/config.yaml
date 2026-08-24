@@ -1,0 +1,23 @@
+# @format
+
+# .gemini/config.yaml
+# Gemini Code Assist configuration for this repository.
+# Reference: https://developers.google.com/gemini-code-assist/docs/customize-repo-review
+
+memory_config:
+    enabled: false
+
+code_review:
+    enabled: true
+    # Surface ALL comments including LOW severity to maximise code-change proposals
+    comment_severity_threshold: INFO
+    # No cap on review comments — let Gemini propose as many changes as needed
+    max_review_comments: 30
+    pull_request_opened:
+        help: false
+        summary: true # Post a PR summary automatically on open
+        code_review: true # Trigger full code review on every PR open
+        include_drafts: true # Also review draft PRs to get early feedback
+    pull_request_synchronized:
+        summary: false # Skip re-summary on force-push/new commits
+        include_drafts: true

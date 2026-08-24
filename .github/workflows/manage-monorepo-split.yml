@@ -1,0 +1,90 @@
+# @format
+
+name: 'Split Monorepo'
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  list-packages:
+    name: List packages
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.list.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: tomgrv/actions/setup-php@v2
+        with:
+          options: '--no-dev'
+
+      - name: Set up Node.js
+        uses: tomgrv/actions/setup-node@v2
+
+      - name: List packages
+        id: list
+        uses: tomgrv/actions/list-packages@v2
+
+  split-packages:
+    name: Split packages
+    runs-on: ubuntu-latest
+    needs: list-packages
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.list-packages.outputs.packages) }}
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate a token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.KLICKSPLIT_CLIENT_ID }}
+          private-key: ${{ secrets.KLICKSPLIT_APP_KEY }}
+          owner: ${{ matrix.package.org }}
+          repositories: ${{ matrix.package.name }}
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        uses: tomgrv/actions/config-bot@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          github-app-slug: ${{ steps.app-token.outputs.app-slug }}
+
+      # On a push to main or workflow_dispatch: split and open a PR on the origin repository
+      - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        id: split-package
+        uses: tomgrv/actions/split-package@v2
+        with:
+          package-directory: '${{ matrix.package.path }}'
+          repository-organization: '${{ matrix.package.org }}'
+          repository-name: '${{ matrix.package.name }}'
+          github-token: '${{ steps.app-token.outputs.token }}'
+
+      - if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.split-package.outputs.split-branch != '' }}
+        uses: tomgrv/actions/create-pr@v1
+        with:
+          github-token: '${{ steps.app-token.outputs.token }}'
+          repository: '${{ matrix.package.org }}/${{ matrix.package.name }}'
+          head-branch: '${{ steps.split-package.outputs.split-branch }}'
+          workdir: '${{ steps.split-package.outputs.split-workdir }}'
+          commit-message: 'sync: import from monorepo ${{ github.repository }}'
+          pr-title: 'sync: import from monorepo ${{ github.repository }}'
+          pr-body: |
+            ### Automated sync from monorepo [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }})
+
+            * from directory [${{ github.repository }}/${{ matrix.package.location }}](${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}/${{ matrix.package.location }}).
+            * at commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+
+            If there are any issues with this PR, please check the split commit directly for troubleshooting.

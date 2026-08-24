@@ -1,0 +1,38 @@
+# @format
+
+name: Validate PR Format
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR title
+        uses: tomgrv/actions/check-pr-format@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fix: true
+
+  check-pr-source-branch:
+    name: Validate PR source branch
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check PR source branch
+        uses: tomgrv/actions/check-pr-source-branch@v2
