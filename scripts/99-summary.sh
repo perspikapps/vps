@@ -10,6 +10,7 @@ COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-9080}"
 COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
+TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
 
 TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
 HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
@@ -21,8 +22,7 @@ COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not s
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
 RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run scripts/06-rancher.sh')"
 
-CODER_HTTP_PORT="${CODER_HTTP_PORT:-6080}"
-CODER_HOSTNAME="${CODER_HOSTNAME:-$HOST_FOR_URLS}"
+NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 
 cat <<EOF
 
@@ -47,41 +47,22 @@ cat <<EOF
                        (saved to /root/.rancher-bootstrap-password; you'll
                        be prompted to change it on first login)
 
- kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
-                       via /etc/profile.d/k3s-kubeconfig.sh for new shells)
-
  Docker (Cockpit):    $(command_exists docker && echo "installed - see the Containers tab in Cockpit" || echo "not installed (run scripts/07-cockpit-dockermanager.sh)")
                        If VPS_ADMIN_USER was just added to the docker group,
                        log out/in (or reboot) before it takes effect.
 
-EOF
+ Traefik (k3s):       public: http://${NODE_PUBLIC_IP} and https://${NODE_PUBLIC_IP}
+                       (Let's Encrypt certs issue automatically for Ingress
+                       hosts using the "letsencrypt" certResolver - see README)
+                       dashboard: http://${HOST_FOR_URLS}:${TRAEFIK_DASHBOARD_PORT}/dashboard/
+                       (Tailscale-only, no login - see README's Security model)
 
-if systemctl list-unit-files 2>/dev/null | grep -q '^laranode'; then
-  LARANODE_STATE="$(systemctl is-active --quiet laranode-queue.service 2>/dev/null && echo running || echo installed)"
-  cat <<EOF
+ kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
+                       via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 
- Laranode (opt-in):   ${LARANODE_STATE} - reachable on the ports its own
-                       installer opened (public by default; see
-                       LARANODE_TAILSCALE_ONLY). Credentials were printed
-                       once by its installer, not re-shown here.
-EOF
-fi
-
-if command_exists kubectl && kubectl -n coder get deploy coder >/dev/null 2>&1; then
-  CODER_ADMIN_PASSWORD="$(cat /root/.coder-admin-password 2>/dev/null || echo 'not set - run scripts/09-coder.sh')"
-  cat <<EOF
-
- Coder (opt-in):      http://${CODER_HOSTNAME}:${CODER_HTTP_PORT}
-                       user:     ${CODER_ADMIN_USERNAME:-admin}
-                       password: ${CODER_ADMIN_PASSWORD}
-                       (saved to /root/.coder-admin-password)
-EOF
-fi
-
-cat <<EOF
-
- Firewall:            ufw is enabled; only SSH is public. Cockpit, Rancher,
-                       Coder, and the k3s API are reachable ONLY over the
-                       tailscale0 interface - connect via Tailscale first.
+ Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
+                       this VPS's ingress). Cockpit, Rancher, the Traefik
+                       dashboard, and the k3s API are reachable ONLY over
+                       the tailscale0 interface - connect via Tailscale first.
 ======================================================================
 EOF

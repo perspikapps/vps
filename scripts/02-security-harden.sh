@@ -2,9 +2,9 @@
 # Harden the server for exposure to the public internet:
 #   - optional non-root sudo admin user with SSH key
 #   - SSH: disable root login, disable password auth (only if a key exists)
-#   - UFW: default-deny inbound, allow SSH publicly, allow the Cockpit/
-#     Rancher/Coder ports ONLY over the Tailscale interface (not the
-#     public internet)
+#   - UFW: default-deny inbound, allow SSH and HTTP/HTTPS (Traefik's
+#     ingress, see scripts/05-k3s.sh) publicly, allow Cockpit/Rancher/the
+#     Traefik dashboard ONLY over the Tailscale interface
 #   - fail2ban for SSH brute-force protection
 #
 # Env vars:
@@ -21,8 +21,8 @@
 #   COCKPIT_HTTPS_PORT  - default 9083
 #   RANCHER_HTTP_PORT   - default 7080
 #   RANCHER_HTTPS_PORT  - default 7083
-#   CODER_HTTP_PORT     - default 6080 (opt-in step, scripts/09-coder.sh)
-#   ALLOW_PUBLIC_WEB    - "true" to also allow 80/443 publicly (default: false)
+#   TRAEFIK_DASHBOARD_PORT - default 8088 (k3s's bundled Traefik, see
+#                         scripts/05-k3s.sh)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,8 +37,7 @@ COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-9080}"
 COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-9083}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-7080}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-7083}"
-CODER_HTTP_PORT="${CODER_HTTP_PORT:-6080}"
-ALLOW_PUBLIC_WEB="${ALLOW_PUBLIC_WEB:-false}"
+TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-8088}"
 
 log "Installing ufw and fail2ban..."
 apt_install ufw fail2ban
@@ -131,19 +130,20 @@ ufw default deny incoming
 ufw default allow outgoing
 ufw allow "${SSH_PORT}/tcp" comment "SSH"
 
-if [[ "$ALLOW_PUBLIC_WEB" == "true" ]]; then
-  ufw allow 80/tcp comment "HTTP"
-  ufw allow 443/tcp comment "HTTPS"
-fi
+# HTTP/HTTPS are public on purpose: k3s's bundled Traefik (scripts/05-k3s.sh)
+# is this VPS's real public ingress, and Let's Encrypt's HTTP-01 challenge
+# needs port 80 reachable from the internet to issue certs at all.
+ufw allow 80/tcp comment "HTTP (Traefik)"
+ufw allow 443/tcp comment "HTTPS (Traefik)"
 
-# Cockpit, Rancher, and Coder (if installed) are only reachable over the
+# Cockpit, Rancher, and the Traefik dashboard are only reachable over the
 # Tailscale interface, never on the public internet, until scripts/03
 # brings tailscale0 up.
-for port in "$COCKPIT_HTTP_PORT" "$COCKPIT_HTTPS_PORT" "$RANCHER_HTTP_PORT" "$RANCHER_HTTPS_PORT" "$CODER_HTTP_PORT"; do
+for port in "$COCKPIT_HTTP_PORT" "$COCKPIT_HTTPS_PORT" "$RANCHER_HTTP_PORT" "$RANCHER_HTTPS_PORT" "$TRAEFIK_DASHBOARD_PORT"; do
   ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only" || true
 done
 # k3s node-to-node / API traffic, also tailscale-only.
 ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
-ok "ufw enabled: SSH open publicly; Cockpit/Rancher/Coder/k3s reachable only via Tailscale."
+ok "ufw enabled: SSH/HTTP/HTTPS public; Cockpit/Rancher/Traefik dashboard/k3s API reachable only via Tailscale."

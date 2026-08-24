@@ -1,8 +1,10 @@
 # vps
 
-One-line bootstrapper that turns a fresh Ubuntu VPS into a secured,
-Tailscale-only management box running Cockpit and a single-node
-k3s/Rancher cluster.
+One-line bootstrapper that turns a fresh Ubuntu VPS into a secured
+management box running Cockpit and a single-node k3s/Rancher cluster,
+with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, and the
+Traefik dashboard are Tailscale-only; the ingress itself (80/443) is
+public on purpose - see [Security model](#security-model).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sudo bash
@@ -20,20 +22,15 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`setup.sh` runs nine numbered steps in order: `system` (01), `security`
-(02), `tailscale` (03), `cockpit` (04), `k3s` (05), `rancher` (06),
-`dockermanager` (07), `laranode` (08), and `coder` (09). Three flag
+`setup.sh` runs seven numbered steps in order: `system` (01), `security`
+(02), `tailscale` (03), `cockpit` (04), `k3s` (05, includes Traefik
+configuration), `rancher` (06), and `dockermanager` (07). Two flag
 families control which of them run:
 
 - **`--skip-<step>`** - run everything *except* the named step(s).
 - **`--only-<step>`** - run *only* the named step(s); pass it more than
   once to run a few together. Any `--only-*` flag overrides every
-  `--skip-*`/`--with-*` flag on the command line.
-- **`--with-<step>`** - `laranode` and `coder` are opt-in (see
-  [Laranode](#laranode-optional-lamp-hosting-panel) and
-  [Coder](#coder-optional-dev-environment-platform) below) and skipped by
-  default even on a full run; `--with-laranode`/`--with-coder` turns one
-  on for that run.
+  `--skip-*` flag on the command line.
 
 When you already have `setup.sh` on disk (e.g. after the
 [full copy-paste example](#full-copy-paste-example)'s `-o /tmp/setup.sh`
@@ -268,7 +265,10 @@ entirely - there's no `sudo` involved.
 - `scripts/03-tailscale.sh` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
 - `scripts/04-cockpit.sh` - installs Cockpit, served on ports 9080/9083.
-- `scripts/05-k3s.sh` - installs k3s (Traefik disabled), kubectl, Helm.
+- `scripts/05-k3s.sh` - installs k3s (Traefik enabled), kubectl, Helm, and
+  configures Traefik as a public HTTP/HTTPS ingress with a Let's Encrypt
+  certResolver and a Tailscale-only dashboard - see
+  [Traefik ingress](#traefik-ingress-lets-encrypt-and-the-dashboard).
 - `scripts/06-rancher.sh` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
   Helm, exposed on ports 7080/7083 through k3s's built-in ServiceLB.
@@ -276,130 +276,61 @@ entirely - there's no `sudo` involved.
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
-- `scripts/08-laranode.sh` - **opt-in** (`--with-laranode`/`--only-laranode`):
-  installs [Laranode](https://laranode.com), a LAMP hosting panel, natively
-  on the host via its official installer.
-- `scripts/09-coder.sh` - **opt-in** (`--with-coder`/`--only-coder`):
-  deploys [Coder](https://coder.com) plus a minimal Postgres as Helm
-  releases into k3s, exposed on port 6080.
 - `scripts/99-summary.sh` - prints connection info, the Tailscale URL, and
-  the Cockpit/Rancher/Coder credentials at the end.
+  the Cockpit/Rancher credentials at the end.
 
 ## Security model
 
-The server is only supposed to be reachable from the public internet on
-the SSH port. Everything else - Cockpit, Rancher, the k3s API - is bound
-by `ufw` to the `tailscale0` interface only, so you must join the same
-tailnet to reach them. Set `ALLOW_PUBLIC_WEB=true` if you want ports 80/443
-open publicly (e.g. to front Rancher with your own ingress/TLS setup).
+SSH and HTTP/HTTPS (Traefik's ingress) are the only things reachable from
+the public internet. Everything else - Cockpit, Rancher, the Traefik
+dashboard, the k3s API - is bound by `ufw` to the `tailscale0` interface
+only, so you must join the same tailnet to reach them.
+
+HTTP/HTTPS are public unconditionally, not behind a flag: Traefik is this
+VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
+reachable from the internet to issue certs at all - a Tailscale-only
+ingress would defeat the point of having one.
 
 Because of this, **`setup.sh` refuses to run at all if the Tailscale step
 is enabled but `TAILSCALE_AUTHKEY` is unset** - proceeding anyway would
-lock down ufw and leave Cockpit/Rancher/k3s unreachable by anything. Pass
-`--skip-tailscale` if you genuinely want to run without Tailscale (you can
-join manually later with `tailscale up`, then `sudo bash setup.sh
---only-tailscale`).
+lock down ufw and leave Cockpit/Rancher/the k3s API unreachable by
+anything. Pass `--skip-tailscale` if you genuinely want to run without
+Tailscale (you can join manually later with `tailscale up`, then `sudo
+bash setup.sh --only-tailscale`).
 
-## Laranode (optional LAMP hosting panel)
+## Traefik ingress: Let's Encrypt and the dashboard
 
-`scripts/08-laranode.sh` is **opt-in** (`--with-laranode` on a full run, or
-standalone with `--only-laranode`) and installs
-[Laranode](https://laranode.com), an open-source Laravel/LAMP hosting
-control panel, via its official installer. Unlike everything else in this
-repo, Laranode has no container image or Helm chart upstream - it's a
-traditional VPS panel that installs its own Apache/MySQL/PHP-FPM stack
-directly on the host, so it runs natively rather than in k3s.
+`scripts/05-k3s.sh` leaves k3s's bundled Traefik enabled (rather than
+disabling it, as you'll see suggested in some k3s+Rancher guides) and
+configures it as this VPS's public ingress via a `HelmChartConfig` -
+k3s's own mechanism for overriding a bundled chart's values, watched
+continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 
-- **Public by default, on purpose**: the installer opens ufw for 80, 443,
-  and 8080 (its Reverb websocket service) to the whole internet, and this
-  repo leaves that in place - unlike Cockpit/Rancher, Laranode's entire
-  purpose is hosting public-facing websites, and its one-click Let's
-  Encrypt feature needs port 80 reachable for ACME HTTP-01 validation.
-  Set `LARANODE_TAILSCALE_ONLY=true` if you want it private instead (this
-  also disables its Let's Encrypt issuance).
-- **Port range**: Laranode's Reverb port (`8080`, hardcoded upstream) is
-  the only thing in the `8xxx` range - Rancher defaults to `7xxx` and
-  Coder to `6xxx` specifically to stay out of its way (see
-  [Key environment variables](#key-environment-variables)). If you've set
-  `RANCHER_HTTP_PORT=8080` yourself, change it before installing both.
-- Credentials (MySQL root password, Laranode's own DB user password) are
-  generated and printed once by the installer itself - not saved to a
-  file by Laranode, and not re-shown by `scripts/99-summary.sh`, so copy
-  them down when you see them.
-- **PHP/Composer workaround**: Laranode's installer adds `ppa:ondrej/php`
-  and installs PHP from it, but that PPA lags brand-new Ubuntu releases by
-  months (it 404s outright on 26.04/"resolute" as of this writing) - and
-  since the installer runs with `set -e` disabled, a failure there doesn't
-  stop it; it carries on into `composer install`/`php artisan ...` with no
-  PHP at all, failing loudly on each one and leaving a half-built install
-  (repo cloned, assets built, ufw rules added, but no `vendor/`, `.env`,
-  or migrations). `scripts/08-laranode.sh` works around this by
-  pre-installing PHP 8.4 + Composer from
-  [Sury's repo](https://packages.sury.org/php/) (the PPA's own
-  replacement recommendation for unsupported releases) before handing off
-  to the installer, so its own broken PPA step becomes a harmless no-op.
-  Sury can lag too, though - if the running release isn't supported there
-  either, it falls back to Sury's Ubuntu 24.04 ("noble") packages (PHP
-  userspace packages are ABI-compatible across adjacent Ubuntu releases,
-  a common, safe workaround), and only fails fast with a clear message if
-  neither works. It also detects and removes a partial install from a
-  previous failed run (its `git clone` isn't idempotent) before retrying.
-- **Sudoers workaround**: the installer also writes a sudoers rule with a
-  wildcard inside a command *argument* (`/bin/rm
-  .../sites-available/*.conf`) - sudo only ever permits wildcards in the
-  command path, never in arguments, so this specific clause is invalid on
-  any system and sudo silently skips it (with a recurring "wildcards are
-  not allowed in command arguments" warning every time the file is
-  parsed). That permission was never actually granted, so
-  `scripts/08-laranode.sh` removes just that clause - verified safe with
-  `visudo -c` before touching `/etc/sudoers`, and left untouched if that
-  check fails.
-- **Apt-poisoning workaround**: `add-apt-repository -y ppa:ondrej/php`
-  (part of the PHP workaround above) leaves behind a broken source file
-  when the release is unsupported, and the installer runs it
-  unconditionally on every invocation - `apt-get update` returns nonzero
-  if *any* configured source fails, not just that one, so left in place
-  it breaks every subsequent apt operation on the box, not just
-  Laranode's. `scripts/08-laranode.sh` detects and removes it both before
-  touching apt itself and again after the installer runs (since it keeps
-  re-adding it).
-- **Apache vhost workaround**: the installer restarts apache2 early in its
-  run, before it (re-)clones the app - so if an Apache vhost from a
-  previous failed run still points at `/home/laranode_ln/panel` (e.g.
-  after `scripts/08-laranode.sh` removed that directory per the partial-
-  install cleanup above), apache2 fails to start at all (it can't open
-  the vhost's error log in a directory that no longer exists), which
-  breaks the rest of that run too. `scripts/08-laranode.sh` disables that
-  stale vhost whenever the directory it points at doesn't currently
-  exist; Laranode's own installer recreates it correctly once the app is
-  (re-)cloned.
-
-## Coder (optional dev-environment platform)
-
-`scripts/09-coder.sh` is **opt-in** (`--with-coder` on a full run, or
-standalone with `--only-coder`) and deploys
-[Coder](https://coder.com), a self-hosted remote development platform, as
-a Helm release into the k3s cluster from `scripts/05` - it then shows up
-in Rancher's own Apps view like any other in-cluster Helm release, since
-Rancher lists Helm releases already present in the cluster regardless of
-how they were installed.
-
-- Coder's chart ships no bundled database, so this also deploys a minimal
-  single-replica Postgres (official `postgres` image + a PVC on k3s's
-  default `local-path` StorageClass) - fine for this repo's single-node
-  scope, not meant to be HA.
-- Exposed on `CODER_HTTP_PORT` (default `6080`) via k3s's built-in
-  ServiceLB, the same pattern as Rancher - Tailscale-only by default,
-  same as everything else (see [Security model](#security-model)).
-- Runs over plain HTTP inside the cluster: the transport is already
-  encrypted by Tailscale itself. Set `coder.tls.secretNames` yourself via
-  `CODER_EXTRA_HELM_ARGS` if you want the chart to terminate TLS instead.
-- The initial admin user is created non-interactively (`coder server
-  create-admin-user`, run as a one-off Kubernetes Job), since Coder has no
-  bootstrap-password chart value the way Rancher does. Username
-  (`CODER_ADMIN_USERNAME`, default `admin`), email (`CODER_ADMIN_EMAIL`),
-  and password (`CODER_ADMIN_PASSWORD`, default random, saved to
-  `/root/.coder-admin-password`) are all overridable.
+- **Public HTTP/HTTPS**: ports 80/443 are k3s's own defaults for
+  Traefik's `web`/`websecure` entrypoints, exposed via its built-in
+  ServiceLB like Rancher's ports - no extra configuration needed, just
+  ufw open on those two (see [Security model](#security-model)).
+- **Let's Encrypt**: a certResolver named `letsencrypt` is configured
+  (email from `TRAEFIK_ACME_EMAIL`, HTTP-01 challenge on the `web`
+  entrypoint, state persisted to a PVC so certs survive pod restarts).
+  This makes the resolver *available* - it doesn't issue anything by
+  itself. To get a real cert for your own app, create an `Ingress` (or
+  Traefik `IngressRoute`) with the annotation
+  `traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt`,
+  and a real DNS record pointing this VPS's public IP at your hostname
+  (the HTTP-01 challenge needs that to succeed).
+- **Staging by default**: `TRAEFIK_ACME_STAGING` defaults to `true`, which
+  points the resolver at Let's Encrypt's *staging* environment - browsers
+  will show a certificate-warning page, but there's no rate limit, so
+  it's safe to test against repeatedly while you get your Ingress/DNS
+  right. Set `TRAEFIK_ACME_STAGING=false` once you're ready for real,
+  trusted certs (production Let's Encrypt has strict per-domain rate
+  limits - avoid iterating against it directly).
+- **Dashboard**: exposed on `TRAEFIK_DASHBOARD_PORT` (default `8088`),
+  Tailscale-only like Cockpit/Rancher, at `http://<tailscale-ip>:8088/dashboard/`
+  (trailing slash required). It has no login of its own - that's fine
+  given it's already gated to the tailnet, same threat model as the rest
+  of this repo's admin surfaces, but don't put it on a public port.
 
 ## Cockpit and Rancher logins
 
@@ -425,7 +356,6 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `VPS_ADMIN_SSH_KEY` | unset | Authorized key for the admin user and root |
 | `VPS_ADMIN_PASSWORD` | random | Cockpit/console login password (separate from SSH) |
 | `SSH_PORT` | `22` | SSH port kept open publicly |
-| `ALLOW_PUBLIC_WEB` | `false` | Also open 80/443 publicly |
 | `TAILSCALE_AUTHKEY` | unset | Auto-join a tailnet (**required** unless `--skip-tailscale`) |
 | `TAILSCALE_EXTRA_ARGS` | unset | Extra flags appended to `tailscale up` |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083` | Cockpit ports (`9xxx`) |
@@ -434,21 +364,14 @@ you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 | `RANCHER_BOOTSTRAP_PASSWORD` | random | Rancher initial admin password |
 | `INSTALL_DOCKER` | `true` | Install `docker.io` for cockpit-dockermanager to manage |
 | `COCKPIT_DOCKERMANAGER_VERSION` | `latest` | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
-| `LARANODE_TAILSCALE_ONLY` | `false` | Restrict Laranode's ports to Tailscale instead of leaving them public |
-| `CODER_HOSTNAME` | node IP | Hostname used in `CODER_ACCESS_URL` |
-| `CODER_HTTP_PORT` | `6080` | Coder's exposed port (`6xxx`) |
-| `CODER_ADMIN_USERNAME` / `CODER_ADMIN_EMAIL` | `admin` / `admin@<hostname>` | Initial Coder admin account |
-| `CODER_ADMIN_PASSWORD` | random | Initial Coder admin password |
-| `CODER_POSTGRES_PASSWORD` | random | Password for Coder's bundled Postgres |
-| `CODER_CHART_VERSION` | latest | Pin the Coder Helm chart version |
-| `CODER_EXTRA_HELM_ARGS` | unset | Extra args appended to Coder's `helm upgrade --install` |
+| `TRAEFIK_ACME_EMAIL` | placeholder | Let's Encrypt contact email - set this to a real address |
+| `TRAEFIK_ACME_STAGING` | `true` | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs |
+| `TRAEFIK_DASHBOARD_PORT` | `8088` | Traefik dashboard port (Tailscale-only) |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
-Cockpit `9xxx`, Rancher `7xxx`, Coder `6xxx`, and Laranode's hardcoded
-Reverb port lands in `8xxx` (see
-[Laranode](#laranode-optional-lamp-hosting-panel) - everything else about
-Laranode's ports, including 80/443, is upstream's own and not
-configurable here).
+Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the ingress
+itself is always 80/443, per HTTP/HTTPS convention, not part of this
+scheme.
 
 Each script can also be run standalone from the `scripts/` directory
 after `lib/common.sh` is present alongside it (this is what `setup.sh
