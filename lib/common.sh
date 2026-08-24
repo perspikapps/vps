@@ -125,6 +125,28 @@ ensure_line() {
   grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
 }
 
+# Install cert-manager if it isn't already on the cluster, and reuse it
+# as-is if it is - shared by scripts/06-rancher.sh and scripts/09-epinio.sh,
+# whichever of the two runs first (order doesn't matter; the other then
+# just reuses this same installation). Respects CERT_MANAGER_VERSION.
+ensure_cert_manager() {
+  if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
+    log "cert-manager already installed."
+    return
+  fi
+  log "Installing cert-manager..."
+  helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
+  helm repo update >/dev/null
+  kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+  local version_arg=()
+  [[ -n "${CERT_MANAGER_VERSION:-}" ]] && version_arg=(--version "$CERT_MANAGER_VERSION")
+  helm upgrade --install cert-manager jetstack/cert-manager \
+    --namespace cert-manager \
+    --set crds.enabled=true \
+    "${version_arg[@]}" \
+    --wait --timeout 5m
+}
+
 # Rebind a Helm chart's named Service port to a different port number.
 # k3s's built-in ServiceLB (Klipper) binds host ports to whatever a
 # LoadBalancer Service's `port` field says, so exposing a chart's app on a

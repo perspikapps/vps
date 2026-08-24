@@ -3,9 +3,10 @@
 # systemd service.
 #
 # setup.sh refuses to run at all if this step is enabled but
-# TAILSCALE_AUTHKEY is unset, since ufw only opens Cockpit/Rancher/k3s to
-# the tailscale0 interface - an unauthenticated node would leave all of
-# them unreachable. Pass --skip-tailscale there to opt out of that guard.
+# TAILSCALE_AUTHKEY is unset, since ufw only opens this repo's
+# Tailscale-only services (see network.yaml) to the tailscale0 interface -
+# an unauthenticated node would leave all of them unreachable. Pass
+# --skip-tailscale there to opt out of that guard.
 #
 # Env vars:
 #   TAILSCALE_AUTHKEY     - auth key to auto-join a tailnet (required unless

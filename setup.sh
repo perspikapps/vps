@@ -19,107 +19,118 @@ REPO_URL="${VPS_SETUP_REPO_URL:-https://github.com/perspikapps/vps.git}"
 REPO_REF="${VPS_SETUP_REPO_REF:-main}"
 INSTALL_DIR="${VPS_SETUP_DIR:-/opt/vps-setup}"
 
-# Every step below can be skipped with --skip-<step>, or you can invert
-# that and run just a subset with one or more --only-<step> flags (see
-# the ONLY_STEPS handling further down and README.md's "Running a single
-# step" section).
-SKIP_SYSTEM=0
-SKIP_SECURITY=0
-SKIP_TAILSCALE=0
-SKIP_COCKPIT=0
-SKIP_K3S=0
-SKIP_RANCHER=0
-SKIP_DOCKERMANAGER=0
-SKIP_ARGOCD=0
-SKIP_EPINIO=0
+# Single source of truth for every step: name, script, label, and whether
+# it runs by default. Adding a step means editing these three lines and
+# nothing else - flag parsing, usage text, and execution below are all
+# generated from this table.
+STEP_ORDER=(system security tailscale cockpit k3s rancher dockermanager argocd epinio)
+declare -A STEP_SCRIPT=(
+  [system]=01-system-update.sh
+  [security]=02-security-harden.sh
+  [tailscale]=03-tailscale.sh
+  [cockpit]=04-cockpit.sh
+  [k3s]=05-k3s.sh
+  [rancher]=06-rancher.sh
+  [dockermanager]=07-cockpit-dockermanager.sh
+  [argocd]=08-argocd.sh
+  [epinio]=09-epinio.sh
+)
+declare -A STEP_LABEL=(
+  [system]="Base system update & essentials"
+  [security]="Firewall / SSH / fail2ban hardening"
+  [tailscale]="Tailscale install"
+  [cockpit]="Cockpit install"
+  [k3s]="k3s / kubectl / helm install (includes Traefik configuration)"
+  [rancher]="Rancher install"
+  [dockermanager]="cockpit-packagekit/files/dockermanager install"
+  [argocd]="ArgoCD install"
+  [epinio]="Epinio install"
+)
+# 1 = runs unless --skip-<step>; 0 = only runs with --with-<step> or --only-<step>.
+declare -A STEP_DEFAULT=(
+  [system]=1 [security]=1 [tailscale]=1 [cockpit]=1 [k3s]=1 [rancher]=1
+  [dockermanager]=1 [argocd]=0 [epinio]=0
+)
+
+declare -A SKIP=()
+for step in "${STEP_ORDER[@]}"; do
+  SKIP[$step]=$(( 1 - STEP_DEFAULT[$step] ))
+done
 declare -a ONLY_STEPS=()
 
 usage() {
-  cat <<'EOF'
-Usage: setup.sh [options]
-
-Options:
-  --skip-system         Skip base system update/essentials (scripts/01)
-  --skip-security       Skip firewall/SSH/fail2ban hardening (scripts/02)
-  --skip-tailscale      Skip Tailscale install (scripts/03)
-  --skip-cockpit        Skip Cockpit install (scripts/04)
-  --skip-k3s            Skip k3s/kubectl/helm install (scripts/05)
-  --skip-rancher        Skip Rancher install (scripts/06)
-  --skip-dockermanager  Skip cockpit-packagekit/files/dockermanager (scripts/07)
-  --skip-argocd         Skip ArgoCD install (scripts/08)
-  --skip-epinio         Skip Epinio install (scripts/09)
-
-  --only-system         Run ONLY scripts/01 (base system update)
-  --only-security       Run ONLY scripts/02 (firewall/SSH/fail2ban)
-  --only-tailscale      Run ONLY scripts/03 (Tailscale)
-  --only-cockpit        Run ONLY scripts/04 (Cockpit)
-  --only-k3s            Run ONLY scripts/05 (k3s/kubectl/helm/Traefik)
-  --only-rancher        Run ONLY scripts/06 (Rancher)
-  --only-dockermanager  Run ONLY scripts/07 (cockpit-packagekit/files/dockermanager)
-  --only-argocd         Run ONLY scripts/08 (ArgoCD)
-  --only-epinio         Run ONLY scripts/09 (Epinio)
+  echo "Usage: setup.sh [options]"
+  echo
+  echo "Options:"
+  for step in "${STEP_ORDER[@]}"; do
+    printf '  --skip-%-14s Skip %s (%s)\n' "$step" "${STEP_LABEL[$step]}" "${STEP_SCRIPT[$step]}"
+  done
+  echo
+  for step in "${STEP_ORDER[@]}"; do
+    [[ "${STEP_DEFAULT[$step]}" -eq 0 ]] && printf '  --with-%-14s Enable %s (%s) - opt-in, off by default\n' "$step" "${STEP_LABEL[$step]}" "${STEP_SCRIPT[$step]}"
+  done
+  echo
+  for step in "${STEP_ORDER[@]}"; do
+    printf '  --only-%-14s Run ONLY %s (%s)\n' "$step" "${STEP_SCRIPT[$step]}" "${STEP_LABEL[$step]}"
+  done
+  cat <<EOF
                         (repeat --only-* to run more than one step; any
-                        --only-* flag overrides all --skip-* flags)
+                        --only-* flag overrides all --skip-*/--with-* flags)
 
   -h, --help            Show this help
 
-Note: TAILSCALE_AUTHKEY is required unless --skip-tailscale is passed -
-Cockpit/Rancher/k3s are only reachable over Tailscale, so this refuses to
-run without it rather than produce an unreachable VPS.
+Off-by-default steps: $(for s in "${STEP_ORDER[@]}"; do [[ "${STEP_DEFAULT[$s]}" -eq 0 ]] && echo -n "$s "; done)
+(pass --with-<step>, or --only-<step>, to run one of these).
 
-Environment variables (see README.md for the full list):
-  TAILSCALE_AUTHKEY, RANCHER_HOSTNAME, RANCHER_BOOTSTRAP_PASSWORD,
-  COCKPIT_HTTP_PORT, COCKPIT_HTTPS_PORT, RANCHER_HTTP_PORT, RANCHER_HTTPS_PORT,
-  VPS_ADMIN_USER, VPS_ADMIN_SSH_KEY, INSTALL_DOCKER,
-  COCKPIT_DOCKERMANAGER_VERSION, TRAEFIK_ACME_EMAIL, TRAEFIK_ACME_STAGING,
-  TRAEFIK_DASHBOARD_PORT, ARGOCD_HTTP_PORT, ARGOCD_HTTPS_PORT,
-  ARGOCD_INSTALL_TIMEOUT, EPINIO_DOMAIN, EPINIO_INGRESS_CLASS,
-  EPINIO_TLS_ISSUER, EPINIO_ADMIN_PASSWORD, EPINIO_INSTALL_TIMEOUT
+Note: TAILSCALE_AUTHKEY is required unless --skip-tailscale is passed -
+every Tailscale-only service this repo sets up (see network.yaml) is
+unreachable without it, so this refuses to run rather than produce a
+VPS nothing can be managed on.
+
+Environment variables: see README.md's "Key environment variables"
+section for the full list (network.yaml for ports specifically).
 EOF
 }
 
 for arg in "$@"; do
   case "$arg" in
-    --skip-system) SKIP_SYSTEM=1 ;;
-    --skip-security) SKIP_SECURITY=1 ;;
-    --skip-tailscale) SKIP_TAILSCALE=1 ;;
-    --skip-cockpit) SKIP_COCKPIT=1 ;;
-    --skip-k3s) SKIP_K3S=1 ;;
-    --skip-rancher) SKIP_RANCHER=1 ;;
-    --skip-dockermanager) SKIP_DOCKERMANAGER=1 ;;
-    --skip-argocd) SKIP_ARGOCD=1 ;;
-    --skip-epinio) SKIP_EPINIO=1 ;;
-    --only-system) ONLY_STEPS+=(system) ;;
-    --only-security) ONLY_STEPS+=(security) ;;
-    --only-tailscale) ONLY_STEPS+=(tailscale) ;;
-    --only-cockpit) ONLY_STEPS+=(cockpit) ;;
-    --only-k3s) ONLY_STEPS+=(k3s) ;;
-    --only-rancher) ONLY_STEPS+=(rancher) ;;
-    --only-dockermanager) ONLY_STEPS+=(dockermanager) ;;
-    --only-argocd) ONLY_STEPS+=(argocd) ;;
-    --only-epinio) ONLY_STEPS+=(epinio) ;;
+    --skip-*)
+      step="${arg#--skip-}"
+      if [[ -n "${STEP_SCRIPT[$step]:-}" ]]; then
+        SKIP[$step]=1
+      else
+        echo "Unknown option: $arg" >&2; usage; exit 1
+      fi
+      ;;
+    --with-*)
+      step="${arg#--with-}"
+      if [[ -n "${STEP_SCRIPT[$step]:-}" ]]; then
+        SKIP[$step]=0
+      else
+        echo "Unknown option: $arg" >&2; usage; exit 1
+      fi
+      ;;
+    --only-*)
+      step="${arg#--only-}"
+      if [[ -n "${STEP_SCRIPT[$step]:-}" ]]; then
+        ONLY_STEPS+=("$step")
+      else
+        echo "Unknown option: $arg" >&2; usage; exit 1
+      fi
+      ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage; exit 1 ;;
   esac
 done
 
-# Any --only-<step> flag overrides --skip-*: start from "skip everything"
-# and re-enable just the requested step(s).
+# Any --only-<step> flag overrides --skip-*/--with-*: start from "skip
+# everything" and re-enable just the requested step(s).
 if [[ "${#ONLY_STEPS[@]}" -gt 0 ]]; then
-  SKIP_SYSTEM=1 SKIP_SECURITY=1 SKIP_TAILSCALE=1 SKIP_COCKPIT=1
-  SKIP_K3S=1 SKIP_RANCHER=1 SKIP_DOCKERMANAGER=1 SKIP_ARGOCD=1 SKIP_EPINIO=1
+  for step in "${STEP_ORDER[@]}"; do
+    SKIP[$step]=1
+  done
   for step in "${ONLY_STEPS[@]}"; do
-    case "$step" in
-      system) SKIP_SYSTEM=0 ;;
-      security) SKIP_SECURITY=0 ;;
-      tailscale) SKIP_TAILSCALE=0 ;;
-      cockpit) SKIP_COCKPIT=0 ;;
-      k3s) SKIP_K3S=0 ;;
-      rancher) SKIP_RANCHER=0 ;;
-      dockermanager) SKIP_DOCKERMANAGER=0 ;;
-      argocd) SKIP_ARGOCD=0 ;;
-      epinio) SKIP_EPINIO=0 ;;
-    esac
+    SKIP[$step]=0
   done
 fi
 
@@ -128,15 +139,17 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-# ufw (scripts/02) only opens Cockpit/Rancher/the k3s API to the
-# tailscale0 interface, so running the rest of the install without
-# Tailscale authenticated would leave all of them unreachable. Refuse to
-# proceed rather than silently produce a VPS nothing can be managed on.
-if [[ "$SKIP_TAILSCALE" -eq 0 && -z "${TAILSCALE_AUTHKEY:-}" ]]; then
+# ufw (scripts/02) only opens this repo's Tailscale-only services (see
+# network.yaml) to the tailscale0 interface, so running the rest of the
+# install without Tailscale authenticated would leave all of them
+# unreachable. Refuse to proceed rather than silently produce a VPS
+# nothing can be managed on.
+if [[ "${SKIP[tailscale]}" -eq 0 && -z "${TAILSCALE_AUTHKEY:-}" ]]; then
   echo "[vps-setup] TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." >&2
-  echo "[vps-setup] Cockpit, Rancher, and the k3s API are reachable ONLY over Tailscale" >&2
-  echo "[vps-setup] (see README's Security model) - continuing without it would leave" >&2
-  echo "[vps-setup] all of them unreachable once ufw locks the box down. Either:" >&2
+  echo "[vps-setup] Cockpit, Rancher, ArgoCD, the Traefik dashboard, and the k3s API" >&2
+  echo "[vps-setup] are reachable ONLY over Tailscale (see README's Security model) -" >&2
+  echo "[vps-setup] continuing without it would leave all of them unreachable once ufw" >&2
+  echo "[vps-setup] locks the box down. Either:" >&2
   echo "[vps-setup]   - set TAILSCALE_AUTHKEY (see README's 'Getting the keys you'll need'), or" >&2
   echo "[vps-setup]   - pass --skip-tailscale to proceed anyway (you can run 'tailscale up'" >&2
   echo "[vps-setup]     manually later, then: sudo bash setup.sh --only-tailscale)." >&2
@@ -176,7 +189,7 @@ require_root
 require_ubuntu
 
 run_step() {
-  local script="$1" skip="$2" label="$3" flag_name="$4"
+  local step="$1" skip="${SKIP[$1]}" script="${STEP_SCRIPT[$1]}" label="${STEP_LABEL[$1]}"
   if [[ "$skip" -eq 1 ]]; then
     warn "Skipping ${label} (${script})"
     return
@@ -186,18 +199,12 @@ run_step() {
   bash "$INSTALL_DIR/scripts/${script}" || rc=$?
   if [[ "$rc" -ne 0 ]]; then
     die "Step '${label}' (${script}) failed (exit ${rc}) - see the error above." \
-        "Fix it and re-run just this step with: sudo bash setup.sh --only-${flag_name}"
+        "Fix it and re-run just this step with: sudo bash setup.sh --only-${step}"
   fi
   ok "=== Done: ${label} ==="
 }
 
-run_step "01-system-update.sh"     "$SKIP_SYSTEM"        "Base system update & essentials"           system
-run_step "02-security-harden.sh"   "$SKIP_SECURITY"      "Firewall / SSH / fail2ban hardening"        security
-run_step "03-tailscale.sh"         "$SKIP_TAILSCALE"     "Tailscale install"                          tailscale
-run_step "04-cockpit.sh"           "$SKIP_COCKPIT"       "Cockpit install"                            cockpit
-run_step "05-k3s.sh"               "$SKIP_K3S"           "k3s / kubectl / helm install"                k3s
-run_step "06-rancher.sh"           "$SKIP_RANCHER"       "Rancher install"                            rancher
-run_step "07-cockpit-dockermanager.sh" "$SKIP_DOCKERMANAGER" "cockpit-packagekit/files/dockermanager install" dockermanager
-run_step "08-argocd.sh"             "$SKIP_ARGOCD"        "ArgoCD install"                              argocd
-run_step "09-epinio.sh"             "$SKIP_EPINIO"        "Epinio install"                              epinio
+for step in "${STEP_ORDER[@]}"; do
+  run_step "$step"
+done
 bash "$INSTALL_DIR/scripts/99-summary.sh"

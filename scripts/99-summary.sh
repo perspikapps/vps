@@ -59,8 +59,10 @@ cat <<EOF
                        log out/in (or reboot) before it takes effect.
 
  Traefik (k3s):       public: http://${NODE_PUBLIC_IP} and https://${NODE_PUBLIC_IP}
-                       (Let's Encrypt certs issue automatically for Ingress
-                       hosts using the "letsencrypt" certResolver - see README)
+                       (a "letsencrypt" certResolver is configured and
+                       ready to use - it won't issue anything until you
+                       add the router.tls.certresolver annotation to your
+                       own Ingress; see README)
                        dashboard: http://${HOST_FOR_URLS}:${TRAEFIK_DASHBOARD_PORT}/dashboard/
                        (Tailscale-only, no login - see README's Security model)
 

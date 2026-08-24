@@ -2,9 +2,12 @@
 
 One-line bootstrapper that turns a fresh Ubuntu VPS into a secured
 management box running Cockpit and a single-node k3s/Rancher cluster,
-with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, and the
-Traefik dashboard are Tailscale-only; the ingress itself (80/443) is
-public on purpose - see [Security model](#security-model).
+with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, ArgoCD,
+and the Traefik dashboard are Tailscale-only; the ingress itself (80/443)
+is public on purpose - see [Security model](#security-model). ArgoCD and
+[Epinio](#epinio-deploy-apps-from-source) are optional, opt-in steps (see
+[Running a single step](#running-a-single-step-or-a-subset)) - everything
+else runs by default.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sudo bash
@@ -25,12 +28,18 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 `setup.sh` runs nine numbered steps in order: `system` (01), `security`
 (02), `tailscale` (03), `cockpit` (04), `k3s` (05, includes Traefik
 configuration), `rancher` (06), `dockermanager` (07), `argocd` (08), and
-`epinio` (09). Two flag families control which of them run:
+`epinio` (09). All of them run by default **except `argocd` and `epinio`,
+which are opt-in** (both are heavy - see their own sections below - and
+Epinio specifically is of little use without a real domain). Three flag
+families control which of them run:
 
 - **`--skip-<step>`** - run everything *except* the named step(s).
-- **`--only-<step>`** - run *only* the named step(s); pass it more than
-  once to run a few together. Any `--only-*` flag overrides every
-  `--skip-*` flag on the command line.
+- **`--with-<step>`** - turn on an opt-in step (currently `argocd` or
+  `epinio`) that's off by default; harmless (a no-op) on a step that's
+  already on by default.
+- **`--only-<step>`** - run *only* the named step(s), regardless of its
+  default; pass it more than once to run a few together. Any `--only-*`
+  flag overrides every `--skip-*`/`--with-*` flag on the command line.
 
 When you already have `setup.sh` on disk (e.g. after the
 [full copy-paste example](#full-copy-paste-example)'s `-o /tmp/setup.sh`
@@ -45,6 +54,9 @@ sudo bash /tmp/setup.sh --only-cockpit --only-dockermanager
 
 # Full run except Rancher (e.g. you're not using Kubernetes on this box):
 sudo bash /tmp/setup.sh --skip-rancher --skip-k3s
+
+# Full default run, plus the opt-in ArgoCD step:
+sudo bash /tmp/setup.sh --with-argocd
 ```
 
 > [!WARNING]
@@ -264,8 +276,9 @@ entirely - there's no `sudo` involved.
 - `scripts/01-system-update.sh` - apt update/upgrade, base tooling,
   unattended security upgrades.
 - `scripts/02-security-harden.sh` - optional non-root admin user, ufw
-  (default-deny inbound; SSH public, everything else Tailscale-only),
-  sshd hardening, fail2ban, and a Cockpit/console login password.
+  (default-deny inbound, rules generated from `network.yaml`: SSH and
+  Traefik's 80/443 public, everything else Tailscale-only), sshd
+  hardening, fail2ban, and a Cockpit/console login password.
 - `scripts/03-tailscale.sh` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
 - `scripts/04-cockpit.sh` - installs Cockpit, served on ports 9080/9083.
@@ -340,7 +353,7 @@ ingress would defeat the point of having one.
 
 Because of this, **`setup.sh` refuses to run at all if the Tailscale step
 is enabled but `TAILSCALE_AUTHKEY` is unset** - proceeding anyway would
-lock down ufw and leave Cockpit/Rancher/the k3s API unreachable by
+lock down ufw and leave every Tailscale-only service unreachable by
 anything. Pass `--skip-tailscale` if you genuinely want to run without
 Tailscale (you can join manually later with `tailscale up`, then `sudo
 bash setup.sh --only-tailscale`).
@@ -353,10 +366,15 @@ configures it as this VPS's public ingress via a `HelmChartConfig` -
 k3s's own mechanism for overriding a bundled chart's values, watched
 continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 
-- **Public HTTP/HTTPS**: ports 80/443 are k3s's own defaults for
-  Traefik's `web`/`websecure` entrypoints, exposed via its built-in
+- **Public HTTP/HTTPS, any hostname**: ports 80/443 are k3s's own defaults
+  for Traefik's `web`/`websecure` entrypoints, exposed via its built-in
   ServiceLB like Rancher's ports - no extra configuration needed, just
-  ufw open on those two (see [Security model](#security-model)).
+  ufw open on those two (see [Security model](#security-model)). Traefik
+  routes by the incoming request's `Host` header, not a fixed hostname
+  list: any FQDN or subdomain you point at this VPS's public IP is routed
+  by whichever `Ingress` declares that host, with no changes needed here
+  - that's how Epinio's per-app subdomains work too (see
+  [Epinio](#epinio-deploy-apps-from-source)).
 - **Let's Encrypt**: a certResolver named `letsencrypt` is configured
   (email from `TRAEFIK_ACME_EMAIL`, HTTP-01 challenge on the `web`
   entrypoint, state persisted to a PVC so certs survive pod restarts).
@@ -365,7 +383,11 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   Traefik `IngressRoute`) with the annotation
   `traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt`,
   and a real DNS record pointing this VPS's public IP at your hostname
-  (the HTTP-01 challenge needs that to succeed).
+  (the HTTP-01 challenge needs that to succeed). Each hostname gets its
+  own cert, issued on demand the first time it's requested - HTTP-01
+  can't issue a single wildcard cert covering a domain and all its
+  subdomains at once (that needs a DNS-01 challenge, which isn't wired up
+  here); every Ingress you add gets its own cert instead.
 - **Staging by default**: `TRAEFIK_ACME_STAGING` defaults to `true`, which
   points the resolver at Let's Encrypt's *staging* environment - browsers
   will show a certificate-warning page, but there's no rate limit, so
@@ -379,7 +401,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   given it's already gated to the tailnet, same threat model as the rest
   of this repo's admin surfaces, but don't put it on a public port.
 
-## Cockpit and Rancher logins
+## Cockpit, Rancher, and ArgoCD logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
   password - separate from SSH, which stays key-only. `scripts/02-security-harden.sh`
@@ -397,6 +419,9 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   a record of what it originally was.
 
 ## ArgoCD (GitOps deployments)
+
+Opt-in - pass `--with-argocd` (or `--only-argocd`) to install it; it
+doesn't run on a plain `setup.sh` with no flags.
 
 `scripts/08-argocd.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
 via the `argo/argo-cd` Helm chart onto the k3s cluster from `scripts/05`,
@@ -430,6 +455,9 @@ printed by `scripts/99-summary.sh` at the end of the install (and any time
 you re-run it: `sudo bash /opt/vps-setup/scripts/99-summary.sh`).
 
 ## Epinio (deploy apps from source)
+
+Opt-in - pass `--with-epinio` (or `--only-epinio`) to install it; it
+doesn't run on a plain `setup.sh` with no flags.
 
 `scripts/09-epinio.sh` installs [Epinio](https://epinio.io) - "from app to
 URL in one command" - via the official `epinio/epinio` Helm chart, per
@@ -555,7 +583,7 @@ If you ever see a step stop with truly no output at all (not even its own
 first `log` line), that most often means a *prerequisite* step was
 skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
-`scripts/06-rancher.sh` and `scripts/05-k3s.sh` check for their
-prerequisites explicitly and `die` with a clear message in that case; if
-you hit a silent stop anywhere else, please open an issue with the exact
-command you ran and the last few lines of output.
+`scripts/06-rancher.sh`, `scripts/08-argocd.sh`, and `scripts/09-epinio.sh`
+all check for `kubectl`/`helm` explicitly and `die` with a clear message
+in that case; if you hit a silent stop anywhere else, please open an
+issue with the exact command you ran and the last few lines of output.

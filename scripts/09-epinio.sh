@@ -86,28 +86,14 @@ umask 077
 echo "$EPINIO_ADMIN_PASSWORD" > "$PW_FILE"
 umask 022
 
-log "Adding jetstack (cert-manager) and epinio Helm repos..."
-helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
+log "Adding epinio Helm repo..."
 helm repo add epinio https://epinio.github.io/helm-charts/ >/dev/null 2>&1 || true
 helm repo update >/dev/null
 
 # Epinio's chart expects cert-manager to already be on the cluster
-# (certManager.install defaults to false) - install it the same way
-# scripts/06-rancher.sh does, idempotently, in case Rancher wasn't
-# installed (or --skip-rancher was used).
-if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
-  log "cert-manager already installed."
-else
-  log "Installing cert-manager (required by Epinio for Ingress TLS)..."
-  kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-  CERT_MANAGER_VERSION_ARG=()
-  [[ -n "${CERT_MANAGER_VERSION:-}" ]] && CERT_MANAGER_VERSION_ARG=(--version "$CERT_MANAGER_VERSION")
-  helm upgrade --install cert-manager jetstack/cert-manager \
-    --namespace cert-manager \
-    --set crds.enabled=true \
-    "${CERT_MANAGER_VERSION_ARG[@]}" \
-    --wait --timeout 5m
-fi
+# (certManager.install defaults to false) - reuses Rancher's if that step
+# ran, or installs its own idempotently otherwise.
+ensure_cert_manager
 
 kubectl create namespace epinio --dry-run=client -o yaml | kubectl apply -f -
 
