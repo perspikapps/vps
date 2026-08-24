@@ -402,6 +402,16 @@ TLS termination left to you (`server.insecure=true` in the chart, i.e.
 ArgoCD serves plain HTTP on its own port rather than trying to manage
 its own cert) since it isn't sitting behind the Traefik ingress.
 
+The `dex` (SSO) and notifications controller components are disabled
+(`dex.enabled=false`, `notifications.enabled=false`) since this repo only
+uses ArgoCD's built-in admin login - fewer pods means less to pull images
+for and wait on, which matters on a small single-node VPS. If a first
+install still doesn't finish within the default 15 minutes (a slow first
+image pull is the usual cause - check `kubectl -n argocd get pods` for
+`Pending`/`ImagePullBackOff`), either just re-run `sudo bash setup.sh
+--only-argocd` (helm resumes the same release without re-pulling cached
+images), or set `ARGOCD_INSTALL_TIMEOUT` to a larger value first.
+
 Point ArgoCD at your Git repos and `Application` manifests the usual way
 (`argocd repo add`, `argocd app create`, or the UI) once you've logged in
 - see the [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/getting_started/)
@@ -437,6 +447,7 @@ that file to change a default for good, or set the env var for one run.
 | `TRAEFIK_DASHBOARD_PORT` | `8088` | Traefik dashboard port (Tailscale-only) |
 | `ARGOCD_HTTP_PORT` / `ARGOCD_HTTPS_PORT` | `7090` / `7093` | ArgoCD ports (`7xxx`, alongside Rancher) |
 | `ARGOCD_CHART_VERSION` | latest | Pin the `argo/argo-cd` Helm chart version |
+| `ARGOCD_INSTALL_TIMEOUT` | `15m` | How long to wait for ArgoCD's pods to come up |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the

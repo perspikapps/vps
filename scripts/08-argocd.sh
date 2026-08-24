@@ -7,10 +7,18 @@
 # k3s's built-in ServiceLB, Tailscale-only like Cockpit/Rancher/the Traefik
 # dashboard (see scripts/02-security-harden.sh's Security model).
 #
+# dex (SSO) and the notifications controller are disabled: this repo only
+# uses ArgoCD's built-in admin login, and skipping them means fewer pods
+# to pull images for and wait on - meaningful on a small single-node VPS
+# where that wait is what timed out before (see ARGOCD_INSTALL_TIMEOUT).
+#
 # Env vars:
 #   ARGOCD_HTTP_PORT      - default from ../network.yaml (argocd_http)
 #   ARGOCD_HTTPS_PORT     - default from ../network.yaml (argocd_https)
 #   ARGOCD_CHART_VERSION  - pin a chart version (optional, default: latest)
+#   ARGOCD_INSTALL_TIMEOUT - how long to wait for all pods to come up
+#                            (default 15m; a small VPS pulling several
+#                            images for the first time can be slow)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,20 +42,32 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 CHART_VERSION_ARG=()
 [[ -n "${ARGOCD_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$ARGOCD_CHART_VERSION")
 
-log "Installing/upgrading ArgoCD..."
-helm upgrade --install argocd argo/argo-cd \
+ARGOCD_INSTALL_TIMEOUT="${ARGOCD_INSTALL_TIMEOUT:-15m}"
+
+log "Installing/upgrading ArgoCD (timeout ${ARGOCD_INSTALL_TIMEOUT})..."
+if ! helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
   --set server.service.type=LoadBalancer \
   --set configs.params."server\.insecure"=true \
+  --set dex.enabled=false \
+  --set notifications.enabled=false \
   "${CHART_VERSION_ARG[@]}" \
-  --wait --timeout 10m
+  --wait --timeout "$ARGOCD_INSTALL_TIMEOUT"; then
+  warn "helm install/upgrade timed out or failed - pod status for diagnosis:"
+  kubectl -n argocd get pods -o wide || true
+  warn "Recent events:"
+  kubectl -n argocd get events --sort-by=.lastTimestamp 2>/dev/null | tail -30 || true
+  die "ArgoCD install did not finish within ${ARGOCD_INSTALL_TIMEOUT}." \
+      "Often just a slow first image pull on a small VPS - check the pod" \
+      "status above for Pending/ImagePullBackOff, then re-run:" \
+      "sudo bash setup.sh --only-argocd (helm resumes the same release," \
+      "it won't re-pull images already cached). To wait longer instead," \
+      "set ARGOCD_INSTALL_TIMEOUT=25m (or similar) and re-run."
+fi
 
 log "Rebinding the argocd-server Service to ports ${ARGOCD_HTTP_PORT}/${ARGOCD_HTTPS_PORT}..."
 patch_service_port argocd argocd-server http "$ARGOCD_HTTP_PORT" || true
 patch_service_port argocd argocd-server https "$ARGOCD_HTTPS_PORT" || true
-
-log "Waiting for ArgoCD server to be ready..."
-kubectl -n argocd rollout status deploy/argocd-server --timeout=10m
 
 PW_FILE=/root/.argocd-admin-password
 log "Reading ArgoCD's generated initial admin password..."
