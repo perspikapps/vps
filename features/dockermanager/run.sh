@@ -5,7 +5,7 @@
 # a Docker container/image management tab to Cockpit.
 #
 # cockpit-dockermanager needs an actual Docker daemon to talk to - this repo
-# otherwise only sets up containerd via k3s (features/04-k3s/run.sh), so this
+# otherwise only sets up containerd via k3s (features/k3s/run.sh), so this
 # script also installs docker.io unless INSTALL_DOCKER=false.
 #
 # Env vars:

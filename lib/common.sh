@@ -88,7 +88,7 @@ VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # longer a single network.yaml: each feature owns the ports it binds.
 
 # Resolve a feature's package.json from its short name (e.g. "cockpit" ->
-# features/03-cockpit/package.json), by matching package.json's "name"
+# features/cockpit/package.json), by matching package.json's "name"
 # field ("@vps/cockpit"). Used by net_port/net_access when a caller needs
 # another feature's ports (see lib/summary.sh); every other caller omits
 # the second argument and gets its own package.json for free (below).
@@ -105,7 +105,7 @@ feature_package_json() {
 
 # Look up a port/access value from a feature's package.json ("vps.ports"),
 # by its `name` field. With no $2, resolves the *calling script's own*
-# package.json (features/<NN-name>/package.json, right next to run.sh) -
+# package.json (features/<name>/package.json, right next to run.sh) -
 # pass a feature name explicitly only when looking up another feature's
 # port (e.g. lib/summary.sh reading cockpit's port from outside cockpit's
 # own run.sh). Every caller should still layer its own env var override on
@@ -132,7 +132,7 @@ net_access() {
 }
 
 # Every port across every feature, as name/port/access/note TSV rows -
-# used by features/01-security/run.sh to build ufw's rules generically,
+# used by features/security/run.sh to build ufw's rules generically,
 # without needing to know which feature owns which port.
 all_network_ports() {
   local f
@@ -158,7 +158,7 @@ ensure_line() {
 }
 
 # Install cert-manager if it isn't already on the cluster, and reuse it
-# as-is if it is - shared by features/05-rancher/run.sh and features/08-epinio/run.sh,
+# as-is if it is - shared by features/rancher/run.sh and features/epinio/run.sh,
 # whichever of the two runs first (order doesn't matter; the other then
 # just reuses this same installation). Respects CERT_MANAGER_VERSION.
 ensure_cert_manager() {
@@ -183,7 +183,7 @@ ensure_cert_manager() {
 # up() function (its existing install logic) and, where meaningful, a
 # down() function (teardown), then finishes with:
 #   dispatch_action "$@"
-# Defaults to "up" so `bash features/NN-name/run.sh` with no argument behaves
+# Defaults to "up" so `bash features/<name>/run.sh` with no argument behaves
 # exactly as it did before up/down actions existed.
 dispatch_action() {
   local action="${1:-up}"

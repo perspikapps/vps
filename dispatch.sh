@@ -5,7 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | sudo sh
 #
 # Every feature lives in its own npm workspace package under features/
-# (features/<NN-name>/package.json + run.sh): its package.json declares
+# (features/<name>/package.json + run.sh): its package.json declares
 # whether it runs by default (the "vps.default" field) and what it depends
 # on (the standard npm "dependencies" field, referencing other @vps/*
 # packages) - that's the single source of truth this script reads to build
@@ -96,6 +96,11 @@ pkg_bool() {
   sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$1" | head -n1
 }
 
+pkg_num() {
+  # $1=file $2=key -> a top-level integer value
+  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$1" | head -n1
+}
+
 pkg_deps() {
   # $1=file -> short names (one per line) of every "@vps/<name>" key inside
   # the top-level "dependencies" object.
@@ -106,14 +111,16 @@ pkg_deps() {
   ' "$1" | sed -n 's/^[[:space:]]*"@vps\/\([a-zA-Z0-9_-]*\)".*/\1/p'
 }
 
-# --- feature discovery: features/<NN-name>/{package.json,run.sh}, in
-# directory order (the NN prefix is install order, same as the old
-# scripts/NN-*.sh layout - only now each step owns its own folder).
+# --- feature discovery: features/<name>/{package.json,run.sh}, in install
+# order - each package.json's "vps.order" (a plain integer) says where it
+# falls, since folder names carry no ordering of their own.
 
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
-    [ -f "${d}package.json" ] && [ -f "${d}run.sh" ] && printf '%s\n' "${d%/}"
-  done
+    if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
+      printf '%s\t%s\n' "$(pkg_num "${d}package.json" order)" "${d%/}"
+    fi
+  done | sort -n -k1,1 | cut -f2-
 }
 
 feature_name() { pkg_str "$1/package.json" name | sed 's#^@vps/##'; }
@@ -195,7 +202,7 @@ Dependencies:$(for n in $ALL_NAMES; do d=$(feature_dir_for_name "$n"); deps=$(fe
 (enabling a step auto-enables what it needs; --down-<step> is refused while
 a dependent step is still enabled).
 
-Every feature lives in its own workspace package: features/<NN-name>/
+Every feature lives in its own workspace package: features/<name>/
 (package.json declares its default/dependencies, run.sh is its up()/down()
 script). See README.md's "Key environment variables" section for the full
 env var list (each feature's package.json for ports specifically).
@@ -365,7 +372,7 @@ if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
 
-# ufw (features/01-security) only opens this repo's Tailscale-only services
+# ufw (features/security) only opens this repo's Tailscale-only services
 # (see this feature's own package.json) to the tailscale0 interface, so running the rest of
 # the install without Tailscale authenticated would leave all of them
 # unreachable. Refuse to proceed rather than silently produce a VPS

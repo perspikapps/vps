@@ -5,6 +5,7 @@
     "dependencies": {},
     "private": true,
     "vps": {
+        "order": 2,
         "default": true
     }
 }

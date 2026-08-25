@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install ArgoCD onto the k3s cluster from features/04-k3s, for GitOps-managed
+# Install ArgoCD onto the k3s cluster from features/k3s, for GitOps-managed
 # deployments (a natural pairing with Rancher for cluster management - see
 # https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view).
 #
 # Exposed on ARGOCD_HTTP_PORT/ARGOCD_HTTPS_PORT (default 7090/7093) via
 # k3s's built-in ServiceLB, Tailscale-only like Cockpit/Rancher/the Traefik
-# dashboard (see features/01-security/run.sh's Security model).
+# dashboard (see features/security/run.sh's Security model).
 #
 # dex (SSO) and the notifications controller are disabled: this repo only
 # uses ArgoCD's built-in admin login, and skipping them means fewer pods
@@ -28,8 +28,8 @@ source "$SCRIPT_DIR/../../lib/common.sh"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run features/04-k3s/run.sh first."
-command_exists helm || die "helm not found; run features/04-k3s/run.sh first."
+command_exists kubectl || die "kubectl not found; run features/k3s/run.sh first."
+command_exists helm || die "helm not found; run features/k3s/run.sh first."
 
 ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-$(net_port argocd_http)}"
 ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-$(net_port argocd_https)}"

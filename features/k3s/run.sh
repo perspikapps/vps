@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install a single-node k3s cluster, expose kubectl, install Helm, and
 # configure k3s's bundled Traefik as this VPS's public ingress: HTTP/HTTPS
-# on 80/443 (open publicly - see features/01-security/run.sh) with a
+# on 80/443 (open publicly - see features/security/run.sh) with a
 # Let's Encrypt certResolver ready for any Ingress you point at it, and
 # its dashboard on TRAEFIK_DASHBOARD_PORT, Tailscale-only like the rest of
 # this repo's admin surfaces.

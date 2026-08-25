@@ -21,18 +21,18 @@ TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
 HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
 [[ -z "$TAILSCALE_IP" ]] && TAILSCALE_STATUS="not joined yet - run: tailscale up" || TAILSCALE_STATUS="$TAILSCALE_IP"
 
-COCKPIT_USER="$(cat /root/.cockpit-admin-user 2>/dev/null || echo 'not set - run features/01-security/run.sh')"
-COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not set - run features/01-security/run.sh')"
+COCKPIT_USER="$(cat /root/.cockpit-admin-user 2>/dev/null || echo 'not set - run features/security/run.sh')"
+COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not set - run features/security/run.sh')"
 
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
-RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run features/05-rancher/run.sh')"
+RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run features/rancher/run.sh')"
 
-ARGOCD_PASSWORD="$(cat /root/.argocd-admin-password 2>/dev/null || echo 'not set - run features/07-argocd/run.sh')"
+ARGOCD_PASSWORD="$(cat /root/.argocd-admin-password 2>/dev/null || echo 'not set - run features/argocd/run.sh')"
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 
 EPINIO_DOMAIN="${EPINIO_DOMAIN:-${NODE_PUBLIC_IP}.sslip.io}"
-EPINIO_PASSWORD="$(cat /root/.epinio-admin-password 2>/dev/null || echo 'not set - run features/08-epinio/run.sh')"
+EPINIO_PASSWORD="$(cat /root/.epinio-admin-password 2>/dev/null || echo 'not set - run features/epinio/run.sh')"
 
 cat <<EOF
 
@@ -57,7 +57,7 @@ cat <<EOF
                        (saved to /root/.rancher-bootstrap-password; you'll
                        be prompted to change it on first login)
 
- Docker (Cockpit):    $(command_exists docker && echo "installed - see the Containers tab in Cockpit" || echo "not installed (run features/06-dockermanager/run.sh)")
+ Docker (Cockpit):    $(command_exists docker && echo "installed - see the Containers tab in Cockpit" || echo "not installed (run features/dockermanager/run.sh)")
                        If VPS_ADMIN_USER was just added to the docker group,
                        log out/in (or reboot) before it takes effect.
 

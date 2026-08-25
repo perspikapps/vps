@@ -31,11 +31,11 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`dispatch.sh` runs nine feature folders in order: `system` (`00-`),
-`security` (`01-`), `tailscale` (`02-`), `cockpit` (`03-`), `k3s` (`04-`,
-includes Traefik configuration), `rancher` (`05-`), `dockermanager`
-(`06-`), `argocd` (`07-`), and `epinio` (`08-`) - see
-[One folder per feature](#one-folder-per-feature). All of them run by
+`dispatch.sh` runs nine feature folders, in the order each one's
+`package.json` declares (`vps.order` - see
+[One folder per feature](#one-folder-per-feature)): `system`, `security`,
+`tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
+`dockermanager`, `argocd`, and `epinio`. All of them run by
 default **except `argocd` and `epinio`, which are opt-in** (both are heavy
 
 - see their own sections below - and Epinio specifically is of little use
@@ -94,7 +94,7 @@ sudo sh /tmp/dispatch.sh --with-argocd
 
 This is equivalent to (and a convenience wrapper around) invoking a
 feature's own script directly, as shown in [Layout](#layout) below -
-`--only-rancher` just means "run `features/05-rancher/run.sh` through
+`--only-rancher` just means "run `features/rancher/run.sh` through
 `dispatch.sh`'s usual repo clone/update, dependency resolution, and final
 summary, instead of calling it by hand." Because every feature's script
 is idempotent, re-running a single step to pick up a changed env var
@@ -103,9 +103,9 @@ is idempotent, re-running a single step to pick up a changed env var
 
 ### Dependencies between steps
 
-Every feature is its own npm workspace package under `features/<NN-name>/`,
+Every feature is its own npm workspace package under `features/<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
-source of truth for what it needs - `features/05-rancher/package.json`
+source of truth for what it needs - `features/rancher/package.json`
 declares `"@vps/k3s": "*"`, so does `argocd`'s and `epinio`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
@@ -210,8 +210,8 @@ run it without going through `dispatch.sh` (e.g. from an existing
 `/opt/vps-setup` checkout):
 
 ```bash
-sudo bash features/07-argocd/run.sh down
-sudo bash features/07-argocd/run.sh up # same as calling it with no argument
+sudo bash features/argocd/run.sh down
+sudo bash features/argocd/run.sh up # same as calling it with no argument
 ```
 
 ## Full copy-paste example
@@ -341,7 +341,7 @@ Tailscale admin console:
 3. Copy the `tskey-auth-...` value into `TAILSCALE_AUTHKEY`.
 
 Docs: [Tailscale - Auth keys](https://tailscale.com/kb/1085/auth-keys).
-Without this variable, `features/02-tailscale/run.sh` still installs Tailscale;
+Without this variable, `features/tailscale/run.sh` still installs Tailscale;
 just run `tailscale up` manually afterwards and follow the login link.
 
 **Rancher bootstrap password** (for `RANCHER_BOOTSTRAP_PASSWORD`) - any
@@ -351,7 +351,7 @@ string works; generate a random one with:
 openssl rand -base64 24
 ```
 
-If you don't set it, `features/05-rancher/run.sh` generates and saves one for
+If you don't set it, `features/rancher/run.sh` generates and saves one for
 you automatically.
 
 ## Provisioning via cloud-init / Kairos
@@ -410,32 +410,32 @@ entirely - there's no `sudo` involved.
   sourced from the sh dispatcher itself.
 - `lib/summary.sh` - prints connection info, the Tailscale URL, and the
   Cockpit/Rancher/ArgoCD/Epinio credentials at the end of a run.
-- `features/00-system/` - apt update/upgrade, base tooling, unattended
+- `features/system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
-- `features/01-security/` - optional non-root admin user, ufw
+- `features/security/` - optional non-root admin user, ufw
   (default-deny inbound, rules generated from every feature's own
   `package.json` port declarations: SSH and Traefik's 80/443 public,
   everything else Tailscale-only), sshd hardening, fail2ban, and a
   Cockpit/console login password.
-- `features/02-tailscale/` - installs Tailscale, enables `tailscaled` as a
+- `features/tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
-- `features/03-cockpit/` - installs Cockpit, served on ports 9080/9083.
-- `features/04-k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
+- `features/cockpit/` - installs Cockpit, served on ports 9080/9083.
+- `features/k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
   configures Traefik as a public HTTP/HTTPS ingress with a Let's Encrypt
   certResolver and a Tailscale-only dashboard - see
   [Traefik ingress](#traefik-ingress-lets-encrypt-and-the-dashboard).
-- `features/05-rancher/` - installs cert-manager (required by Rancher's
+- `features/rancher/` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
   Helm, exposed on ports 7080/7083 through k3s's built-in ServiceLB.
   Depends on `k3s` (see its `package.json`).
-- `features/06-dockermanager/` - installs `cockpit-packagekit`,
+- `features/dockermanager/` - installs `cockpit-packagekit`,
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
-- `features/07-argocd/` - installs ArgoCD via Helm for GitOps-managed
+- `features/argocd/` - installs ArgoCD via Helm for GitOps-managed
   deployments onto the k3s cluster, exposed on ports 7090/7093 through
   k3s's built-in ServiceLB. Opt-in; depends on `k3s`.
-- `features/08-epinio/` - installs [Epinio](https://epinio.io) via Helm
+- `features/epinio/` - installs [Epinio](https://epinio.io) via Helm
   for deploying apps straight from source, routed through Traefik's
   existing ingress rather than a dedicated port - see
   [Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
@@ -446,17 +446,18 @@ entirely - there's no `sudo` involved.
 Each feature is a small, self-contained npm workspace package:
 
 ```
-features/05-rancher/
+features/rancher/
   package.json   # name, description, "vps": { "default": true|false },
                  # and "dependencies": { "@vps/<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
 ```
 
-The `NN-` prefix is install order (matches the old `scripts/NN-*.sh`
-numbering) - `dispatch.sh` walks `features/*/` in that order. Everything
-that used to live in `setup.sh`'s hand-maintained bash tables (label,
-default on/off, what depends on what) now lives in each feature's own
-`package.json` instead:
+Folder names carry no ordering (`features/rancher/`, not
+`features/05-rancher/`) - install order is a plain integer,
+`package.json`'s `vps.order`, and `dispatch.sh` sorts by that instead of
+by folder name. Everything that used to live in `setup.sh`'s
+hand-maintained bash tables (label, install order, default on/off, what
+depends on what) now lives in each feature's own `package.json` instead:
 
 ```json
 {
@@ -464,17 +465,17 @@ default on/off, what depends on what) now lives in each feature's own
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
-    "vps": { "default": true },
+    "vps": { "order": 5, "default": true },
     "dependencies": { "@vps/k3s": "*" }
 }
 ```
 
-Adding a new feature is: create `features/09-whatever/` with a
-`package.json` (following the shape above) and a `run.sh` (`up()`/`down()`
-
-- `dispatch_action "$@"` at the end, same as any other feature - see
-  `lib/common.sh`). `dispatch.sh` picks it up automatically; nothing else
-  needs editing. Removing a feature is deleting its folder.
+Adding a new feature is: create `features/whatever/` with a
+`package.json` (following the shape above, with an `order` that places it
+where you want in the install sequence) and a `run.sh` (`up()`/`down()` +
+`dispatch_action "$@"` at the end, same as any other feature - see
+`lib/common.sh`). `dispatch.sh` picks it up automatically; nothing else
+needs editing. Removing a feature is deleting its folder.
 
 The root `package.json`'s `"workspaces": ["features/*"]` registers every
 feature as an npm workspace member, so standard npm tooling (`npm ls`,
@@ -505,13 +506,13 @@ array (same file that carries `vps.default`/`dependencies` - see
 }
 ```
 
-(`access` is `"tailscale"` or `"public"`.) `features/05-rancher/package.json`
-carries `rancher_http`/`rancher_https`, `features/04-k3s/package.json`
+(`access` is `"tailscale"` or `"public"`.) `features/rancher/package.json`
+carries `rancher_http`/`rancher_https`, `features/k3s/package.json`
 carries `http`/`https`/`traefik_dashboard`, and so on - each feature's own
 `run.sh` is what actually binds the port, so its declaration lives right
 next to the code that uses it instead of a separate central file.
 
-`features/01-security/run.sh` doesn't know about any of that port detail
+`features/security/run.sh` doesn't know about any of that port detail
 itself: it calls `lib/common.sh`'s `all_network_ports()`, which scans
 every `features/*/package.json` and builds ufw's rules from whatever it
 finds - there's no per-service ufw logic in that script at all, just a
@@ -530,7 +531,7 @@ upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
 `ssh` -> `SSH_PORT`, and so on.
 
 Lookups are done with `jq` (already a base dependency installed by
-`features/00-system`) - no separate YAML tooling needed now that this
+`features/system`) - no separate YAML tooling needed now that this
 lives in `package.json` alongside everything else npm already parses.
 
 ## Security model
@@ -557,7 +558,7 @@ sh dispatch.sh --only-tailscale`).
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
-`features/04-k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
+`features/k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
 disabling it, as you'll see suggested in some k3s+Rancher guides) and
 configures it as this VPS's public ingress via a `HelmChartConfig` -
 k3s's own mechanism for overriding a bundled chart's values, watched
@@ -601,7 +602,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 ## Cockpit, Rancher, and ArgoCD logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
-  password - separate from SSH, which stays key-only. `features/01-security/run.sh`
+  password - separate from SSH, which stays key-only. `features/security/run.sh`
   sets a password for `VPS_ADMIN_USER` (or `root` if that's unset): either
   `VPS_ADMIN_PASSWORD` if you set it, or a random one saved to
   `/root/.cockpit-admin-password` (username in `/root/.cockpit-admin-user`).
@@ -620,8 +621,8 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 Opt-in - pass `--with-argocd` (or `--only-argocd`) to install it; it
 doesn't run on a plain `dispatch.sh` with no flags.
 
-`features/07-argocd/run.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
-via the `argo/argo-cd` Helm chart onto the k3s cluster from `features/04-k3s`,
+`features/argocd/run.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
+via the `argo/argo-cd` Helm chart onto the k3s cluster from `features/k3s`,
 a natural pairing with Rancher for cluster management (see
 [this write-up](https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view)
 on running the two together). It's exposed on `ARGOCD_HTTP_PORT`/
@@ -657,7 +658,7 @@ you re-run it: `sudo bash /opt/vps-setup/lib/summary.sh`).
 Opt-in - pass `--with-epinio` (or `--only-epinio`) to install it; it
 doesn't run on a plain `dispatch.sh` with no flags.
 
-`features/08-epinio/run.sh` installs [Epinio](https://epinio.io) - "from app to
+`features/epinio/run.sh` installs [Epinio](https://epinio.io) - "from app to
 URL in one command" - via the official `epinio/epinio` Helm chart, per
 [the getting-started guide](https://docs.epinio.io/getting-started/install-epinio)
 (mirrored here from [the chart repo's own README](https://github.com/epinio/helm-charts),
@@ -670,7 +671,7 @@ chart's ingress-class settings (its own server, deployed apps, and its
 internal container registry) rather than relying on Traefik just
 happening to be k3s's default IngressClass; and cert-manager, installed
 only if not already present - the same idempotent check
-`features/05-rancher/run.sh` uses, so it reuses Rancher's cert-manager if that
+`features/rancher/run.sh` uses, so it reuses Rancher's cert-manager if that
 step ran, or installs its own if you skipped Rancher.
 
 Unlike Cockpit/Rancher/ArgoCD, Epinio doesn't get a dedicated port: it
@@ -749,19 +750,19 @@ this scheme.
 
 Each feature's `run.sh` can also be run standalone from within a checkout
 (it finds `lib/common.sh` via `../../lib/common.sh`, so it needs to stay
-inside its `features/<NN-name>/` folder) - this is what `dispatch.sh
+inside its `features/<name>/` folder) - this is what `dispatch.sh
 --only-<step>`, described in
 [Running a single step (or a subset)](#running-a-single-step-or-a-subset)
 above, does for you - for example to re-run just the Rancher install
 with a new hostname:
 
 ```bash
-sudo RANCHER_HOSTNAME=new.example.com bash features/05-rancher/run.sh
+sudo RANCHER_HOSTNAME=new.example.com bash features/rancher/run.sh
 ```
 
 Every `run.sh` also takes an explicit `up` or `down` action as its first
 argument (`up` is the default, so the invocation above is really `...
-bash features/05-rancher/run.sh up`) - see
+bash features/rancher/run.sh up`) - see
 [Removing a feature](#removing-a-feature-updown-per-step) for what each
 step's `down` does.
 
@@ -774,7 +775,7 @@ file, line number, and the failing command, then the script exits. For
 example:
 
 ```
-[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/features/05-rancher/run.sh line 52: helm upgrade --install rancher ...
+[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/features/rancher/run.sh line 52: helm upgrade --install rancher ...
 ```
 
 When a step fails during a full `dispatch.sh` run, it also prints which
@@ -789,7 +790,7 @@ If you ever see a step stop with truly no output at all (not even its own
 first `log` line), that most often means a _prerequisite_ step was
 skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
-`features/05-rancher/run.sh`, `features/07-argocd/run.sh`, and `features/08-epinio/run.sh`
+`features/rancher/run.sh`, `features/argocd/run.sh`, and `features/epinio/run.sh`
 all check for `kubectl`/`helm` explicitly and `die` with a clear message
 in that case; if you hit a silent stop anywhere else, please open an
 issue with the exact command you ran and the last few lines of output.

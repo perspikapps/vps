@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install the latest SUSE Rancher release onto the k3s cluster from
-# features/04-k3s, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
+# features/k3s, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
 # 7080/7083) via k3s's built-in ServiceLB (Klipper), which binds those
 # host ports directly -- no external load balancer needed for a single node.
 #
@@ -26,8 +26,8 @@ source "$SCRIPT_DIR/../../lib/common.sh"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run features/04-k3s/run.sh first."
-command_exists helm || die "helm not found; run features/04-k3s/run.sh first."
+command_exists kubectl || die "kubectl not found; run features/k3s/run.sh first."
+command_exists helm || die "helm not found; run features/k3s/run.sh first."
 
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https)}"
@@ -83,7 +83,7 @@ ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
 # Uninstalls the Rancher Helm release and its namespace. Leaves cert-manager
-# in place (features/08-epinio/run.sh may also depend on it - see ensure_cert_manager
+# in place (features/epinio/run.sh may also depend on it - see ensure_cert_manager
 # in lib/common.sh) and k3s itself untouched.
 down() {
   require_root

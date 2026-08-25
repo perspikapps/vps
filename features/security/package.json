@@ -5,6 +5,7 @@
     "dependencies": {},
     "private": true,
     "vps": {
+        "order": 1,
         "default": true,
         "ports": [
             {

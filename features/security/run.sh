@@ -139,7 +139,7 @@ while IFS=$'\t' read -r name pkg_port access note; do
       ufw allow "${port}/tcp" comment "${note:-$name}"
       ;;
     tailscale)
-      # Not reachable from the public internet until features/02-tailscale brings
+      # Not reachable from the public internet until features/tailscale brings
       # tailscale0 up.
       ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
       ;;

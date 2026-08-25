@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install Epinio (an "app from source to URL in one command" PaaS) onto
-# the k3s cluster from features/04-k3s, via the official epinio/epinio Helm
+# the k3s cluster from features/k3s, via the official epinio/epinio Helm
 # chart - see https://docs.epinio.io/getting-started/install-epinio,
 # whose steps are mirrored by https://github.com/epinio/helm-charts's
 # README (docs.epinio.io itself isn't reachable from this environment,
@@ -10,14 +10,14 @@
 # Reuses this VPS's existing infrastructure rather than installing its
 # own copies:
 #   - Ingress: no separate ingress controller is installed. k3s's bundled
-#     Traefik (features/04-k3s/run.sh) is used, and explicitly pinned via
+#     Traefik (features/k3s/run.sh) is used, and explicitly pinned via
 #     EPINIO_INGRESS_CLASS (default "traefik") on all three of the
 #     chart's ingressClassName knobs (server, apps, container registry) -
 #     Traefik is already k3s's default IngressClass so this would work
 #     left blank too, but pinning it explicitly means Epinio keeps using
 #     Traefik even if that default ever changes.
 #   - cert-manager: installed only if not already present (idempotent
-#     check below), the same way features/05-rancher/run.sh does, since
+#     check below), the same way features/rancher/run.sh does, since
 #     Epinio's chart expects cert-manager to already be on the cluster
 #     (its own certManager.install value defaults to false) and doesn't
 #     assume Rancher's step ran first. If Rancher already installed it,
@@ -50,7 +50,7 @@
 #                            SeaweedFS for S3 storage, its own container
 #                            registry, and Dex, so a first pull can be slow)
 #   CERT_MANAGER_VERSION   - pin cert-manager's chart version (optional,
-#                            shared with features/05-rancher/run.sh)
+#                            shared with features/rancher/run.sh)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -60,8 +60,8 @@ source "$SCRIPT_DIR/../../lib/common.sh"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run features/04-k3s/run.sh first."
-command_exists helm || die "helm not found; run features/04-k3s/run.sh first."
+command_exists kubectl || die "kubectl not found; run features/k3s/run.sh first."
+command_exists helm || die "helm not found; run features/k3s/run.sh first."
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 if [[ -z "${EPINIO_DOMAIN:-}" ]]; then
