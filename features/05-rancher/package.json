@@ -1,0 +1,12 @@
+{
+    "name": "@vps/rancher",
+    "version": "1.0.0",
+    "description": "Rancher install",
+    "dependencies": {
+        "@vps/k3s": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": true
+    }
+}

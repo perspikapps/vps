@@ -1,0 +1,12 @@
+{
+    "name": "@vps/epinio",
+    "version": "1.0.0",
+    "description": "Epinio install",
+    "dependencies": {
+        "@vps/k3s": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": false
+    }
+}

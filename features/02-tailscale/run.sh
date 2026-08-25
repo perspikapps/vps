@@ -2,7 +2,7 @@
 # Install Tailscale, join the tailnet, and make sure tailscaled runs as a
 # systemd service.
 #
-# setup.sh refuses to run at all if this step is enabled but
+# dispatch.sh refuses to run at all if this step is enabled but
 # TAILSCALE_AUTHKEY is unset, since ufw only opens this repo's
 # Tailscale-only services (see network.yaml) to the tailscale0 interface -
 # an unauthenticated node would leave all of them unreachable. Pass
@@ -10,13 +10,13 @@
 #
 # Env vars:
 #   TAILSCALE_AUTHKEY     - auth key to auto-join a tailnet (required unless
-#                           this step is skipped - see setup.sh's guard)
+#                           this step is skipped - see dispatch.sh's guard)
 #   TAILSCALE_EXTRA_ARGS  - extra flags appended to `tailscale up` (optional)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
 up() {
 require_root
@@ -36,7 +36,7 @@ systemctl is-active --quiet tailscaled || die "tailscaled is not active after 's
 ok "tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
 if [[ -z "${TAILSCALE_AUTHKEY:-}" ]]; then
-  warn "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo bash setup.sh --only-tailscale"
+  warn "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo sh dispatch.sh --only-tailscale"
   exit 0
 fi
 

@@ -1,7 +1,9 @@
+# @format
+
 # Single source of truth for every port this VPS setup opens, and whether
 # it's reachable from the public internet or only over the Tailscale
 # interface. Read by lib/common.sh's net_port()/net_access() helpers (via
-# yq) and applied wholesale by scripts/02-security-harden.sh's ufw setup -
+# yq) and applied wholesale by features/01-security/run.sh's ufw setup -
 # see that script and README.md's "Security model" section.
 #
 # access: public    - open to the whole internet (0.0.0.0/0)
@@ -16,52 +18,52 @@
 # defaults; edit this file to change them for good.
 
 ports:
-  - name: ssh
-    port: 22
-    access: public
-    note: "SSH"
+    - name: ssh
+      port: 22
+      access: public
+      note: 'SSH'
 
-  - name: http
-    port: 80
-    access: public
-    note: "HTTP (Traefik ingress; also required for the Let's Encrypt HTTP-01 challenge)"
+    - name: http
+      port: 80
+      access: public
+      note: "HTTP (Traefik ingress; also required for the Let's Encrypt HTTP-01 challenge)"
 
-  - name: https
-    port: 443
-    access: public
-    note: "HTTPS (Traefik ingress)"
+    - name: https
+      port: 443
+      access: public
+      note: 'HTTPS (Traefik ingress)'
 
-  - name: cockpit_http
-    port: 9080
-    access: tailscale
-    app: cockpit
+    - name: cockpit_http
+      port: 9080
+      access: tailscale
+      app: cockpit
 
-  - name: cockpit_https
-    port: 9083
-    access: tailscale
-    app: cockpit
+    - name: cockpit_https
+      port: 9083
+      access: tailscale
+      app: cockpit
 
-  - name: rancher_http
-    port: 7080
-    access: tailscale
-    app: rancher
+    - name: rancher_http
+      port: 7080
+      access: tailscale
+      app: rancher
 
-  - name: rancher_https
-    port: 7083
-    access: tailscale
-    app: rancher
+    - name: rancher_https
+      port: 7083
+      access: tailscale
+      app: rancher
 
-  - name: traefik_dashboard
-    port: 8088
-    access: tailscale
-    app: traefik
+    - name: traefik_dashboard
+      port: 8088
+      access: tailscale
+      app: traefik
 
-  - name: argocd_http
-    port: 7090
-    access: tailscale
-    app: argocd
+    - name: argocd_http
+      port: 7090
+      access: tailscale
+      app: argocd
 
-  - name: argocd_https
-    port: 7093
-    access: tailscale
-    app: argocd
+    - name: argocd_https
+      port: 7093
+      access: tailscale
+      app: argocd

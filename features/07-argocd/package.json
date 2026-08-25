@@ -1,0 +1,12 @@
+{
+    "name": "@vps/argocd",
+    "version": "1.0.0",
+    "description": "ArgoCD install",
+    "dependencies": {
+        "@vps/k3s": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": false
+    }
+}

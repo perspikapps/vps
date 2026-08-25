@@ -1,0 +1,10 @@
+{
+    "name": "@vps/cockpit",
+    "version": "1.0.0",
+    "description": "Cockpit install",
+    "dependencies": {},
+    "private": true,
+    "vps": {
+        "default": true
+    }
+}

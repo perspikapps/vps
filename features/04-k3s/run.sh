@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install a single-node k3s cluster, expose kubectl, install Helm, and
 # configure k3s's bundled Traefik as this VPS's public ingress: HTTP/HTTPS
-# on 80/443 (open publicly - see scripts/02-security-harden.sh) with a
+# on 80/443 (open publicly - see features/01-security/run.sh) with a
 # Let's Encrypt certResolver ready for any Ingress you point at it, and
 # its dashboard on TRAEFIK_DASHBOARD_PORT, Tailscale-only like the rest of
 # this repo's admin surfaces.
@@ -32,7 +32,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
 up() {
 require_root
@@ -167,7 +167,7 @@ ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASH
 
 # Uninstalls k3s entirely (via its own uninstall script) - this takes
 # Rancher, ArgoCD, Epinio, and anything else deployed on the cluster down
-# with it. setup.sh refuses to bring this step down while any of those are
+# with it. dispatch.sh refuses to bring this step down while any of those are
 # still enabled; pass --force-down there to override.
 down() {
   require_root

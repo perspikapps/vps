@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers sourced by every script in scripts/.
+# Shared helpers sourced by every feature's run.sh under features/.
 # Style borrows from devcontainers/features common-utils: strict mode,
 # idempotent "already done" checks, non-interactive apt, plain logging.
 
@@ -78,7 +78,7 @@ retry() {
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # Repo root, computed from this file's own location so it resolves
-# correctly whether a script runs via setup.sh (from /opt/vps-setup) or
+# correctly whether a script runs via dispatch.sh (from /opt/vps-setup) or
 # standalone from a checkout elsewhere.
 VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NETWORK_YAML="${NETWORK_YAML:-$VPS_SETUP_ROOT/network.yaml}"
@@ -126,7 +126,7 @@ ensure_line() {
 }
 
 # Install cert-manager if it isn't already on the cluster, and reuse it
-# as-is if it is - shared by scripts/06-rancher.sh and scripts/09-epinio.sh,
+# as-is if it is - shared by features/05-rancher/run.sh and features/08-epinio/run.sh,
 # whichever of the two runs first (order doesn't matter; the other then
 # just reuses this same installation). Respects CERT_MANAGER_VERSION.
 ensure_cert_manager() {
@@ -147,11 +147,11 @@ ensure_cert_manager() {
     --wait --timeout 5m
 }
 
-# Generic up/down dispatcher for every scripts/*.sh. Each script defines an
+# Generic up/down dispatcher for every features/*/run.sh. Each script defines an
 # up() function (its existing install logic) and, where meaningful, a
 # down() function (teardown), then finishes with:
 #   dispatch_action "$@"
-# Defaults to "up" so `bash scripts/NN-foo.sh` with no argument behaves
+# Defaults to "up" so `bash features/NN-name/run.sh` with no argument behaves
 # exactly as it did before up/down actions existed.
 dispatch_action() {
   local action="${1:-up}"

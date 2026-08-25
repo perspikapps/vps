@@ -25,7 +25,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
 up() {
 require_root
@@ -136,7 +136,7 @@ while IFS=$'\t' read -r name yaml_port access note; do
       ufw allow "${port}/tcp" comment "${note:-$name}"
       ;;
     tailscale)
-      # Not reachable from the public internet until scripts/03 brings
+      # Not reachable from the public internet until features/02-tailscale brings
       # tailscale0 up.
       ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
       ;;
