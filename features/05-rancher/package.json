@@ -7,6 +7,18 @@
     },
     "private": true,
     "vps": {
-        "default": true
+        "default": true,
+        "ports": [
+            {
+                "name": "rancher_http",
+                "port": 7080,
+                "access": "tailscale"
+            },
+            {
+                "name": "rancher_https",
+                "port": 7083,
+                "access": "tailscale"
+            }
+        ]
     }
 }

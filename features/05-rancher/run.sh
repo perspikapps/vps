@@ -10,8 +10,8 @@
 #   RANCHER_BOOTSTRAP_PASSWORD  - initial admin password (default: random,
 #                                 printed at the end and saved to
 #                                 /root/.rancher-bootstrap-password)
-#   RANCHER_HTTP_PORT           - default from ../network.yaml (rancher_http)
-#   RANCHER_HTTPS_PORT          - default from ../network.yaml (rancher_https)
+#   RANCHER_HTTP_PORT           - default from this feature's own package.json (rancher_http)
+#   RANCHER_HTTPS_PORT          - default from this feature's own package.json (rancher_https)
 #   RANCHER_CHART_VERSION       - pin a chart version (optional, default: latest)
 #   CERT_MANAGER_VERSION        - pin cert-manager's chart version (optional)
 #

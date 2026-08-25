@@ -4,7 +4,7 @@
 #
 # dispatch.sh refuses to run at all if this step is enabled but
 # TAILSCALE_AUTHKEY is unset, since ufw only opens this repo's
-# Tailscale-only services (see network.yaml) to the tailscale0 interface -
+# Tailscale-only services (see this feature's own package.json) to the tailscale0 interface -
 # an unauthenticated node would leave all of them unreachable. Pass
 # --skip-tailscale there to opt out of that guard.
 #
@@ -48,7 +48,7 @@ ok "Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
 
 # Logs out of the tailnet and stops tailscaled, but leaves the tailscale
 # package installed (it's a single small binary; PURGE_TAILSCALE=true also
-# removes it). Note: every Tailscale-only service in network.yaml becomes
+# removes it). Note: every Tailscale-only service (see each feature's package.json) becomes
 # unreachable once this runs - see README's Security model.
 down() {
   require_root

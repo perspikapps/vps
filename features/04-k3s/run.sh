@@ -25,7 +25,7 @@
 #                            "false" once you're ready for real, trusted
 #                            certs (production LE has strict per-domain
 #                            rate limits, so avoid testing against it).
-#   TRAEFIK_DASHBOARD_PORT - default from ../network.yaml (traefik_dashboard),
+#   TRAEFIK_DASHBOARD_PORT - default from this feature's own package.json (traefik_dashboard),
 #                            Tailscale-only, no login (see README's Security
 #                            model)
 

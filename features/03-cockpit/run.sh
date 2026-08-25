@@ -5,8 +5,8 @@
 # it's bound to; we just socket-activate it on two ports for convenience.
 #
 # Env vars:
-#   COCKPIT_HTTP_PORT   - default from ../network.yaml (cockpit_http)
-#   COCKPIT_HTTPS_PORT  - default from ../network.yaml (cockpit_https)
+#   COCKPIT_HTTP_PORT   - default from this feature's own package.json (cockpit_http)
+#   COCKPIT_HTTPS_PORT  - default from this feature's own package.json (cockpit_https)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

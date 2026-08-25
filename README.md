@@ -398,13 +398,12 @@ entirely - there's no `sudo` involved.
   rules) without dispatch.sh itself needing npm/node at all.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `dispatch.sh` unattended on first boot.
-- `network.yaml` - single source of truth for every port this setup opens
-  and whether it's public or Tailscale-only - see
-  [Network config](#network-config-networkyaml).
 - `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
   every feature's `run.sh` (style borrowed from `devcontainers/features`
   common-utils: strict bash mode, non-interactive apt, "already done"
-  checks); `net_port`/`net_access` for reading `network.yaml`; and
+  checks); `net_port`/`net_access`/`all_network_ports` for reading each
+  feature's own `package.json` port declarations - see
+  [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
   feature's `up`/`down` actions. This is bash, not POSIX sh - every
   `run.sh` is invoked by `dispatch.sh` as a `bash` subprocess, never
@@ -414,9 +413,10 @@ entirely - there's no `sudo` involved.
 - `features/00-system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
 - `features/01-security/` - optional non-root admin user, ufw
-  (default-deny inbound, rules generated from `network.yaml`: SSH and
-  Traefik's 80/443 public, everything else Tailscale-only), sshd
-  hardening, fail2ban, and a Cockpit/console login password.
+  (default-deny inbound, rules generated from every feature's own
+  `package.json` port declarations: SSH and Traefik's 80/443 public,
+  everything else Tailscale-only), sshd hardening, fail2ban, and a
+  Cockpit/console login password.
 - `features/02-tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
 - `features/03-cockpit/` - installs Cockpit, served on ports 9080/9083.
@@ -489,38 +489,49 @@ simple, single-key-per-line JSON it controls the format of. If you hand-edit
 a feature's `package.json`, keep that one-key-per-line shape or
 `dispatch.sh`'s parser won't find it.
 
-## Network config (`network.yaml`)
+## Network config (each feature's own `package.json`)
 
-Every port this repo opens, and whether it's public or Tailscale-only,
-lives in one file: `network.yaml`. Each entry looks like:
+Every port this repo opens, and whether it's public or Tailscale-only, is
+declared on the feature that owns it, in its `package.json`'s `vps.ports`
+array (same file that carries `vps.default`/`dependencies` - see
+[One folder per feature](#one-folder-per-feature)). Each entry looks like:
 
-```yaml
-- name: rancher_http
-  port: 7080
-  access: tailscale # or: public
-  app: rancher # optional, informational
-  note: '...' # optional, becomes the ufw rule's comment
+```json
+{
+  "name": "rancher_http",
+  "port": 7080,
+  "access": "tailscale",
+  "note": "optional, becomes the ufw rule's comment"
+}
 ```
 
-`features/01-security/run.sh` reads the whole file and builds ufw's
-rules from it generically - there's no per-service ufw logic left in that
-script, just a loop over `network.yaml`'s entries. Every other script
-that binds a port (Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads
-its own default from the same file via `lib/common.sh`'s `net_port()`
-helper, so the port ufw opens and the port the app actually listens on
-can't drift apart.
+(`access` is `"tailscale"` or `"public"`.) `features/05-rancher/package.json`
+carries `rancher_http`/`rancher_https`, `features/04-k3s/package.json`
+carries `http`/`https`/`traefik_dashboard`, and so on - each feature's own
+`run.sh` is what actually binds the port, so its declaration lives right
+next to the code that uses it instead of a separate central file.
 
-To change a default port for good, edit `network.yaml` and re-run the
-affected step(s) (e.g. `--only-security --only-rancher` after changing
-`rancher_http`). To override a port for a single run without editing the
-file, use its env var - the name is always the entry's `name`, upper-cased,
-with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`, `ssh` ->
-`SSH_PORT`, and so on.
+`features/01-security/run.sh` doesn't know about any of that port detail
+itself: it calls `lib/common.sh`'s `all_network_ports()`, which scans
+every `features/*/package.json` and builds ufw's rules from whatever it
+finds - there's no per-service ufw logic in that script at all, just a
+loop over that combined list. Every feature that binds a port itself
+(Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads its own default via
+`lib/common.sh`'s `net_port()` helper (resolving its *own* package.json
+automatically - see the function's comment for how `lib/summary.sh`, which
+isn't any one feature, asks for another feature's port explicitly), so the
+port ufw opens and the port the app actually listens on can't drift apart.
 
-Lookups are done with [mikefarah/yq](https://github.com/mikefarah/yq) (a
-standalone Go binary, auto-installed to `/usr/local/bin/yq` the first
-time any script needs it) - deliberately not Ubuntu's `yq` apt package,
-which is a different, jq-based tool with incompatible filter syntax.
+To change a default port for good, edit that feature's `package.json` and
+re-run the affected step(s) (e.g. `--only-security --only-rancher` after
+changing `rancher_http`). To override a port for a single run without
+editing anything, use its env var - the name is always the entry's `name`,
+upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
+`ssh` -> `SSH_PORT`, and so on.
+
+Lookups are done with `jq` (already a base dependency installed by
+`features/00-system`) - no separate YAML tooling needed now that this
+lives in `package.json` alongside everything else npm already parses.
 
 ## Security model
 
@@ -699,7 +710,8 @@ every other step's credentials.
 ## Key environment variables
 
 All `*_PORT` variables below are per-run overrides of a default that
-actually lives in [`network.yaml`](#network-config-networkyaml) - edit
+actually lives in the owning feature's own `package.json` - see
+[Network config](#network-config-each-features-own-packagejson) - edit
 that file to change a default for good, or set the env var for one run.
 
 | Variable                                   | Default              | Purpose                                                                                                          |

@@ -13,8 +13,8 @@
 # where that wait is what timed out before (see ARGOCD_INSTALL_TIMEOUT).
 #
 # Env vars:
-#   ARGOCD_HTTP_PORT      - default from ../network.yaml (argocd_http)
-#   ARGOCD_HTTPS_PORT     - default from ../network.yaml (argocd_https)
+#   ARGOCD_HTTP_PORT      - default from this feature's own package.json (argocd_http)
+#   ARGOCD_HTTPS_PORT     - default from this feature's own package.json (argocd_https)
 #   ARGOCD_CHART_VERSION  - pin a chart version (optional, default: latest)
 #   ARGOCD_INSTALL_TIMEOUT - how long to wait for all pods to come up
 #                            (default 15m; a small VPS pulling several

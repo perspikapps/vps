@@ -2,14 +2,16 @@
 # Harden the server for exposure to the public internet:
 #   - optional non-root sudo admin user with SSH key
 #   - SSH: disable root login, disable password auth (only if a key exists)
-#   - UFW: default-deny inbound, then every rule in ../network.yaml applied
-#     as either public or Tailscale-only, per its `access` field
+#   - UFW: default-deny inbound, then every port from every feature's
+#     package.json ("vps.ports") applied as either public or
+#     Tailscale-only, per its `access` field
 #   - fail2ban for SSH brute-force protection
 #
-# Ports and their public/Tailscale-only access are defined in
-# ../network.yaml, not here - see that file and README.md's "Security
-# model" section. Each port there can still be overridden for a single
-# run via an env var named after it (e.g. RANCHER_HTTP_PORT).
+# Every port this repo opens, and its public/Tailscale-only access, is
+# declared on the feature that owns it (its package.json's "vps.ports" -
+# see lib/common.sh's all_network_ports()), not centralized here - see
+# README.md's "Security model" section. Each port can still be overridden
+# for a single run via an env var named after it (e.g. RANCHER_HTTP_PORT).
 #
 # Env vars:
 #   VPS_ADMIN_USER      - optional non-root user to create (default: unset/skip)
@@ -20,7 +22,8 @@
 #                         SSH: SSH password auth stays disabled once a key is
 #                         present, this password is only for logging into
 #                         Cockpit (and the local console) via PAM.
-#   SSH_PORT            - SSH port to keep open (default: from network.yaml)
+#   SSH_PORT            - SSH port to keep open (default: from this feature's
+#                         own package.json)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -118,19 +121,19 @@ EOF
 systemctl enable --now fail2ban
 systemctl restart fail2ban
 
-log "Configuring ufw from ${NETWORK_YAML}..."
+log "Configuring ufw from every feature's package.json..."
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
 
-# Every port and its public/Tailscale-only access comes from
-# network.yaml; a port whose `name` there is e.g. "rancher_http" can
-# still be overridden for this run via RANCHER_HTTP_PORT, same as every
-# script that opens that port for its own app.
-ensure_yq
-while IFS=$'\t' read -r name yaml_port access note; do
+# Every port and its public/Tailscale-only access comes from its owning
+# feature's package.json ("vps.ports" - see lib/common.sh's
+# all_network_ports()); a port whose `name` there is e.g. "rancher_http"
+# can still be overridden for this run via RANCHER_HTTP_PORT, same as
+# every feature that opens that port for its own app.
+while IFS=$'\t' read -r name pkg_port access note; do
   env_var="$(echo "$name" | tr '[:lower:]' '[:upper:]')_PORT"
-  port="${!env_var:-$yaml_port}"
+  port="${!env_var:-$pkg_port}"
   case "$access" in
     public)
       ufw allow "${port}/tcp" comment "${note:-$name}"
@@ -141,17 +144,17 @@ while IFS=$'\t' read -r name yaml_port access note; do
       ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
       ;;
     *)
-      warn "network.yaml: unknown access '${access}' for port '${name}' - skipping."
+      warn "unknown access '${access}' for port '${name}' - skipping."
       ;;
   esac
-done < <(yq e '.ports[] | [.name, .port, .access, (.note // "")] | @tsv' "$NETWORK_YAML")
+done < <(all_network_ports)
 
 # k3s node-to-node / API traffic, also tailscale-only (not a single fixed
-# port, so it isn't one of network.yaml's entries).
+# port, so it isn't one of the per-feature port lists).
 ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
-ok "ufw enabled from network.yaml: public ports open to everyone, tailscale ports reachable only via Tailscale."
+ok "ufw enabled from every feature's package.json: public ports open to everyone, tailscale ports reachable only via Tailscale."
 }
 
 # Reverts the hardening applied by up(): disables ufw (back to wide open -

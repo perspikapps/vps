@@ -5,6 +5,14 @@
     "dependencies": {},
     "private": true,
     "vps": {
-        "default": true
+        "default": true,
+        "ports": [
+            {
+                "name": "ssh",
+                "port": 22,
+                "access": "public",
+                "note": "SSH"
+            }
+        ]
     }
 }

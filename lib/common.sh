@@ -81,32 +81,64 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 # correctly whether a script runs via dispatch.sh (from /opt/vps-setup) or
 # standalone from a checkout elsewhere.
 VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NETWORK_YAML="${NETWORK_YAML:-$VPS_SETUP_ROOT/network.yaml}"
 
-# Installs mikefarah/yq (a standalone Go binary) the first time a
-# network.yaml lookup is needed. Deliberately not Ubuntu's `yq` apt
-# package, which is a different (Python/jq-based) tool with incompatible
-# syntax.
-ensure_yq() {
-  command_exists yq && return
-  log "Installing yq (YAML processor, for network.yaml)..."
-  local arch
-  arch="$(dpkg --print-architecture)"
-  retry curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}" -o /usr/local/bin/yq
-  chmod +x /usr/local/bin/yq
+# Every port this repo opens - and whether it's public or Tailscale-only -
+# lives under its owning feature's own package.json, in a "vps.ports"
+# array (see any of features/*/package.json for the shape). There's no
+# longer a single network.yaml: each feature owns the ports it binds.
+
+# Resolve a feature's package.json from its short name (e.g. "cockpit" ->
+# features/03-cockpit/package.json), by matching package.json's "name"
+# field ("@vps/cockpit"). Used by net_port/net_access when a caller needs
+# another feature's ports (see lib/summary.sh); every other caller omits
+# the second argument and gets its own package.json for free (below).
+feature_package_json() {
+  local feature="$1" d
+  for d in "$VPS_SETUP_ROOT"/features/*/; do
+    if [[ -f "${d}package.json" ]] && jq -e --arg n "@vps/${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
+      printf '%s' "${d}package.json"
+      return 0
+    fi
+  done
+  die "Unknown feature '${feature}' (no features/*/package.json with name @vps/${feature})."
 }
 
-# Look up a port/access value from network.yaml by its `name` field.
-# Every caller should still layer its own env var override on top, e.g.:
+# Look up a port/access value from a feature's package.json ("vps.ports"),
+# by its `name` field. With no $2, resolves the *calling script's own*
+# package.json (features/<NN-name>/package.json, right next to run.sh) -
+# pass a feature name explicitly only when looking up another feature's
+# port (e.g. lib/summary.sh reading cockpit's port from outside cockpit's
+# own run.sh). Every caller should still layer its own env var override on
+# top, e.g.:
 #   RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
 net_port() {
-  ensure_yq
-  yq e ".ports[] | select(.name == \"$1\") | .port" "$NETWORK_YAML"
+  local name="$1" feature="${2:-}" pkg
+  if [[ -n "$feature" ]]; then
+    pkg="$(feature_package_json "$feature")"
+  else
+    pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
+  fi
+  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .port' "$pkg"
 }
 
 net_access() {
-  ensure_yq
-  yq e ".ports[] | select(.name == \"$1\") | .access" "$NETWORK_YAML"
+  local name="$1" feature="${2:-}" pkg
+  if [[ -n "$feature" ]]; then
+    pkg="$(feature_package_json "$feature")"
+  else
+    pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
+  fi
+  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .access' "$pkg"
+}
+
+# Every port across every feature, as name/port/access/note TSV rows -
+# used by features/01-security/run.sh to build ufw's rules generically,
+# without needing to know which feature owns which port.
+all_network_ports() {
+  local f
+  for f in "$VPS_SETUP_ROOT"/features/*/package.json; do
+    jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$f"
+  done
 }
 
 # Generate a random alphanumeric string of the given length (default 24).

@@ -5,6 +5,18 @@
     "dependencies": {},
     "private": true,
     "vps": {
-        "default": true
+        "default": true,
+        "ports": [
+            {
+                "name": "cockpit_http",
+                "port": 9080,
+                "access": "tailscale"
+            },
+            {
+                "name": "cockpit_https",
+                "port": 9083,
+                "access": "tailscale"
+            }
+        ]
     }
 }

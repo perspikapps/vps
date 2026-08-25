@@ -198,7 +198,7 @@ a dependent step is still enabled).
 Every feature lives in its own workspace package: features/<NN-name>/
 (package.json declares its default/dependencies, run.sh is its up()/down()
 script). See README.md's "Key environment variables" section for the full
-env var list (network.yaml for ports specifically).
+env var list (each feature's package.json for ports specifically).
 EOF
 }
 
@@ -366,7 +366,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # ufw (features/01-security) only opens this repo's Tailscale-only services
-# (see network.yaml) to the tailscale0 interface, so running the rest of
+# (see this feature's own package.json) to the tailscale0 interface, so running the rest of
 # the install without Tailscale authenticated would leave all of them
 # unreachable. Refuse to proceed rather than silently produce a VPS
 # nothing can be managed on.
