@@ -419,6 +419,15 @@ entirely - there's no `sudo` involved.
   [dependencies read straight from each package.json](#dependencies-between-steps)),
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
+- `lib/dispatch-steps.sh` - also plain POSIX `/bin/sh`, sourced by
+  `dispatch.sh` once it knows its own repo root: the three per-step
+  operations `dispatch.sh` drives on each feature - `state_get`/`state_set`
+  (up/skip/down, per [Removing a feature](#removing-a-feature-updown-per-step)),
+  `ask_missing_inputs` (see
+  [Interactive input prompts](#interactive-input-prompts-each-features-own-packagejson)),
+  and `run_step` (invokes `features/<name>/run.sh up|down` as a `bash`
+  subprocess). Split out so the root script stays focused on flag parsing,
+  the menu, and dependency resolution.
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
 ["features/*"]`); ties every feature package together for tooling
   (`npm install`, `npm ls`, lint-staged, commitlint's workspace-scope

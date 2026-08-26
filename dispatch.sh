@@ -191,16 +191,9 @@ for d in $(list_feature_dirs); do
   ALL_NAMES="$ALL_NAMES $(feature_name "$d")"
 done
 
-# --- per-feature state, emulated with eval'd variables (POSIX sh has no
-# arrays/maps): STATE_<name> is one of up / skip / down.
-
-# Feature short names may contain hyphens (e.g. "github-arc"), which aren't
-# valid in a shell variable name - translate to underscores for the eval'd
-# STATE_<name> variable itself; state_get/state_set still take/return the
-# real hyphenated name everywhere else.
-state_var() { printf '%s' "$1" | tr '-' '_'; }
-state_get() { eval "printf '%s' \"\${STATE_$(state_var "$1"):-skip}\""; }
-state_set() { eval "STATE_$(state_var "$1")=\$2"; }
+# set/ask/run - see lib/dispatch-steps.sh's own header comment.
+# shellcheck disable=SC1091
+. "$REPO_ROOT/lib/dispatch-steps.sh"
 
 for name in $ALL_NAMES; do
   d=$(feature_dir_for_name "$name")
@@ -425,50 +418,9 @@ if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
 
-# Ask for any input every enabled ("up") step declares in its own
-# package.json ("config.inputs" - see pkg_input_names above) that isn't
-# already set in the environment, so a plain interactive run doesn't need
-# every env var pre-set on the command line. Only runs on an actual
-# terminal: curl | sudo sh pipes the script itself into stdin, so there's
-# nothing to read prompts from there - env vars (or --skip-*) are the only
-# way to supply them in that mode, same as before this existed.
-if [ -t 0 ]; then
-  echo
-  echo "==== Feature inputs ===="
-  for name in $ALL_NAMES; do
-    [ "$(state_get "$name")" = "up" ] || continue
-    d=$(feature_dir_for_name "$name")
-    pkg="${d}/package.json"
-    for input in $(feature_inputs "$d"); do
-      current=$(eval "printf '%s' \"\${${input}:-}\"")
-      [ -n "$current" ] && continue
-
-      desc=$(pkg_input_description "$pkg" "$input")
-      required=$(pkg_input_required "$pkg" "$input")
-      default=$(pkg_input_default "$pkg" "$input")
-
-      prompt="  ${input}"
-      [ -n "$desc" ] && prompt="${prompt} (${desc})"
-      if [ -n "$default" ]; then
-        prompt="${prompt} [${default}]: "
-      elif [ "$required" = "true" ]; then
-        prompt="${prompt} (required): "
-      else
-        prompt="${prompt} [optional, enter to skip]: "
-      fi
-      printf '%s' "$prompt"
-      read -r answer
-      [ -z "$answer" ] && answer="$default"
-
-      if [ -n "$answer" ]; then
-        eval "${input}=\"\${answer}\""
-        eval "export ${input}"
-      elif [ "$required" = "true" ]; then
-        warn "${input} is required by '${name}' but was left empty; that step will likely fail without it."
-      fi
-    done
-  done
-fi
+# Ask for any input every enabled ("up") step declares that isn't already
+# set in the environment - see lib/dispatch-steps.sh's ask_missing_inputs.
+ask_missing_inputs
 
 # ufw (features/security) only opens this repo's Tailscale-only services
 # (see this feature's own package.json) to the tailscale0 interface, so running the rest of
@@ -486,19 +438,6 @@ if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
     "    manually later, then: sudo sh dispatch.sh --only-tailscale)."
   die "Refusing to run with tailscale enabled and TAILSCALE_AUTHKEY unset."
 fi
-
-run_step() {
-  # $1=name $2=action
-  d=$(feature_dir_for_name "$1")
-  label="$(feature_desc "$d")"
-  log "=== Running ${label} ($(basename "$d")/run.sh $2) ==="
-  rc=0
-  bash "$d/run.sh" "$2" || rc=$?
-  if [ "$rc" -ne 0 ]; then
-    die "Step '${label}' ($(basename "$d")/run.sh $2) failed (exit ${rc}) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-${1}"
-  fi
-  ok "=== Done: ${label} (${2}) ==="
-}
 
 # Tear down requested steps first (in reverse order, so dependents come
 # down before what they depend on), then install/reconcile everything
