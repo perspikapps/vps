@@ -34,6 +34,11 @@ NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 EPINIO_DOMAIN="${EPINIO_DOMAIN:-${NODE_PUBLIC_IP}.sslip.io}"
 EPINIO_PASSWORD="$(cat /root/.epinio-admin-password 2>/dev/null || echo 'not set - run features/epinio/run.sh')"
 
+GITHUB_ARC_STATUS="not installed (run: sudo sh dispatch.sh --with-github-arc)"
+if command_exists helm && helm status arc-runner-set -n github >/dev/null 2>&1; then
+  GITHUB_ARC_STATUS="installed - runner scale set: $(kubectl -n github get autoscalingrunnersets -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo 'see: kubectl -n github get autoscalingrunnersets')"
+fi
+
 cat <<EOF
 
 ======================================================================
@@ -83,6 +88,10 @@ cat <<EOF
                        app from source with: epinio push - see README.
                        Public via Traefik like any Ingress, not
                        Tailscale-only - gated by this login, not ufw)
+
+ GitHub ARC:          ${GITHUB_ARC_STATUS}
+                       (namespace: github; see README's GitHub Actions
+                       Runner Controller (ARC) section)
 
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)

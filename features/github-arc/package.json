@@ -1,0 +1,13 @@
+{
+    "name": "@vps/github-arc",
+    "version": "1.0.0",
+    "description": "GitHub Actions Runner Controller (ARC) install",
+    "dependencies": {
+        "@vps/k3s": "*"
+    },
+    "private": true,
+    "vps": {
+        "order": 9,
+        "default": false
+    }
+}

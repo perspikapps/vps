@@ -7,7 +7,8 @@ management box running Cockpit and a single-node k3s/Rancher cluster,
 with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, ArgoCD,
 and the Traefik dashboard are Tailscale-only; the ingress itself (80/443)
 is public on purpose - see [Security model](#security-model). ArgoCD and
-[Epinio](#epinio-deploy-apps-from-source) are optional, opt-in steps (see
+[Epinio](#epinio-deploy-apps-from-source), and
+[GitHub ARC](#github-actions-runner-controller-arc) are optional, opt-in steps (see
 [Running a single step](#running-a-single-step-or-a-subset)) - everything
 else runs by default. Every step can also be turned back off later without
 reinstalling anything else - see [Removing a feature](#removing-a-feature-updown-per-step).
@@ -31,20 +32,22 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`dispatch.sh` runs nine feature folders, in the order each one's
+`dispatch.sh` runs ten feature folders, in the order each one's
 `package.json` declares (`vps.order` - see
 [One folder per feature](#one-folder-per-feature)): `system`, `security`,
 `tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
-`dockermanager`, `argocd`, and `epinio`. All of them run by
-default **except `argocd` and `epinio`, which are opt-in** (both are heavy
+`dockermanager`, `argocd`, `epinio`, and `github-arc`. All of them run by
+default **except `argocd`, `epinio`, and `github-arc`, which are opt-in**
+(all three are heavy
 
-- see their own sections below - and Epinio specifically is of little use
-  without a real domain). Three flag families control which of them run:
+- see their own sections below - Epinio specifically is of little use
+  without a real domain, and `github-arc` needs a GitHub App already set
+  up). Three flag families control which of them run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
-- **`--with-<step>`** - turn on an opt-in step (currently `argocd` or
-  `epinio`) that's off by default; harmless (a no-op) on a step that's
-  already on by default.
+- **`--with-<step>`** - turn on an opt-in step (currently `argocd`,
+  `epinio`, or `github-arc`) that's off by default; harmless (a no-op) on
+  a step that's already on by default.
 - **`--only-<step>`** - run _only_ the named step(s), regardless of its
   default; pass it more than once to run a few together. Any `--only-*`
   flag overrides every `--skip-*`/`--with-*` flag on the command line.
@@ -106,7 +109,8 @@ is idempotent, re-running a single step to pick up a changed env var
 Every feature is its own npm workspace package under `features/<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
 source of truth for what it needs - `features/rancher/package.json`
-declares `"@vps/k3s": "*"`, so does `argocd`'s and `epinio`'s. `dispatch.sh`
+declares `"@vps/k3s": "*"`, so do `argocd`'s, `epinio`'s, and
+`github-arc`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
 explicitly:
@@ -146,6 +150,7 @@ sudo sh /tmp/dispatch.sh
    7) * dockermanager    [up  ] cockpit-packagekit/files/dockermanager install
    8)   argocd           [skip] ArgoCD install
    9)   epinio           [skip] Epinio install
+  10)   github-arc       [skip] GitHub Actions Runner Controller (ARC) install
   (* = installed by default) Enter a number to cycle
   skip -> up -> down -> skip for that step.
   <enter> to proceed, 'q' to quit without changing anything.
@@ -171,7 +176,7 @@ instead of installing it:
 sudo sh /tmp/dispatch.sh --down-argocd
 
 # Remove more than one step in the same run:
-sudo sh /tmp/dispatch.sh --down-argocd --down-epinio
+sudo sh /tmp/dispatch.sh --down-argocd --down-epinio --down-github-arc
 
 # Add ArgoCD and remove Epinio in the same run:
 sudo sh /tmp/dispatch.sh --with-argocd --down-epinio
@@ -187,23 +192,24 @@ sudo sh /tmp/dispatch.sh --down-k3s
 ```
 
 Either bring the dependent step down in the same run (`--down-k3s
---down-rancher --down-argocd --down-epinio`, to remove the whole cluster
-cleanly), or pass `--force-down` if you really want to pull `k3s` out from
-under something still enabled.
+--down-rancher --down-argocd --down-epinio --down-github-arc`, to remove
+the whole cluster cleanly), or pass `--force-down` if you really want to
+pull `k3s` out from under something still enabled.
 
 What each step's `down` action actually does - and doesn't - undo:
 
-| Step            | `down` removes                                                                      | Left in place                                                            |
-| --------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `system`        | _(no down action - a base package upgrade, nothing to undo)_                        | everything                                                               |
-| `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                    | the admin user/password `up` created, if any                             |
-| `tailscale`     | logs out of the tailnet, disables `tailscaled`                                      | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
-| `cockpit`       | the Cockpit packages and socket config                                              | nothing else depends on it                                               |
-| `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher/ArgoCD/Epinio down with it** | -                                                                        |
-| `rancher`       | the Helm release and its namespace                                                  | cert-manager (shared with Epinio)                                        |
-| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                            | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
-| `argocd`        | the Helm release and its namespace                                                  | k3s, cert-manager                                                        |
-| `epinio`        | the Helm release, its namespace, and the `epinio` CLI                               | k3s, cert-manager, Traefik                                               |
+| Step            | `down` removes                                                                                  | Left in place                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `system`        | _(no down action - a base package upgrade, nothing to undo)_                                     | everything                                                               |
+| `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                 | the admin user/password `up` created, if any                             |
+| `tailscale`     | logs out of the tailnet, disables `tailscaled`                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `cockpit`       | the Cockpit packages and socket config                                                           | nothing else depends on it                                               |
+| `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher/ArgoCD/Epinio/GitHub ARC down with it**   | -                                                                        |
+| `rancher`       | the Helm release and its namespace                                                               | cert-manager (shared with Epinio)                                        |
+| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
+| `argocd`        | the Helm release and its namespace                                                               | k3s, cert-manager                                                        |
+| `epinio`        | the Helm release, its namespace, and the `epinio` CLI                                            | k3s, cert-manager, Traefik                                               |
+| `github-arc`    | both Helm releases (controller and runner scale set), the GitHub App secret, and the namespace   | k3s                                                                       |
 
 Each feature's `run.sh` also accepts the action directly if you'd rather
 run it without going through `dispatch.sh` (e.g. from an existing
@@ -354,6 +360,21 @@ openssl rand -base64 24
 If you don't set it, `features/rancher/run.sh` generates and saves one for
 you automatically.
 
+**GitHub App credentials** (for `GITHUB_ARC_APP_ID`,
+`GITHUB_ARC_APP_INSTALLATION_ID`, `GITHUB_ARC_APP_PRIVATE_KEY_FILE`) -
+create a GitHub App and install it on the org/repo you want runners for,
+following
+[the ARC quickstart](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started#configuring-arc-with-a-github-app):
+
+1. Create the App under your org/user settings, with the permissions the
+   quickstart lists, then generate a private key for it (downloads a
+   `.pem` file) and install it on the target org/repo.
+2. Note the App ID (from the App's settings page) and the installation ID
+   (from the URL after installing it: `.../installations/<ID>`).
+3. Copy the downloaded `.pem` onto the VPS (e.g. `scp`) and point
+   `GITHUB_ARC_APP_PRIVATE_KEY_FILE` at it - the key content itself is
+   never passed as an env var.
+
 ## Provisioning via cloud-init / Kairos
 
 [`cloud-init/kairos-vps-setup.yaml`](cloud-init/kairos-vps-setup.yaml) is a
@@ -439,6 +460,11 @@ entirely - there's no `sudo` involved.
   for deploying apps straight from source, routed through Traefik's
   existing ingress rather than a dedicated port - see
   [Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
+  Opt-in; depends on `k3s`.
+- `features/github-arc/` - installs GitHub Actions Runner Controller
+  (ARC) via Helm, registering self-hosted runners against a GitHub org
+  or repo - see
+  [GitHub Actions Runner Controller (ARC)](#github-actions-runner-controller-arc).
   Opt-in; depends on `k3s`.
 
 ## One folder per feature
@@ -708,6 +734,49 @@ login, not by `ufw` (see [Security model](#security-model)).
 The login and dashboard URL are printed by `lib/summary.sh` like
 every other step's credentials.
 
+## GitHub Actions Runner Controller (ARC)
+
+Opt-in - pass `--with-github-arc` (or `--only-github-arc`) to install it;
+it doesn't run on a plain `dispatch.sh` with no flags.
+
+`features/github-arc/run.sh` installs
+[GitHub Actions Runner Controller](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started)
+(ARC) via its two official Helm charts - the controller
+(`gha-runner-scale-set-controller`) and a runner scale set
+(`gha-runner-scale-set`) - both into a single `github` namespace on the
+k3s cluster, so self-hosted GitHub Actions runners can be dispatched
+straight onto this VPS.
+
+Authentication is via a GitHub App, the method the docs recommend over a
+personal access token - you create the App yourself (following the
+quickstart above) and give this script its credentials; it doesn't create
+the App for you.
+
+- **Required**: `GITHUB_ARC_CONFIG_URL` (the org or repo the runners
+  register against, e.g. `https://github.com/perspikapps` or
+  `https://github.com/perspikapps/vps`), `GITHUB_ARC_APP_ID`,
+  `GITHUB_ARC_APP_INSTALLATION_ID`, and
+  `GITHUB_ARC_APP_PRIVATE_KEY_FILE` (a path to the App's private key PEM
+  - not the key content itself, so it's never passed on the command line
+  or logged).
+- **Scaling**: `GITHUB_ARC_MIN_RUNNERS`/`GITHUB_ARC_MAX_RUNNERS` (default
+  `0`/`5`) control the runner scale set's autoscaling range.
+- Neither chart binds a port `ufw` needs to know about: runners connect
+  outbound to GitHub, nothing needs to be reachable from outside the
+  cluster.
+
+```bash
+sudo GITHUB_ARC_CONFIG_URL=https://github.com/perspikapps/vps \
+    GITHUB_ARC_APP_ID=123456 \
+    GITHUB_ARC_APP_INSTALLATION_ID=78901234 \
+    GITHUB_ARC_APP_PRIVATE_KEY_FILE=/root/github-arc-app.private-key.pem \
+    sh dispatch.sh --only-github-arc
+```
+
+Check on it with `kubectl -n github get autoscalingrunnersets` and
+`kubectl -n github get pods`; `lib/summary.sh` reports whether it's
+installed like every other step.
+
 ## Key environment variables
 
 All `*_PORT` variables below are per-run overrides of a default that
@@ -742,6 +811,15 @@ that file to change a default for good, or set the env var for one run.
 | `EPINIO_CHART_VERSION`                     | latest               | Pin the `epinio/epinio` Helm chart version                                                                       |
 | `EPINIO_INSTALL_TIMEOUT`                   | `15m`                | How long to wait for Epinio's pods to come up                                                                    |
 | `CERT_MANAGER_VERSION`                     | latest               | Pin cert-manager's chart version (shared by Rancher and Epinio)                                                  |
+| `GITHUB_ARC_CONFIG_URL`                    | unset                 | Org or repo URL runners register against (**required**)                                                          |
+| `GITHUB_ARC_APP_ID`                        | unset                 | GitHub App ID (**required**)                                                                                     |
+| `GITHUB_ARC_APP_INSTALLATION_ID`           | unset                 | GitHub App installation ID (**required**)                                                                        |
+| `GITHUB_ARC_APP_PRIVATE_KEY_FILE`          | unset                 | Path to the GitHub App's private key PEM (**required**)                                                          |
+| `GITHUB_ARC_RUNNER_SCALE_SET_NAME`         | `arc-runner-set`      | Name of the runner scale set                                                                                     |
+| `GITHUB_ARC_MIN_RUNNERS` / `GITHUB_ARC_MAX_RUNNERS` | `0` / `5`    | Runner scale set autoscaling range                                                                               |
+| `GITHUB_ARC_CONTROLLER_CHART_VERSION`      | latest                | Pin the `gha-runner-scale-set-controller` chart version                                                          |
+| `GITHUB_ARC_RUNNER_SET_CHART_VERSION`      | latest                | Pin the `gha-runner-scale-set` chart version                                                                     |
+| `GITHUB_ARC_INSTALL_TIMEOUT`               | `10m`                 | How long to wait for each Helm install                                                                           |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the
