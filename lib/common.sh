@@ -83,7 +83,7 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Every port this repo opens - and whether it's public or Tailscale-only -
-# lives under its owning feature's own package.json, in a "vps.ports"
+# lives under its owning feature's own package.json, in a "config.ports"
 # array (see any of features/*/package.json for the shape). There's no
 # longer a single network.yaml: each feature owns the ports it binds.
 
@@ -103,7 +103,7 @@ feature_package_json() {
   die "Unknown feature '${feature}' (no features/*/package.json with name @vps/${feature})."
 }
 
-# Look up a port/access value from a feature's package.json ("vps.ports"),
+# Look up a port/access value from a feature's package.json ("config.ports"),
 # by its `name` field. With no $2, resolves the *calling script's own*
 # package.json (features/<name>/package.json, right next to run.sh) -
 # pass a feature name explicitly only when looking up another feature's
@@ -118,7 +118,7 @@ net_port() {
   else
     pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
   fi
-  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .port' "$pkg"
+  jq -r --arg name "$name" '(.config.ports // [])[] | select(.name == $name) | .port' "$pkg"
 }
 
 net_access() {
@@ -128,7 +128,7 @@ net_access() {
   else
     pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
   fi
-  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .access' "$pkg"
+  jq -r --arg name "$name" '(.config.ports // [])[] | select(.name == $name) | .access' "$pkg"
 }
 
 # Every port across every feature, as name/port/access/note TSV rows -
@@ -137,7 +137,7 @@ net_access() {
 all_network_ports() {
   local f
   for f in "$VPS_SETUP_ROOT"/features/*/package.json; do
-    jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$f"
+    jq -r '(.config.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$f"
   done
 }
 

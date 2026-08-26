@@ -2,38 +2,16 @@
     "name": "@vps/k3s",
     "version": "1.0.0",
     "description": "k3s / kubectl / helm install (includes Traefik configuration)",
-    "dependencies": {},
-    "private": true,
-    "vps": {
-        "order": 4,
+    "config": {
         "default": true,
-        "ports": [
-            {
-                "name": "http",
-                "port": 80,
-                "access": "public",
-                "note": "HTTP (Traefik ingress; also required for the Let's Encrypt HTTP-01 challenge)"
-            },
-            {
-                "name": "https",
-                "port": 443,
-                "access": "public",
-                "note": "HTTPS (Traefik ingress)"
-            },
-            {
-                "name": "traefik_dashboard",
-                "port": 8088,
-                "access": "tailscale"
-            }
-        ],
         "inputs": {
-            "K3S_VERSION": {
-                "description": "Pin a k3s version",
+            "K3S_EXTRA_ARGS": {
+                "description": "Extra flags passed to the k3s installer",
                 "required": false,
                 "default": ""
             },
-            "K3S_EXTRA_ARGS": {
-                "description": "Extra flags passed to the k3s installer",
+            "K3S_VERSION": {
+                "description": "Pin a k3s version",
                 "required": false,
                 "default": ""
             },
@@ -53,11 +31,33 @@
                 "default": "8088"
             }
         },
+        "order": 4,
         "outputs": {
             "KUBECONFIG": {
                 "description": "Path to the k3s kubeconfig",
                 "value": "/etc/rancher/k3s/k3s.yaml"
             }
-        }
-    }
+        },
+        "ports": [
+            {
+                "name": "http",
+                "port": 80,
+                "access": "public",
+                "note": "HTTP (Traefik ingress; also required for the Let's Encrypt HTTP-01 challenge)"
+            },
+            {
+                "name": "https",
+                "port": 443,
+                "access": "public",
+                "note": "HTTPS (Traefik ingress)"
+            },
+            {
+                "name": "traefik_dashboard",
+                "port": 8088,
+                "access": "tailscale"
+            }
+        ]
+    },
+    "dependencies": {},
+    "private": true
 }

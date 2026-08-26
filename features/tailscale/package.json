@@ -2,12 +2,14 @@
     "name": "@vps/tailscale",
     "version": "1.0.0",
     "description": "Tailscale install",
-    "dependencies": {},
-    "private": true,
-    "vps": {
-        "order": 2,
+    "config": {
         "default": true,
         "inputs": {
+            "PURGE_TAILSCALE": {
+                "description": "Also remove the tailscale package on down (true/false)",
+                "required": false,
+                "default": "false"
+            },
             "TAILSCALE_AUTHKEY": {
                 "description": "Auth key to auto-join a tailnet",
                 "required": true,
@@ -17,13 +19,11 @@
                 "description": "Extra flags appended to tailscale up",
                 "required": false,
                 "default": ""
-            },
-            "PURGE_TAILSCALE": {
-                "description": "Also remove the tailscale package on down (true/false)",
-                "required": false,
-                "default": "false"
             }
         },
+        "order": 2,
         "outputs": {}
-    }
+    },
+    "dependencies": {},
+    "private": true
 }

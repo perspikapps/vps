@@ -3,12 +3,12 @@
 #   - optional non-root sudo admin user with SSH key
 #   - SSH: disable root login, disable password auth (only if a key exists)
 #   - UFW: default-deny inbound, then every port from every feature's
-#     package.json ("vps.ports") applied as either public or
+#     package.json ("config.ports") applied as either public or
 #     Tailscale-only, per its `access` field
 #   - fail2ban for SSH brute-force protection
 #
 # Every port this repo opens, and its public/Tailscale-only access, is
-# declared on the feature that owns it (its package.json's "vps.ports" -
+# declared on the feature that owns it (its package.json's "config.ports" -
 # see lib/common.sh's all_network_ports()), not centralized here - see
 # README.md's "Security model" section. Each port can still be overridden
 # for a single run via an env var named after it (e.g. RANCHER_HTTP_PORT).
@@ -127,7 +127,7 @@ ufw default deny incoming
 ufw default allow outgoing
 
 # Every port and its public/Tailscale-only access comes from its owning
-# feature's package.json ("vps.ports" - see lib/common.sh's
+# feature's package.json ("config.ports" - see lib/common.sh's
 # all_network_ports()); a port whose `name` there is e.g. "rancher_http"
 # can still be overridden for this run via RANCHER_HTTP_PORT, same as
 # every feature that opens that port for its own app.

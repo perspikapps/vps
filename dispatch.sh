@@ -6,7 +6,7 @@
 #
 # Every feature lives in its own npm workspace package under features/
 # (features/<name>/package.json + run.sh): its package.json declares
-# whether it runs by default (the "vps.default" field) and what it depends
+# whether it runs by default (the "config.default" field) and what it depends
 # on (the standard npm "dependencies" field, referencing other @vps/*
 # packages) - that's the single source of truth this script reads to build
 # its flags, its dependency graph, and its interactive menu.
@@ -113,7 +113,7 @@ pkg_deps() {
 
 pkg_input_names() {
   # $1=file -> env var names (one per line) that are direct keys of
-  # "vps.inputs" - same shape as a GitHub composite action's "inputs:",
+  # "config.inputs" - same shape as a GitHub composite action's "inputs:",
   # except each key IS the env var name run.sh reads. Brace-depth tracking
   # (not indentation) finds the boundary, so this only assumes input
   # descriptions/defaults never themselves contain a literal { or }.
@@ -159,7 +159,7 @@ pkg_input_default() {
 }
 
 # --- feature discovery: features/<name>/{package.json,run.sh}, in install
-# order - each package.json's "vps.order" (a plain integer) says where it
+# order - each package.json's "config.order" (a plain integer) says where it
 # falls, since folder names carry no ordering of their own.
 
 list_feature_dirs() {
@@ -426,7 +426,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Ask for any input every enabled ("up") step declares in its own
-# package.json ("vps.inputs" - see pkg_input_names above) that isn't
+# package.json ("config.inputs" - see pkg_input_names above) that isn't
 # already set in the environment, so a plain interactive run doesn't need
 # every env var pre-set on the command line. Only runs on an actual
 # terminal: curl | sudo sh pipes the script itself into stdin, so there's

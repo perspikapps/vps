@@ -2,11 +2,22 @@
     "name": "@vps/cockpit",
     "version": "1.0.0",
     "description": "Cockpit install",
-    "dependencies": {},
-    "private": true,
-    "vps": {
-        "order": 3,
+    "config": {
         "default": true,
+        "inputs": {
+            "COCKPIT_HTTPS_PORT": {
+                "description": "Cockpit HTTPS port",
+                "required": false,
+                "default": "9083"
+            },
+            "COCKPIT_HTTP_PORT": {
+                "description": "Cockpit HTTP port",
+                "required": false,
+                "default": "9080"
+            }
+        },
+        "order": 3,
+        "outputs": {},
         "ports": [
             {
                 "name": "cockpit_http",
@@ -18,19 +29,8 @@
                 "port": 9083,
                 "access": "tailscale"
             }
-        ],
-        "inputs": {
-            "COCKPIT_HTTP_PORT": {
-                "description": "Cockpit HTTP port",
-                "required": false,
-                "default": "9080"
-            },
-            "COCKPIT_HTTPS_PORT": {
-                "description": "Cockpit HTTPS port",
-                "required": false,
-                "default": "9083"
-            }
-        },
-        "outputs": {}
-    }
+        ]
+    },
+    "dependencies": {},
+    "private": true
 }
