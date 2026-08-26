@@ -9,11 +9,12 @@
 # whether it runs by default (the "config.default" field) and what it depends
 # on (the standard npm "dependencies" field, referencing other @vps/*
 # packages) - that's the single source of truth this script reads to build
-# its flags, its dependency graph, and its interactive menu.
+# its flags, its dependency graph, and its interactive menu, via jq (see
+# ensure_jq below, which installs it before it's first needed if missing).
 #
 # Deliberately POSIX /bin/sh, not bash: every VPS this targets has /bin/sh
 # before it has anything else, so the dispatcher itself has zero
-# dependencies beyond a shell and git/curl (which it bootstraps if
+# dependencies beyond a shell, git/curl, and jq (all bootstrapped if
 # missing). Each feature's own run.sh is bash (lib/common.sh needs it) and
 # is invoked as a subprocess, never sourced, so this file never has to
 # parse bash-only syntax.
@@ -83,80 +84,31 @@ if [ "${ID:-}" != "ubuntu" ]; then
   die "This script targets Ubuntu only (detected: ${ID:-unknown})."
 fi
 
-# --- package.json reading (no jq/node dependency - these are simple,
-# one-key-per-line files we control, so a tolerant sed/awk read is enough).
+# --- package.json reading, via jq. Installed on demand (see ensure_jq)
+# rather than assumed present, since this runs before features/system (the
+# step that would otherwise install it) on a totally fresh box.
 
-pkg_str() {
-  # $1=file $2=key -> a top-level quoted string value
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$1" | head -n1
+ensure_jq() {
+  command -v jq >/dev/null 2>&1 && return 0
+  if [ "$(id -u)" -ne 0 ]; then
+    die "jq is required to read each feature's package.json but isn't installed, and this script isn't running as root to install it. Install it yourself (apt-get install -y jq) or re-run with sudo."
+  fi
+  log "Installing jq (used to read each feature's package.json)..."
+  apt-get update -y >/dev/null
+  apt-get install -y --no-install-recommends jq >/dev/null
 }
-
-pkg_bool() {
-  # $1=file $2=key -> "true" or "false"
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$1" | head -n1
-}
-
-pkg_num() {
-  # $1=file $2=key -> a top-level integer value
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$1" | head -n1
-}
-
-pkg_deps() {
-  # $1=file -> short names (one per line) of every "@vps/<name>" key inside
-  # the top-level "dependencies" object.
-  awk '
-    /"dependencies"[[:space:]]*:[[:space:]]*\{/ { infields = 1; next }
-    infields && /\}/ { infields = 0 }
-    infields { print }
-  ' "$1" | sed -n 's/^[[:space:]]*"@vps\/\([a-zA-Z0-9_-]*\)".*/\1/p'
-}
+ensure_jq
 
 pkg_input_names() {
-  # $1=file -> env var names (one per line) that are direct keys of
-  # "config.inputs" - same shape as a GitHub composite action's "inputs:",
-  # except each key IS the env var name run.sh reads. Brace-depth tracking
-  # (not indentation) finds the boundary, so this only assumes input
-  # descriptions/defaults never themselves contain a literal { or }.
-  awk '
-    /"inputs"[[:space:]]*:[[:space:]]*\{/ { depth = 1; next }
-    depth == 0 { next }
-    {
-      if (depth == 1 && match($0, /^[[:space:]]*"[A-Za-z0-9_]+"[[:space:]]*:[[:space:]]*\{/)) {
-        name = $0
-        sub(/^[[:space:]]*"/, "", name)
-        sub(/".*/, "", name)
-        print name
-      }
-      opens = gsub(/\{/, "{")
-      closes = gsub(/\}/, "}")
-      depth += opens - closes
-      if (depth < 0) depth = 0
-    }
-  ' "$1"
+  # $1=file -> env var names (one per line), the keys of "config.inputs" -
+  # same shape as a GitHub composite action's "inputs:", except each key IS
+  # the env var name run.sh reads.
+  jq -r '(.config.inputs // {}) | keys[]' "$1"
 }
 
-pkg_input_block() {
-  # $1=file $2=input name -> the raw lines strictly between that input's
-  # opening "NAME": { and its closing } (assumes no further nesting inside
-  # a single input entry, which holds as long as inputs stay flat scalars).
-  awk -v name="$2" '
-    $0 ~ "\"" name "\"[[:space:]]*:[[:space:]]*\\{" { grab = 1; next }
-    grab && /\}/ { grab = 0; next }
-    grab { print }
-  ' "$1"
-}
-
-pkg_input_description() {
-  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"description"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' | head -n1
-}
-
-pkg_input_required() {
-  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"required"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n1
-}
-
-pkg_input_default() {
-  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"default"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' | head -n1
-}
+pkg_input_description() { jq -r --arg n "$2" '.config.inputs[$n].description // empty' "$1"; }
+pkg_input_required() { jq -r --arg n "$2" '.config.inputs[$n].required // false' "$1"; }
+pkg_input_default() { jq -r --arg n "$2" '.config.inputs[$n].default // empty' "$1"; }
 
 # --- feature discovery: features/<name>/{package.json,run.sh}, in install
 # order - each package.json's "config.order" (a plain integer) says where it
@@ -165,15 +117,15 @@ pkg_input_default() {
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
     if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
-      printf '%s\t%s\n' "$(pkg_num "${d}package.json" order)" "${d%/}"
+      printf '%s\t%s\n' "$(jq -r '.config.order' "${d}package.json")" "${d%/}"
     fi
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { pkg_str "$1/package.json" name | sed 's#^@vps/##'; }
-feature_desc() { pkg_str "$1/package.json" description; }
-feature_default() { pkg_bool "$1/package.json" default; }
-feature_deps() { pkg_deps "$1/package.json"; }
+feature_name() { jq -r '.name | sub("^@vps/"; "")' "$1/package.json"; }
+feature_desc() { jq -r '.description' "$1/package.json"; }
+feature_default() { jq -r '.config.default' "$1/package.json"; }
+feature_deps() { jq -r '(.dependencies // {}) | keys[] | select(startswith("@vps/")) | sub("^@vps/"; "")' "$1/package.json"; }
 feature_inputs() { pkg_input_names "$1/package.json"; }
 
 feature_dir_for_name() {

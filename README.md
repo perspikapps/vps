@@ -414,8 +414,11 @@ entirely - there's no `sudo` involved.
 
 - `dispatch.sh` - leading script, deliberately **plain POSIX `/bin/sh`**
   (see [One folder per feature](#one-folder-per-feature) for why): clones/
-  updates this repo, discovers every `features/*/package.json`, resolves
-  which steps run (flags, the [interactive menu](#interactive-menu), and
+  updates this repo, ensures `jq` is installed (`ensure_jq` - on demand,
+  since this runs before `features/system`, the step that would otherwise
+  install it, on a totally fresh box), discovers every
+  `features/*/package.json` with it, resolves which steps run (flags, the
+  [interactive menu](#interactive-menu), and
   [dependencies read straight from each package.json](#dependencies-between-steps)),
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
@@ -529,11 +532,10 @@ already referenced `@commitlint/config-workspace-scopes`) understands the
 dependency graph too - `package-lock.json` resolves `@vps/rancher`'s
 `@vps/k3s` dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
-[Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
-fields directly with `sed`/`awk`, precisely because those fields are
-simple, single-key-per-line JSON it controls the format of. If you hand-edit
-a feature's `package.json`, keep that one-key-per-line shape or
-`dispatch.sh`'s parser won't find it.
+[Layout](#layout)) and reads each `package.json`'s `dependencies`/`config`
+fields with `jq` - installed on demand (`ensure_jq`) if missing, since
+this runs before `features/system` (the step that would otherwise install
+it) on a totally fresh box.
 
 ## Network config (each feature's own `package.json`)
 
@@ -575,9 +577,9 @@ editing anything, use its env var - the name is always the entry's `name`,
 upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
 `ssh` -> `SSH_PORT`, and so on.
 
-Lookups are done with `jq` (already a base dependency installed by
-`features/system`) - no separate YAML tooling needed now that this
-lives in `package.json` alongside everything else npm already parses.
+Lookups are done with `jq` (see [Layout](#layout)'s `ensure_jq`) - no
+separate YAML tooling needed now that this lives in `package.json`
+alongside everything else npm already parses.
 
 ## Interactive input prompts (each feature's own `package.json`)
 
@@ -631,11 +633,8 @@ nothing currently reads it back programmatically.
 
 Adding a new input to a feature is a `package.json` edit plus reading the
 matching env var in that feature's `run.sh` - no change to `dispatch.sh`
-itself. Keep each input entry's fields on their own line (`dispatch.sh`'s
-parser is the same tolerant `sed`/`awk` style as
-[One folder per feature](#one-folder-per-feature), tracking `{`/`}` depth
-rather than needing `jq`, since this runs before `features/system` has
-installed it) and avoid literal `{`/`}` characters inside a `description`.
+itself (its `pkg_input_*` helpers read `config.inputs` generically via
+`jq`).
 
 ## Security model
 
