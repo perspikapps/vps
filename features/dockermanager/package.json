@@ -6,6 +6,24 @@
     "private": true,
     "vps": {
         "order": 6,
-        "default": true
+        "default": true,
+        "inputs": {
+            "INSTALL_DOCKER": {
+                "description": "Install docker.io if no docker daemon is present already (true/false)",
+                "required": false,
+                "default": "true"
+            },
+            "COCKPIT_DOCKERMANAGER_VERSION": {
+                "description": "cockpit-dockermanager release tag to install",
+                "required": false,
+                "default": "latest"
+            },
+            "REMOVE_DOCKER": {
+                "description": "Also remove Docker itself on down (true/false)",
+                "required": false,
+                "default": "false"
+            }
+        },
+        "outputs": {}
     }
 }

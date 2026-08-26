@@ -6,6 +6,24 @@
     "private": true,
     "vps": {
         "order": 2,
-        "default": true
+        "default": true,
+        "inputs": {
+            "TAILSCALE_AUTHKEY": {
+                "description": "Auth key to auto-join a tailnet",
+                "required": true,
+                "default": ""
+            },
+            "TAILSCALE_EXTRA_ARGS": {
+                "description": "Extra flags appended to tailscale up",
+                "required": false,
+                "default": ""
+            },
+            "PURGE_TAILSCALE": {
+                "description": "Also remove the tailscale package on down (true/false)",
+                "required": false,
+                "default": "false"
+            }
+        },
+        "outputs": {}
     }
 }

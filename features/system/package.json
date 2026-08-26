@@ -6,6 +6,14 @@
     "private": true,
     "vps": {
         "order": 0,
-        "default": true
+        "default": true,
+        "inputs": {
+            "TZ": {
+                "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
+                "required": false,
+                "default": ""
+            }
+        },
+        "outputs": {}
     }
 }

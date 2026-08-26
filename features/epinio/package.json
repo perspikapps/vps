@@ -8,6 +8,49 @@
     "private": true,
     "vps": {
         "order": 8,
-        "default": false
+        "default": false,
+        "inputs": {
+            "EPINIO_DOMAIN": {
+                "description": "Wildcard domain Epinio's Ingresses use",
+                "required": false,
+                "default": ""
+            },
+            "EPINIO_INGRESS_CLASS": {
+                "description": "IngressClass to pin Epinio's Ingresses to",
+                "required": false,
+                "default": "traefik"
+            },
+            "EPINIO_TLS_ISSUER": {
+                "description": "cert-manager ClusterIssuer for Epinio's certs",
+                "required": false,
+                "default": "epinio-ca"
+            },
+            "EPINIO_ADMIN_PASSWORD": {
+                "description": "Admin login password",
+                "required": false,
+                "default": ""
+            },
+            "EPINIO_CHART_VERSION": {
+                "description": "Pin a chart version",
+                "required": false,
+                "default": ""
+            },
+            "EPINIO_INSTALL_TIMEOUT": {
+                "description": "How long to wait for all pods to come up",
+                "required": false,
+                "default": "15m"
+            },
+            "CERT_MANAGER_VERSION": {
+                "description": "Pin cert-manager's chart version",
+                "required": false,
+                "default": ""
+            }
+        },
+        "outputs": {
+            "EPINIO_ADMIN_PASSWORD_FILE": {
+                "description": "Path to the saved Epinio admin password",
+                "value": "/root/.epinio-admin-password"
+            }
+        }
     }
 }

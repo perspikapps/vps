@@ -322,6 +322,12 @@ re-download `dispatch.sh` itself unless you're switching branches/forks.
 
 ## Getting the keys you'll need
 
+Every variable below can be set as an env var up front, but on an
+interactive run (an actual terminal, not `curl | sudo sh`) you don't have
+to: `dispatch.sh` prompts for whatever's still unset right before running
+the enabled steps - see
+[Interactive input prompts](#interactive-input-prompts-each-features-own-packagejson).
+
 **SSH key pair** (for `VPS_ADMIN_SSH_KEY`) - generate one on your own
 machine, never on the VPS:
 
@@ -559,6 +565,63 @@ upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
 Lookups are done with `jq` (already a base dependency installed by
 `features/system`) - no separate YAML tooling needed now that this
 lives in `package.json` alongside everything else npm already parses.
+
+## Interactive input prompts (each feature's own `package.json`)
+
+Every feature's `package.json` also declares `vps.inputs` and
+`vps.outputs`, in the same shape as a
+[GitHub composite action's `inputs:`/`outputs:`](https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#inputs)
+- except each input's key IS the env var its own `run.sh` reads (no
+separate id-to-env-var mapping to keep in sync):
+
+```json
+"vps": {
+    "inputs": {
+        "TAILSCALE_AUTHKEY": {
+            "description": "Auth key to auto-join a tailnet",
+            "required": true,
+            "default": ""
+        }
+    },
+    "outputs": {
+        "TAILSCALE_IP": {
+            "description": "Tailnet IPv4 address once joined"
+        }
+    }
+}
+```
+
+Before running any enabled step, `dispatch.sh` walks every "up" step's
+`vps.inputs` and, for each one not already set in the environment, prompts
+for it on stdin - showing its `description` and `default` (empty **Enter**
+accepts the default, or leaves an optional var unset). This only happens
+on an actual terminal (`[ -t 0 ]`): the piped one-liner
+(`curl ... | sudo sh`) has nothing to read prompts from, so there env
+vars (or `--skip-<step>`) remain the only way to supply them, exactly as
+before this existed. A var already set beforehand (env var, or exported
+by an earlier prompt) is never re-asked.
+
+```
+==== Feature inputs ====
+  TAILSCALE_AUTHKEY (Auth key to auto-join a tailnet) (required): tskey-...
+  TAILSCALE_EXTRA_ARGS (Extra flags appended to tailscale up) [optional, enter to skip]:
+  RANCHER_HTTP_PORT (Rancher HTTP port) [7080]:
+```
+
+This runs early enough that answering the prompt for a required var (like
+`TAILSCALE_AUTHKEY` above) also satisfies the dedicated
+[tailscale guard](#security-model) further down - you're not asked twice.
+`vps.outputs` is documentation only (what a feature produces and, where
+meaningful, where it's saved - e.g. `/root/.rancher-bootstrap-password`);
+nothing currently reads it back programmatically.
+
+Adding a new input to a feature is a `package.json` edit plus reading the
+matching env var in that feature's `run.sh` - no change to `dispatch.sh`
+itself. Keep each input entry's fields on their own line (`dispatch.sh`'s
+parser is the same tolerant `sed`/`awk` style as
+[One folder per feature](#one-folder-per-feature), tracking `{`/`}` depth
+rather than needing `jq`, since this runs before `features/system` has
+installed it) and avoid literal `{`/`}` characters inside a `description`.
 
 ## Security model
 

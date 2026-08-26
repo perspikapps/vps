@@ -111,6 +111,53 @@ pkg_deps() {
   ' "$1" | sed -n 's/^[[:space:]]*"@vps\/\([a-zA-Z0-9_-]*\)".*/\1/p'
 }
 
+pkg_input_names() {
+  # $1=file -> env var names (one per line) that are direct keys of
+  # "vps.inputs" - same shape as a GitHub composite action's "inputs:",
+  # except each key IS the env var name run.sh reads. Brace-depth tracking
+  # (not indentation) finds the boundary, so this only assumes input
+  # descriptions/defaults never themselves contain a literal { or }.
+  awk '
+    /"inputs"[[:space:]]*:[[:space:]]*\{/ { depth = 1; next }
+    depth == 0 { next }
+    {
+      if (depth == 1 && match($0, /^[[:space:]]*"[A-Za-z0-9_]+"[[:space:]]*:[[:space:]]*\{/)) {
+        name = $0
+        sub(/^[[:space:]]*"/, "", name)
+        sub(/".*/, "", name)
+        print name
+      }
+      opens = gsub(/\{/, "{")
+      closes = gsub(/\}/, "}")
+      depth += opens - closes
+      if (depth < 0) depth = 0
+    }
+  ' "$1"
+}
+
+pkg_input_block() {
+  # $1=file $2=input name -> the raw lines strictly between that input's
+  # opening "NAME": { and its closing } (assumes no further nesting inside
+  # a single input entry, which holds as long as inputs stay flat scalars).
+  awk -v name="$2" '
+    $0 ~ "\"" name "\"[[:space:]]*:[[:space:]]*\\{" { grab = 1; next }
+    grab && /\}/ { grab = 0; next }
+    grab { print }
+  ' "$1"
+}
+
+pkg_input_description() {
+  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"description"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' | head -n1
+}
+
+pkg_input_required() {
+  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"required"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n1
+}
+
+pkg_input_default() {
+  pkg_input_block "$1" "$2" | sed -n 's/^[[:space:]]*"default"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' | head -n1
+}
+
 # --- feature discovery: features/<name>/{package.json,run.sh}, in install
 # order - each package.json's "vps.order" (a plain integer) says where it
 # falls, since folder names carry no ordering of their own.
@@ -127,6 +174,7 @@ feature_name() { pkg_str "$1/package.json" name | sed 's#^@vps/##'; }
 feature_desc() { pkg_str "$1/package.json" description; }
 feature_default() { pkg_bool "$1/package.json" default; }
 feature_deps() { pkg_deps "$1/package.json"; }
+feature_inputs() { pkg_input_names "$1/package.json"; }
 
 feature_dir_for_name() {
   # $1=short name -> its directory, or nothing if unknown
@@ -146,8 +194,13 @@ done
 # --- per-feature state, emulated with eval'd variables (POSIX sh has no
 # arrays/maps): STATE_<name> is one of up / skip / down.
 
-state_get() { eval "printf '%s' \"\${STATE_$1:-skip}\""; }
-state_set() { eval "STATE_$1=\$2"; }
+# Feature short names may contain hyphens (e.g. "github-arc"), which aren't
+# valid in a shell variable name - translate to underscores for the eval'd
+# STATE_<name> variable itself; state_get/state_set still take/return the
+# real hyphenated name everywhere else.
+state_var() { printf '%s' "$1" | tr '-' '_'; }
+state_get() { eval "printf '%s' \"\${STATE_$(state_var "$1"):-skip}\""; }
+state_set() { eval "STATE_$(state_var "$1")=\$2"; }
 
 for name in $ALL_NAMES; do
   d=$(feature_dir_for_name "$name")
@@ -370,6 +423,51 @@ fi
 
 if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
+fi
+
+# Ask for any input every enabled ("up") step declares in its own
+# package.json ("vps.inputs" - see pkg_input_names above) that isn't
+# already set in the environment, so a plain interactive run doesn't need
+# every env var pre-set on the command line. Only runs on an actual
+# terminal: curl | sudo sh pipes the script itself into stdin, so there's
+# nothing to read prompts from there - env vars (or --skip-*) are the only
+# way to supply them in that mode, same as before this existed.
+if [ -t 0 ]; then
+  echo
+  echo "==== Feature inputs ===="
+  for name in $ALL_NAMES; do
+    [ "$(state_get "$name")" = "up" ] || continue
+    d=$(feature_dir_for_name "$name")
+    pkg="${d}/package.json"
+    for input in $(feature_inputs "$d"); do
+      current=$(eval "printf '%s' \"\${${input}:-}\"")
+      [ -n "$current" ] && continue
+
+      desc=$(pkg_input_description "$pkg" "$input")
+      required=$(pkg_input_required "$pkg" "$input")
+      default=$(pkg_input_default "$pkg" "$input")
+
+      prompt="  ${input}"
+      [ -n "$desc" ] && prompt="${prompt} (${desc})"
+      if [ -n "$default" ]; then
+        prompt="${prompt} [${default}]: "
+      elif [ "$required" = "true" ]; then
+        prompt="${prompt} (required): "
+      else
+        prompt="${prompt} [optional, enter to skip]: "
+      fi
+      printf '%s' "$prompt"
+      read -r answer
+      [ -z "$answer" ] && answer="$default"
+
+      if [ -n "$answer" ]; then
+        eval "${input}=\"\${answer}\""
+        eval "export ${input}"
+      elif [ "$required" = "true" ]; then
+        warn "${input} is required by '${name}' but was left empty; that step will likely fail without it."
+      fi
+    done
+  done
 fi
 
 # ufw (features/security) only opens this repo's Tailscale-only services

@@ -2,6 +2,9 @@
 # Base system update and the small toolset every later script assumes exists.
 # Equivalent in spirit to devcontainers/features "common-utils": update apt,
 # set a sane locale/timezone, install common CLI utilities, non-interactively.
+#
+# Env vars:
+#   TZ  - timezone to set (optional; left as the image's default if unset)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

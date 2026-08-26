@@ -18,6 +18,19 @@
                 "port": 9083,
                 "access": "tailscale"
             }
-        ]
+        ],
+        "inputs": {
+            "COCKPIT_HTTP_PORT": {
+                "description": "Cockpit HTTP port",
+                "required": false,
+                "default": "9080"
+            },
+            "COCKPIT_HTTPS_PORT": {
+                "description": "Cockpit HTTPS port",
+                "required": false,
+                "default": "9083"
+            }
+        },
+        "outputs": {}
     }
 }

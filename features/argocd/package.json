@@ -20,6 +20,34 @@
                 "port": 7093,
                 "access": "tailscale"
             }
-        ]
+        ],
+        "inputs": {
+            "ARGOCD_HTTP_PORT": {
+                "description": "ArgoCD HTTP port",
+                "required": false,
+                "default": "7090"
+            },
+            "ARGOCD_HTTPS_PORT": {
+                "description": "ArgoCD HTTPS port",
+                "required": false,
+                "default": "7093"
+            },
+            "ARGOCD_CHART_VERSION": {
+                "description": "Pin a chart version",
+                "required": false,
+                "default": ""
+            },
+            "ARGOCD_INSTALL_TIMEOUT": {
+                "description": "How long to wait for all pods to come up",
+                "required": false,
+                "default": "15m"
+            }
+        },
+        "outputs": {
+            "ARGOCD_ADMIN_PASSWORD_FILE": {
+                "description": "Path to the saved ArgoCD initial admin password",
+                "value": "/root/.argocd-admin-password"
+            }
+        }
     }
 }

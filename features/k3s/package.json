@@ -25,6 +25,39 @@
                 "port": 8088,
                 "access": "tailscale"
             }
-        ]
+        ],
+        "inputs": {
+            "K3S_VERSION": {
+                "description": "Pin a k3s version",
+                "required": false,
+                "default": ""
+            },
+            "K3S_EXTRA_ARGS": {
+                "description": "Extra flags passed to the k3s installer",
+                "required": false,
+                "default": ""
+            },
+            "TRAEFIK_ACME_EMAIL": {
+                "description": "Contact email registered with Let's Encrypt",
+                "required": false,
+                "default": "admin@example.com"
+            },
+            "TRAEFIK_ACME_STAGING": {
+                "description": "Use Let's Encrypt's staging environment (true/false)",
+                "required": false,
+                "default": "true"
+            },
+            "TRAEFIK_DASHBOARD_PORT": {
+                "description": "Traefik dashboard port (Tailscale-only)",
+                "required": false,
+                "default": "8088"
+            }
+        },
+        "outputs": {
+            "KUBECONFIG": {
+                "description": "Path to the k3s kubeconfig",
+                "value": "/etc/rancher/k3s/k3s.yaml"
+            }
+        }
     }
 }
