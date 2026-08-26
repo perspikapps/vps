@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install Epinio (an "app from source to URL in one command" PaaS) onto
-# the k3s cluster from scripts/05, via the official epinio/epinio Helm
+# the k3s cluster from features/k3s, via the official epinio/epinio Helm
 # chart - see https://docs.epinio.io/getting-started/install-epinio,
 # whose steps are mirrored by https://github.com/epinio/helm-charts's
 # README (docs.epinio.io itself isn't reachable from this environment,
@@ -10,14 +10,14 @@
 # Reuses this VPS's existing infrastructure rather than installing its
 # own copies:
 #   - Ingress: no separate ingress controller is installed. k3s's bundled
-#     Traefik (scripts/05-k3s.sh) is used, and explicitly pinned via
+#     Traefik (features/k3s/run.sh) is used, and explicitly pinned via
 #     EPINIO_INGRESS_CLASS (default "traefik") on all three of the
 #     chart's ingressClassName knobs (server, apps, container registry) -
 #     Traefik is already k3s's default IngressClass so this would work
 #     left blank too, but pinning it explicitly means Epinio keeps using
 #     Traefik even if that default ever changes.
 #   - cert-manager: installed only if not already present (idempotent
-#     check below), the same way scripts/06-rancher.sh does, since
+#     check below), the same way features/rancher/run.sh does, since
 #     Epinio's chart expects cert-manager to already be on the cluster
 #     (its own certManager.install value defaults to false) and doesn't
 #     assume Rancher's step ran first. If Rancher already installed it,
@@ -50,17 +50,18 @@
 #                            SeaweedFS for S3 storage, its own container
 #                            registry, and Dex, so a first pull can be slow)
 #   CERT_MANAGER_VERSION   - pin cert-manager's chart version (optional,
-#                            shared with scripts/06-rancher.sh)
+#                            shared with features/rancher/run.sh)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
+up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
-command_exists helm || die "helm not found; run scripts/05-k3s.sh first."
+command_exists kubectl || die "kubectl not found; run features/k3s/run.sh first."
+command_exists helm || die "helm not found; run features/k3s/run.sh first."
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 if [[ -z "${EPINIO_DOMAIN:-}" ]]; then
@@ -119,7 +120,7 @@ if ! helm upgrade --install epinio epinio/epinio \
       "Often just a slow first image pull (this chart also deploys" \
       "SeaweedFS for S3 storage, its own container registry, and Dex) -" \
       "check the pod status above for Pending/ImagePullBackOff, then" \
-      "re-run: sudo bash setup.sh --only-epinio (helm resumes the same" \
+      "re-run: sudo sh dispatch.sh --only-epinio (helm resumes the same" \
       "release, it won't re-pull images already cached). To wait longer" \
       "instead, set EPINIO_INSTALL_TIMEOUT=25m (or similar) and re-run."
 fi
@@ -142,3 +143,17 @@ if [[ "$EPINIO_DOMAIN" == *.sslip.io ]]; then
        "EPINIO_DOMAIN at a real domain you own before deploying anything" \
        "you care about."
 fi
+}
+
+# Uninstalls the Epinio Helm release, its namespace, and the epinio CLI.
+# Leaves cert-manager and Traefik (shared infrastructure) in place.
+down() {
+  require_root
+  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  helm_teardown epinio epinio
+  rm -f /usr/local/bin/epinio /root/.epinio-admin-password
+  ok "Epinio removed."
+}
+
+dispatch_action "$@"

@@ -1,0 +1,11 @@
+{
+    "name": "@vps/tailscale",
+    "version": "1.0.0",
+    "description": "Tailscale install",
+    "dependencies": {},
+    "private": true,
+    "vps": {
+        "order": 2,
+        "default": true
+    }
+}

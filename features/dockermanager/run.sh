@@ -5,7 +5,7 @@
 # a Docker container/image management tab to Cockpit.
 #
 # cockpit-dockermanager needs an actual Docker daemon to talk to - this repo
-# otherwise only sets up containerd via k3s (scripts/05-k3s.sh), so this
+# otherwise only sets up containerd via k3s (features/k3s/run.sh), so this
 # script also installs docker.io unless INSTALL_DOCKER=false.
 #
 # Env vars:
@@ -19,8 +19,9 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
+up() {
 require_root
 apt_update_once
 
@@ -57,3 +58,24 @@ apt-get install -y "$TMP_DEB"
 systemctl try-restart cockpit.socket 2>/dev/null || true
 
 ok "cockpit-packagekit, cockpit-files, and cockpit-dockermanager installed."
+}
+
+# Removes cockpit-dockermanager and the extra Cockpit modules installed by
+# up(). Leaves the Docker daemon installed by default (other things may use
+# it) - set REMOVE_DOCKER=true to also purge docker.io.
+down() {
+  require_root
+  log "Removing cockpit-dockermanager..."
+  apt-get purge -y dockermanager 2>/dev/null || warn "cockpit-dockermanager package not found (already removed?)."
+  log "Removing cockpit-packagekit and cockpit-files..."
+  apt-get purge -y cockpit-packagekit cockpit-files 2>/dev/null || true
+  systemctl try-restart cockpit.socket 2>/dev/null || true
+  if [[ "${REMOVE_DOCKER:-false}" == "true" ]] && command_exists docker; then
+    log "Removing Docker (REMOVE_DOCKER=true)..."
+    systemctl disable --now docker 2>/dev/null || true
+    apt-get purge -y docker.io 2>/dev/null || true
+  fi
+  ok "cockpit-dockermanager and its extra Cockpit modules removed."
+}
+
+dispatch_action "$@"

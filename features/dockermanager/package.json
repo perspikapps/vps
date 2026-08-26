@@ -1,0 +1,11 @@
+{
+    "name": "@vps/dockermanager",
+    "version": "1.0.0",
+    "description": "cockpit-packagekit/files/dockermanager install",
+    "dependencies": {},
+    "private": true,
+    "vps": {
+        "order": 6,
+        "default": true
+    }
+}

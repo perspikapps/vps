@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install the latest SUSE Rancher release onto the k3s cluster from
-# scripts/05, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
+# features/k3s, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
 # 7080/7083) via k3s's built-in ServiceLB (Klipper), which binds those
 # host ports directly -- no external load balancer needed for a single node.
 #
@@ -10,8 +10,8 @@
 #   RANCHER_BOOTSTRAP_PASSWORD  - initial admin password (default: random,
 #                                 printed at the end and saved to
 #                                 /root/.rancher-bootstrap-password)
-#   RANCHER_HTTP_PORT           - default from ../network.yaml (rancher_http)
-#   RANCHER_HTTPS_PORT          - default from ../network.yaml (rancher_https)
+#   RANCHER_HTTP_PORT           - default from this feature's own package.json (rancher_http)
+#   RANCHER_HTTPS_PORT          - default from this feature's own package.json (rancher_https)
 #   RANCHER_CHART_VERSION       - pin a chart version (optional, default: latest)
 #   CERT_MANAGER_VERSION        - pin cert-manager's chart version (optional)
 #
@@ -21,12 +21,13 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../../lib/common.sh"
 
+up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run scripts/05-k3s.sh first."
-command_exists helm || die "helm not found; run scripts/05-k3s.sh first."
+command_exists kubectl || die "kubectl not found; run features/k3s/run.sh first."
+command_exists helm || die "helm not found; run features/k3s/run.sh first."
 
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https)}"
@@ -50,7 +51,7 @@ helm repo update >/dev/null
 # Rancher's default self-signed TLS source ("rancher") issues certs through
 # cert-manager regardless of whether an ingress is deployed, so without this
 # the rancher pod never becomes Ready and `helm ... --wait` below times out,
-# aborting the whole setup.sh run.
+# aborting the whole dispatch.sh run.
 ensure_cert_manager
 
 kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
@@ -79,3 +80,18 @@ kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
 ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
+}
+
+# Uninstalls the Rancher Helm release and its namespace. Leaves cert-manager
+# in place (features/epinio/run.sh may also depend on it - see ensure_cert_manager
+# in lib/common.sh) and k3s itself untouched.
+down() {
+  require_root
+  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  helm_teardown cattle-system rancher
+  rm -f /root/.rancher-bootstrap-password
+  ok "Rancher removed."
+}
+
+dispatch_action "$@"

@@ -1,0 +1,19 @@
+{
+    "name": "@vps/security",
+    "version": "1.0.0",
+    "description": "Firewall / SSH / fail2ban hardening",
+    "dependencies": {},
+    "private": true,
+    "vps": {
+        "order": 1,
+        "default": true,
+        "ports": [
+            {
+                "name": "ssh",
+                "port": 22,
+                "access": "public",
+                "note": "SSH"
+            }
+        ]
+    }
+}

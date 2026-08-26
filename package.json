@@ -1,5 +1,5 @@
 {
-    "name": "",
+    "name": "vps-setup",
     "version": "",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
@@ -28,6 +28,9 @@
         "prettier-plugin-sh": "*"
     },
     "private": true,
+    "workspaces": [
+        "features/*"
+    ],
     "prettier": {
         "insertPragma": true,
         "overrides": [

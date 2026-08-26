@@ -1,0 +1,11 @@
+{
+    "name": "@vps/system",
+    "version": "1.0.0",
+    "description": "Base system update & essentials",
+    "dependencies": {},
+    "private": true,
+    "vps": {
+        "order": 0,
+        "default": true
+    }
+}
