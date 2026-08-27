@@ -1,12 +1,12 @@
 {
-    "name": "@vps/cockpit",
+    "name": "@tomgrv/vps-cockpit",
     "version": "1.0.0",
     "description": "Cockpit install",
     "bin": {
         "cockpit": "run.sh"
     },
     "dependencies": {
-        "@vps/common": "*"
+        "@tomgrv/vps-common": "*"
     },
     "private": true,
     "vps": {

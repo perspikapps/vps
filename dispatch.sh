@@ -8,7 +8,7 @@
 # (<name>/package.json + run.sh, e.g. system/, k3s/, rancher/): its
 # package.json declares whether it runs by default (the "vps.default"
 # field) and what it depends on (the standard npm "dependencies" field,
-# referencing other @vps/* packages) - that's the single source of truth
+# referencing other @tomgrv/vps-* packages) - that's the single source of truth
 # this script reads to build its flags, its dependency graph, and its
 # interactive menu. Two special top-level folders aren't features: common/
 # (shared bash helpers every feature's run.sh sources via
@@ -106,13 +106,13 @@ pkg_num() {
 }
 
 pkg_deps() {
-  # $1=file -> short names (one per line) of every "@vps/<name>" key inside
-  # the top-level "dependencies" object.
+  # $1=file -> short names (one per line) of every "@tomgrv/vps-<name>" key
+  # inside the top-level "dependencies" object.
   awk '
     /"dependencies"[[:space:]]*:[[:space:]]*\{/ { infields = 1; next }
     infields && /\}/ { infields = 0 }
     infields { print }
-  ' "$1" | sed -n 's/^[[:space:]]*"@vps\/\([a-zA-Z0-9_-]*\)".*/\1/p'
+  ' "$1" | sed -n 's/^[[:space:]]*"@tomgrv\/vps-\([a-zA-Z0-9_-]*\)".*/\1/p'
 }
 
 # --- feature discovery: <name>/{package.json,run.sh}, in install
@@ -132,15 +132,15 @@ list_feature_dirs() {
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { pkg_str "$1/package.json" name | sed 's#^@vps/##'; }
+feature_name() { pkg_str "$1/package.json" name | sed 's#^@tomgrv/vps-##'; }
 feature_desc() { pkg_str "$1/package.json" description; }
 feature_default() { pkg_bool "$1/package.json" default; }
 feature_deps() {
-    # Every feature's package.json now declares "@vps/common" too (it's a
-    # real workspace dependency - see common/'s own README) - but common/
-    # isn't an installable step (list_feature_dirs excludes it), so it
-    # must never reach the auto-enable/down-refusal logic below as if it
-    # were one.
+    # Every feature's package.json now declares "@tomgrv/vps-common" too
+    # (it's a real workspace dependency - see common/'s own README) - but
+    # common/ isn't an installable step (list_feature_dirs excludes it),
+    # so it must never reach the auto-enable/down-refusal logic below as
+    # if it were one.
     pkg_deps "$1/package.json" | grep -vxE 'common|summary'
 }
 

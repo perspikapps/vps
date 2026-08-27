@@ -1,5 +1,5 @@
 {
-    "name": "@vps/common",
+    "name": "@tomgrv/vps-common",
     "version": "1.0.0",
     "description": "Shared bash helpers sourced by every feature's run.sh",
     "bin": {

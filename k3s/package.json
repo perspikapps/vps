@@ -1,12 +1,12 @@
 {
-    "name": "@vps/k3s",
+    "name": "@tomgrv/vps-k3s",
     "version": "1.0.0",
     "description": "k3s / kubectl / helm install (includes Traefik configuration)",
     "bin": {
         "k3s": "run.sh"
     },
     "dependencies": {
-        "@vps/common": "*"
+        "@tomgrv/vps-common": "*"
     },
     "private": true,
     "vps": {

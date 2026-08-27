@@ -9,14 +9,13 @@ set -euo pipefail
 
 # Colors and leveled logging are shared with tomgrv/devcontainer-features'
 # common-utils via https://github.com/tomgrv/scripts (zz_colors/zz_log) -
-# bootstrap zz_use from there if it isn't already on PATH (it is, on every
-# run after the first: zz_use installs it into a persistent bin dir). By
-# the time any feature's run.sh sources this, dispatch.sh has already
-# cloned the repo and confirmed we're root, so network + write access are
-# both already given.
-if ! command -v zz_use >/dev/null 2>&1; then
-  curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh}" | sh
-fi
+# bootstrap zz_use (via this repo's own setup.sh, which just delegates to
+# tomgrv/scripts' own) if it isn't already on PATH (it is, on every run
+# after the first: zz_use installs it into a persistent bin dir). By the
+# time any feature's run.sh sources this, dispatch.sh has already cloned
+# the repo and confirmed we're root, so network + write access are both
+# already given.
+command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh
 zz_use zz_colors zz_log
 # shellcheck disable=SC1091
 . zz_colors
@@ -97,18 +96,18 @@ VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Resolve a feature's package.json from its short name (e.g. "cockpit" ->
 # cockpit/package.json), by matching package.json's "name"
-# field ("@vps/cockpit"). Used by net_port/net_access when a caller needs
+# field ("@tomgrv/vps-cockpit"). Used by net_port/net_access when a caller needs
 # another feature's ports (see summary/run.sh); every other caller omits
 # the second argument and gets its own package.json for free (below).
 feature_package_json() {
   local feature="$1" d
   for d in "$VPS_SETUP_ROOT"/*/; do
-    if [[ -f "${d}package.json" ]] && jq -e --arg n "@vps/${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
+    if [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/vps-${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
       printf '%s' "${d}package.json"
       return 0
     fi
   done
-  die "Unknown feature '${feature}' (no */package.json with name @vps/${feature})."
+  die "Unknown feature '${feature}' (no */package.json with name @tomgrv/vps-${feature})."
 }
 
 # Look up a port/access value from a feature's package.json ("vps.ports"),

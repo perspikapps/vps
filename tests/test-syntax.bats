@@ -29,6 +29,19 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
+@test "every run.sh bootstraps zz_use via this repo's own setup.sh, not a duplicated tomgrv/scripts URL" {
+    for f in "$REPO_ROOT"/*/run.sh; do
+        grep -q 'command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh' "$f"
+        ! grep -q 'raw.githubusercontent.com/tomgrv/scripts' "$f"
+    done
+}
+
+@test "setup.sh: parses as POSIX sh and delegates to tomgrv/scripts' own setup.sh" {
+    run sh -n "$REPO_ROOT/setup.sh"
+    [ "$status" -eq 0 ]
+    grep -q 'raw.githubusercontent.com/tomgrv/scripts' "$REPO_ROOT/setup.sh"
+}
+
 @test "every feature folder has a package.json with a name and vps.order" {
     for f in "$REPO_ROOT"/*/run.sh; do
         d="$(dirname "$f")"
@@ -68,14 +81,14 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "every feature depends on @vps/common (except common/summary)" {
+@test "every feature depends on @tomgrv/vps-common (except common/summary)" {
     for f in "$REPO_ROOT"/*/run.sh; do
         d="$(dirname "$f")"
         name="$(basename "$d")"
         case "$name" in
         common | summary) continue ;;
         esac
-        run node -e "const p = require('$d/package.json'); if (p.dependencies['@vps/common'] !== '*') process.exit(1)"
+        run node -e "const p = require('$d/package.json'); if (p.dependencies['@tomgrv/vps-common'] !== '*') process.exit(1)"
         [ "$status" -eq 0 ]
     done
 }
@@ -91,7 +104,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
                 /\"dependencies\"[[:space:]]*:[[:space:]]*\{/ { infields = 1; next }
                 infields && /\}/ { infields = 0 }
                 infields { print }
-            ' \"\$1\" | sed -n 's/^[[:space:]]*\"@vps\\/\\([a-zA-Z0-9_-]*\\)\".*/\\1/p'
+            ' \"\$1\" | sed -n 's/^[[:space:]]*\"@tomgrv\\/vps-\\([a-zA-Z0-9_-]*\\)\".*/\\1/p'
         }
         feature_deps() { pkg_deps \"\$1/package.json\" | grep -vxE 'common|summary'; }
         feature_deps '$REPO_ROOT/rancher' | grep -qx common && exit 1

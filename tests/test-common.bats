@@ -11,13 +11,13 @@ setup() {
     mkdir -p "$work/alpha" "$work/beta"
     cat >"$work/alpha/package.json" <<'EOF'
 {
-    "name": "@vps/alpha",
+    "name": "@tomgrv/vps-alpha",
     "vps": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] }
 }
 EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
-    "name": "@vps/beta",
+    "name": "@tomgrv/vps-beta",
     "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "tailscale" }] }
 }
 EOF

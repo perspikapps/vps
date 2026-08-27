@@ -106,7 +106,7 @@ is idempotent, re-running a single step to pick up a changed env var
 Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
 source of truth for what it needs - `rancher/package.json`
-declares `"@vps/k3s": "*"`, so does `argocd`'s and `epinio`'s. `dispatch.sh`
+declares `"@tomgrv/vps-k3s": "*"`, so does `argocd`'s and `epinio`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
 explicitly:
@@ -463,7 +463,7 @@ Each feature is a small, self-contained npm workspace package:
 rancher/
   package.json   # name, description, "bin": { "rancher": "run.sh" },
                  # "vps": { "default": true|false }, and
-                 # "dependencies": { "@vps/<other-feature>": "*" }
+                 # "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
 ```
 
@@ -476,13 +476,13 @@ depends on what) now lives in each feature's own `package.json` instead:
 
 ```json
 {
-    "name": "@vps/rancher",
+    "name": "@tomgrv/vps-rancher",
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
     "bin": { "rancher": "run.sh" },
     "vps": { "order": 5, "default": true },
-    "dependencies": { "@vps/k3s": "*", "@vps/common": "*" }
+    "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
 }
 ```
 
@@ -490,8 +490,8 @@ depends on what) now lives in each feature's own `package.json` instead:
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
 scripts - what makes `zz_use perspikapps/vps/rancher` resolvable (see
 [Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
-below). `"dependencies"` always includes `@vps/common` (every feature
-sources it - see [Layout](#layout)), plus any other `@vps/<feature>` it
+below). `"dependencies"` always includes `@tomgrv/vps-common` (every feature
+sources it - see [Layout](#layout)), plus any other `@tomgrv/vps-<feature>` it
 needs; `dispatch.sh`'s own dependency reading (auto-enable,
 `--down-<step>` refusal) explicitly excludes `common`/`summary` from this
 field, since neither is an installable step.
@@ -502,7 +502,7 @@ reason: `vps-tailscale/`, not `tailscale/` - its `run.sh` calls the real
 (it always installs `<name>/run.sh` under the literal folder name `<name>`
 it was asked for) - `zz_use perspikapps/vps/tailscale` would install this
 feature's own script as `tailscale`, shadowing the actual binary it
-depends on. Its `package.json`'s `"name"` field is still `"@vps/tailscale"`
+depends on. Its `package.json`'s `"name"` field is still `"@tomgrv/vps-tailscale"`
 though (that's what `dispatch.sh` reads - CLI flags like `--only-tailscale`
 are unaffected), so only the folder (and therefore the `zz_use`/`"bin"`
 identity) differs from every other feature's own name.
@@ -519,8 +519,8 @@ The root `package.json`'s `"workspaces"` array registers every
 feature as an npm workspace member, so standard npm tooling (`npm ls`,
 `npm install`, the repo's existing lint-staged/commitlint config, which
 already referenced `@commitlint/config-workspace-scopes`) understands the
-dependency graph too - `package-lock.json` resolves `@vps/rancher`'s
-`@vps/k3s` dependency like any other workspace package. `dispatch.sh`
+dependency graph too - `package-lock.json` resolves `@tomgrv/vps-rancher`'s
+`@tomgrv/vps-k3s` dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
 [Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
 fields directly with `sed`/`awk`, precisely because those fields are
@@ -874,3 +874,55 @@ the `zz_use`/`common` wiring every `run.sh` is expected to have, and
 small fixture tree. The features themselves (apt/Helm/k3s installs) need
 a live root Ubuntu box to actually test, so that part of this repo has no
 automated coverage.
+
+## Replicating this pattern in another repo
+
+This repo, [`tomgrv/devcontainer-features`](https://github.com/tomgrv/devcontainer-features)'
+`common-utils` feature, and [`tomgrv/scripts`](https://github.com/tomgrv/scripts)
+itself all share the same shape - a repo that's both a normal codebase
+and a `zz_use`-installable source of scripts. Adopting it elsewhere:
+
+1. **One top-level folder per script**, each an npm workspace package:
+   `<name>/package.json` + `<name>/run.sh` (+ optionally `README.md`,
+   `test.bats`, `config/`). This is the one hard requirement -
+   `zz_use org/repo/<name>` only works if `<name>/run.sh` sits directly
+   under the repo root. `package.json` needs at minimum a `"name"` and
+   `"bin": {"<name>": "run.sh"}` (the latter is for `npm`/workspace
+   tooling only - `zz_use` itself always installs under the literal
+   folder name requested, never reads `"bin"` - see
+   [One folder per feature](#one-folder-per-feature) above for why that
+   distinction matters, e.g. `vps-tailscale/`).
+2. **A root `setup.sh`** that installs `zz_use` (from
+   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH` -
+   copy this repo's `setup.sh` verbatim and swap `perspikapps/vps` for
+   your own `org/repo` in its comments (the script itself doesn't
+   hardcode that - it only needs the `tomgrv/scripts` URL). Every script
+   that needs `zz_use` starts with one line:
+    ```sh
+    command -v zz_use > /dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh}" | sh
+    ```
+    (name the env var after your own repo, not `VPS_SETUP_URL`). Never
+    embed the `tomgrv/scripts` URL directly in more than one place - that's
+    exactly the duplication a root `setup.sh` exists to avoid.
+3. **A shared `common/` folder** (or whatever you'd call it) for logic
+   more than one script needs - not a "core" script itself, just another
+   `<name>/run.sh` folder, sourced via
+   `zz_use <org>/<repo>/common; . common` rather than a relative
+   `source ../lib/common.sh`, so it resolves the same way whether a
+   script runs from a local checkout, standalone, or `zz_use`-installed
+   from anywhere. Exclude it (and anything else that's shared logic
+   rather than an installable unit, like this repo's `summary/`) from
+   whatever discovers your installable units by convention - see
+   `dispatch.sh`'s `list_feature_dirs()`/`feature_deps()` here for how
+   this repo does it.
+4. **Root `package.json`**: an npm workspaces root listing every folder
+   explicitly (not a glob - see [tomgrv/scripts](https://github.com/tomgrv/scripts)'s
+   own `package.json` for the same convention), so `npm install`/`npm ls`
+   understand the whole graph and `zz_use`-resolvable folders that
+   reference each other as real `"dependencies"` (`@<org>/<repo>-<name>`
+   here) actually work.
+5. **Tests**: `sh -n`/`bash -n` every script at minimum; `bats` for
+   anything with pure logic worth covering (see `tests/` here). Anything
+   that genuinely needs a live target system (this repo's own apt/Helm/k3s
+   installs) won't have automated coverage from within the repo alone -
+   say so rather than skipping the question.

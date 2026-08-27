@@ -2,9 +2,7 @@
 # Print a final summary of what was installed and how to reach it.
 
 set -euo pipefail
-if ! command -v zz_use >/dev/null 2>&1; then
-  curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh}" | sh
-fi
+command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh
 zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . common

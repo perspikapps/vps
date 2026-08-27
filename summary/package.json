@@ -1,12 +1,12 @@
 {
-    "name": "@vps/summary",
+    "name": "@tomgrv/vps-summary",
     "version": "1.0.0",
     "description": "Prints final connection info and credentials after a dispatch.sh run",
     "bin": {
         "summary": "run.sh"
     },
     "dependencies": {
-        "@vps/common": "*"
+        "@tomgrv/vps-common": "*"
     },
     "private": true
 }
