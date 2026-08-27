@@ -9,7 +9,13 @@ set -eu
 ZZ_SCRIPTS_REF="${ZZ_SCRIPTS_REF:-main}"
 ZZ_SCRIPTS_SETUP_URL="${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/${ZZ_SCRIPTS_REF}/setup.sh}"
 
-curl -fsSL "$ZZ_SCRIPTS_SETUP_URL" | sh -s -- "$ZZ_SCRIPTS_REF"
+# Downloaded to a temp file rather than piped straight into sh: a
+# `curl | sh` pipeline's exit status is sh's, not curl's, so a failed
+# download would otherwise go unnoticed under `set -e`.
+ZZ_SCRIPTS_SETUP_TMP=$(mktemp)
+trap 'rm -f "$ZZ_SCRIPTS_SETUP_TMP"' EXIT
+curl -fsSL "$ZZ_SCRIPTS_SETUP_URL" -o "$ZZ_SCRIPTS_SETUP_TMP"
+sh "$ZZ_SCRIPTS_SETUP_TMP" "$ZZ_SCRIPTS_REF"
 
 ZZ_SCRIPTS_SETUP_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || ZZ_SCRIPTS_SETUP_DIR=""
 
