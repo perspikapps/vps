@@ -1,0 +1,5 @@
+# devcontainer
+
+.devcontainer/devcontainer-lock.json
+./.gitattributes
+node_modules

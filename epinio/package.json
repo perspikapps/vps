@@ -1,0 +1,17 @@
+{
+    "name": "@tomgrv/vps-epinio",
+    "version": "1.0.0",
+    "description": "Epinio install",
+    "bin": {
+        "epinio": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-k3s": "*",
+        "@tomgrv/vps-common": "*"
+    },
+    "private": true,
+    "vps": {
+        "order": 8,
+        "default": false
+    }
+}

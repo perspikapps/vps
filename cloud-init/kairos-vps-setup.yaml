@@ -1,0 +1,65 @@
+# @format
+
+#cloud-config
+#
+# Kairos / cloud-init user-data that bootstraps a fresh Ubuntu VPS with
+# this repo's dispatch.sh on first boot. Works with Kairos (kairos.io)
+# Ubuntu-flavored images as well as any plain cloud-init provider
+# (DigitalOcean, Hetzner, OpenStack, etc.) - cloud-init and Kairos share
+# the same `#cloud-config` document format and honor `users`, `write_files`
+# and `runcmd`.
+#
+# runcmd executes as root directly, so this sidesteps the classic
+# "export FOO=bar | sudo bash drops the env var" gotcha documented in
+# README.md - no sudo involved here at all.
+#
+# Usage:
+#   1. Copy this file, fill in the placeholders below (ssh key, tailscale
+#      auth key, branch/ref if not using main - see README.md's "Getting
+#      the keys you'll need" and "Running from a non-standard branch"
+#      sections).
+#   2. Hand it to your provider as user-data / cloud-init config when
+#      creating the VPS (Kairos: `kairos-agent install --config
+#      kairos-vps-setup.yaml`, or pass it as the ISO/PXE config; most
+#      cloud VPS providers have a "User data" field at creation time).
+#   3. On first boot the VPS clones this repo and runs dispatch.sh
+#      unattended - no manual SSH session needed to kick it off.
+
+hostname: vps
+
+users:
+    - name: ops
+      groups: [sudo]
+      shell: /bin/bash
+      sudo: ALL=(ALL) NOPASSWD:ALL
+      ssh_authorized_keys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop # REQUIRED: replace with your public key
+
+write_files:
+    - path: /etc/vps-setup.env
+      permissions: '0600'
+      owner: root:root
+      content: |
+          # Filled in at provisioning time - see README.md for where each value
+          # comes from (SSH keys, Tailscale auth keys, etc).
+          VPS_ADMIN_USER=ops
+          VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
+          TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" # REQUIRED
+          RANCHER_HOSTNAME="rancher.tailnet-name.ts.net"
+          RANCHER_BOOTSTRAP_PASSWORD="" # leave blank to auto-generate, see README.md
+          # Uncomment to install from a branch/fork instead of perspikapps/vps@main:
+          # VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git
+          # VPS_SETUP_REPO_REF=my-branch
+
+runcmd:
+    # Sourcing the env file first (rather than hardcoding "main" in the curl
+    # URL) keeps this in sync if VPS_SETUP_REPO_REF is uncommented above -
+    # both the initial fetch and dispatch.sh's internal clone then target the
+    # same ref, per README.md's "Running from a non-standard branch" section.
+    - >-
+        bash -c '
+        set -a; source /etc/vps-setup.env; set +a;
+        ref="${VPS_SETUP_REPO_REF:-main}";
+        curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${ref}/dispatch.sh" -o /tmp/dispatch.sh;
+        sh /tmp/dispatch.sh 2>&1 | tee /var/log/vps-setup.log
+        '

@@ -1,0 +1,29 @@
+# @format
+
+name: 'Update Labels'
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: tomgrv/actions/setup-node@v2
+
+      - name: Update labels
+        uses: tomgrv/actions/update-labels@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          labels-file: .github/labels.json

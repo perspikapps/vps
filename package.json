@@ -1,0 +1,161 @@
+{
+    "name": "vps-setup",
+    "version": "0.1.0",
+    "main": "dispatch.sh",
+    "scripts": {
+        "lint": "npx --yes lint-staged -p false",
+        "update": "npm-check-updates -i -u",
+        "update-all": "npm run update -w --root"
+    },
+    "config": {
+        "commitizen": {
+            "path": "@commitlint/cz-commitlint"
+        }
+    },
+    "devDependencies": {
+        "npm-check-updates": "*"
+    },
+    "optionalDependencies": {
+        "@tomgrv/devcontainer-features-common-utils": ">=5"
+    },
+    "peerDependencies": {
+        "@commitlint/cli": "*",
+        "@commitlint/config-conventional": "*",
+        "@commitlint/core": "*",
+        "@commitlint/cz-commitlint": "*",
+        "commitizen": "*",
+        "git-precommit-checks": "^3",
+        "prettier": "^3",
+        "prettier-plugin-sh": "*"
+    },
+    "private": true,
+    "workspaces": [
+        "argocd",
+        "cockpit",
+        "common",
+        "dockermanager",
+        "epinio",
+        "k3s",
+        "rancher",
+        "security",
+        "summary",
+        "system",
+        "vps-tailscale"
+    ],
+    "prettier": {
+        "insertPragma": true,
+        "overrides": [
+            {
+                "files": "*.yml",
+                "options": {
+                    "tabWidth": 2,
+                    "useTabs": false
+                }
+            },
+            {
+                "files": "*.json",
+                "options": {
+                    "tabWidth": 4,
+                    "useTabs": false
+                }
+            }
+        ],
+        "plugins": [
+            "prettier-plugin-sh"
+        ],
+        "semi": false,
+        "singleQuote": true,
+        "tabWidth": 4,
+        "trailingComma": "es5"
+    },
+    "bump-changelog": {
+        "types": [
+            {
+                "type": "feat",
+                "section": "Features"
+            },
+            {
+                "type": "fix",
+                "section": "Bug Fixes"
+            }
+        ]
+    },
+    "bump-version": {
+        "files": [
+            {
+                "filename": "composer.json",
+                "type": "json"
+            },
+            {
+                "filename": "package.json",
+                "type": "json"
+            },
+            {
+                "filename": "package.json",
+                "type": "json@ws"
+            },
+            {
+                "filename": "devcontainer-feature.json",
+                "type": "json@ws"
+            },
+            {
+                "filename": "VERSION",
+                "type": "plain-text"
+            }
+        ]
+    },
+    "commit-and-tag-version": {
+        "scripts": {
+            "prebump": "gitversion -config .gitversion -showvariable SemVer"
+        }
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional",
+            "@commitlint/config-workspace-scopes"
+        ],
+        "rules": {
+            "subject-case": [
+                2,
+                "never",
+                [
+                    "start-case",
+                    "pascal-case",
+                    "upper-case"
+                ]
+            ]
+        }
+    },
+    "git-precommit-checks": {
+        "rules": [
+            {
+                "message": "You've got leftover conflict markers",
+                "regex": "/^[<>|=]{4,}/m"
+            },
+            {
+                "filter": "(^package\\.json|\\.git-precommit-checks.json)$",
+                "message": "You have unfinished devs",
+                "nonBlocking": "true",
+                "regex": "(?:FIXME|TODO)"
+            }
+        ]
+    },
+    "lint-staged": {
+        "!(*schema).json": [
+            "normalize-json -c -w -a -i -t 4 -f local -l true"
+        ],
+        "*.{js,jsx,ts,tsx,md,html,css,vue,yaml,yml,json}": [
+            "npx --yes prettier --write"
+        ],
+        "composer.json": [
+            "composer validate --no-check-all --no-check-lock --no-check-publish"
+        ],
+        "package.json": [
+            "npm pkg fix"
+        ]
+    },
+    "validate-branch-name": {
+        "errorMsg": "Please use a branch name that follows the pattern: (main|develop) or (feature|bugfix|release|hotfix|support|copilot|claude)/<description>.\nUse git push --no-verify to bypass this check if necessary.",
+        "pattern": "^(main|develop){1}$|^(feature|bugfix|release|hotfix|support|copilot|claude)/.+$"
+    }
+}

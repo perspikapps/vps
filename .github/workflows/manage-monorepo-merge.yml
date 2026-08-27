@@ -1,0 +1,93 @@
+# @format
+
+name: Merge Monorepo
+
+on:
+  workflow_dispatch:
+    inputs:
+      source-branch:
+        description: Source branch to degit from package repositories. Defaults to the source repository default branch.
+        required: false
+        default: ''
+        type: string
+      exclude-paths:
+        description: Comma-separated paths to remove after degit
+        required: false
+        default: .github,.devcontainer,.git
+        type: string
+
+jobs:
+  list-packages:
+    name: List packages
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.list.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: tomgrv/actions/setup-php@v2
+        with:
+          options: '--no-dev'
+
+      - name: Set up Node.js
+        uses: tomgrv/actions/setup-node@v2
+
+      - name: List packages
+        id: list
+        uses: tomgrv/actions/list-packages@v2
+
+  degit-packages:
+    name: Degit package
+    runs-on: ubuntu-latest
+    needs: list-packages
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.list-packages.outputs.packages) }}
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v6
+
+      - name: Generate a token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.KLICKSPLIT_CLIENT_ID }}
+          private-key: ${{ secrets.KLICKSPLIT_APP_KEY }}
+          owner: ${{ matrix.package.org }}
+          repositories: ${{ matrix.package.name }}
+
+      - name: Configure bot identity
+        uses: tomgrv/actions/config-bot@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          github-app-slug: ${{ steps.app-token.outputs.app-slug }}
+
+      - name: Degit package content
+        id: degit
+        uses: tomgrv/actions/degit-package@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          source-organization: ${{ matrix.package.org }}
+          source-repository: ${{ matrix.package.name }}
+          target-subdir: ${{ matrix.package.location }}
+          source-branch: ${{ inputs.source-branch }}
+          exclude-paths: ${{ inputs.exclude-paths }}
+
+      - name: Create or update pull request
+        if: ${{ steps.degit.outputs.has-changes == 'true' }}
+        uses: tomgrv/actions/create-pr@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          repository: ${{ matrix.package.org }}/{{ matrix.package.name }}
+          head-branch: ${{ steps.degit.outputs.degit-branch }}
+          workdir: ${{ steps.degit.outputs.degit-workdir }}
+          commit-message: 'sync: degit from ${{ matrix.package.org }}/${{ matrix.package.name }}@${{ steps.degit.outputs.source-branch }}'
+          pr-title: 'sync: degit from ${{ matrix.package.org }}/${{ matrix.package.name }}'
+          pr-body: |
+            ### Automated degit sync from [${{ matrix.package.org }}/${{ matrix.package.name }}](${{ matrix.package.repository_url }})
+
+            - Source branch: `${{ steps.degit.outputs.source-branch }}`
+            - Source commit: `${{ steps.degit.outputs.source-sha }}`
