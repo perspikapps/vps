@@ -14,10 +14,10 @@ apt_update_once
 COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-$(net_port cockpit_http)}"
 COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-$(net_port cockpit_https)}"
 
-log "Installing Cockpit..."
+zz_log i "[vps-setup] Installing Cockpit..."
 apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged
 
-log "Configuring cockpit.socket to listen on ${COCKPIT_HTTP_PORT} and ${COCKPIT_HTTPS_PORT}..."
+zz_log i "[vps-setup] Configuring cockpit.socket to listen on ${COCKPIT_HTTP_PORT} and ${COCKPIT_HTTPS_PORT}..."
 mkdir -p /etc/systemd/system/cockpit.socket.d
 cat > /etc/systemd/system/cockpit.socket.d/override.conf <<EOF
 [Socket]
@@ -35,11 +35,11 @@ ok "Cockpit installed. Reachable at https://<tailscale-ip>:${COCKPIT_HTTP_PORT} 
 
 down() {
   require_root
-  log "Disabling Cockpit..."
+  zz_log i "[vps-setup] Disabling Cockpit..."
   systemctl disable --now cockpit.socket 2>/dev/null || true
   rm -rf /etc/systemd/system/cockpit.socket.d
   systemctl daemon-reload
-  log "Removing Cockpit packages..."
+  zz_log i "[vps-setup] Removing Cockpit packages..."
   apt-get purge -y cockpit cockpit-system cockpit-networkmanager cockpit-storaged 2>/dev/null || true
   ok "Cockpit removed."
 }

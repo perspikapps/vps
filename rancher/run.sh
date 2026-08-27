@@ -10,8 +10,8 @@ zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run k3s/run.sh first."
-command_exists helm || die "helm not found; run k3s/run.sh first."
+command_exists kubectl || { zz_log e "[vps-setup] kubectl not found; run k3s/run.sh first."; exit 1; }
+command_exists helm || { zz_log e "[vps-setup] helm not found; run k3s/run.sh first."; exit 1; }
 
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https)}"
@@ -38,7 +38,7 @@ kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply 
 CHART_VERSION_ARG=()
 [[ -n "${RANCHER_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$RANCHER_CHART_VERSION")
 
-log "Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME})..."
+zz_log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME})..."
 helm upgrade --install rancher rancher-latest/rancher \
   --namespace cattle-system \
   --set hostname="${RANCHER_HOSTNAME}" \
@@ -49,11 +49,11 @@ helm upgrade --install rancher rancher-latest/rancher \
   "${CHART_VERSION_ARG[@]}" \
   --wait --timeout 10m
 
-log "Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
+zz_log i "[vps-setup] Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
 patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
 patch_service_port cattle-system rancher https "$RANCHER_HTTPS_PORT" || true
 
-log "Waiting for Rancher pods to be ready..."
+zz_log i "[vps-setup] Waiting for Rancher pods to be ready..."
 kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
 
 ok "Rancher installed."
@@ -64,7 +64,7 @@ ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  command_exists kubectl || { zz_log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   helm_teardown cattle-system rancher
   rm -f /root/.rancher-bootstrap-password
   ok "Rancher removed."

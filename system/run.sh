@@ -10,10 +10,10 @@ zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 up() {
   require_root
   apt_update_once
-  log "Upgrading existing packages..."
+  zz_log i "[vps-setup] Upgrading existing packages..."
   apt-get upgrade -y
 
-  log "Installing base utilities..."
+  zz_log i "[vps-setup] Installing base utilities..."
   apt_install \
     ca-certificates \
     curl \
@@ -29,7 +29,7 @@ up() {
     net-tools \
     unattended-upgrades
 
-  log "Enabling unattended security upgrades..."
+  zz_log i "[vps-setup] Enabling unattended security upgrades..."
   dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
   ensure_line 'Unattended-Upgrade::Automatic-Reboot "false";' /etc/apt/apt.conf.d/50unattended-upgrades-local
   cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
@@ -38,8 +38,8 @@ APT::Periodic::Unattended-Upgrade "1";
 EOF
 
   if [[ -n "${TZ:-}" ]]; then
-    log "Setting timezone to ${TZ}..."
-    timedatectl set-timezone "$TZ" || warn "Could not set timezone ${TZ}"
+    zz_log i "[vps-setup] Setting timezone to ${TZ}..."
+    timedatectl set-timezone "$TZ" || zz_log w "[vps-setup] Could not set timezone ${TZ}"
   fi
 
   ok "Base system is up to date."

@@ -11,29 +11,29 @@ up() {
 require_root
 apt_update_once
 
-log "Installing cockpit-packagekit and cockpit-files..."
+zz_log i "[vps-setup] Installing cockpit-packagekit and cockpit-files..."
 apt_install cockpit-packagekit cockpit-files
 
 INSTALL_DOCKER="${INSTALL_DOCKER:-true}"
 if command_exists docker; then
-  log "Docker already installed ($(docker --version))."
+  zz_log i "[vps-setup] Docker already installed ($(docker --version))."
 elif [[ "$INSTALL_DOCKER" == "true" ]]; then
-  log "Installing Docker (docker.io) for cockpit-dockermanager to manage..."
+  zz_log i "[vps-setup] Installing Docker (docker.io) for cockpit-dockermanager to manage..."
   apt_install docker.io
   systemctl enable --now docker
 else
-  warn "Docker not installed and INSTALL_DOCKER=false; cockpit-dockermanager" \
+  zz_log w "[vps-setup] Docker not installed and INSTALL_DOCKER=false; cockpit-dockermanager" \
        "will have nothing to manage until you install Docker yourself."
 fi
 
 DOCKER_USER="${VPS_ADMIN_USER:-root}"
 if command_exists docker && id "$DOCKER_USER" >/dev/null 2>&1 && [[ "$DOCKER_USER" != "root" ]]; then
   usermod -aG docker "$DOCKER_USER"
-  log "Added ${DOCKER_USER} to the docker group (takes effect on next login)."
+  zz_log i "[vps-setup] Added ${DOCKER_USER} to the docker group (takes effect on next login)."
 fi
 
 COCKPIT_DOCKERMANAGER_VERSION="${COCKPIT_DOCKERMANAGER_VERSION:-latest}"
-log "Installing cockpit-dockermanager (${COCKPIT_DOCKERMANAGER_VERSION})..."
+zz_log i "[vps-setup] Installing cockpit-dockermanager (${COCKPIT_DOCKERMANAGER_VERSION})..."
 DEB_URL="https://github.com/chrisjbawden/cockpit-dockermanager/releases/download/${COCKPIT_DOCKERMANAGER_VERSION}/dockermanager.deb"
 TMP_DEB="$(mktemp --suffix=.deb)"
 trap 'rm -f "$TMP_DEB"' EXIT
@@ -47,13 +47,13 @@ ok "cockpit-packagekit, cockpit-files, and cockpit-dockermanager installed."
 
 down() {
   require_root
-  log "Removing cockpit-dockermanager..."
-  apt-get purge -y dockermanager 2>/dev/null || warn "cockpit-dockermanager package not found (already removed?)."
-  log "Removing cockpit-packagekit and cockpit-files..."
+  zz_log i "[vps-setup] Removing cockpit-dockermanager..."
+  apt-get purge -y dockermanager 2>/dev/null || zz_log w "[vps-setup] cockpit-dockermanager package not found (already removed?)."
+  zz_log i "[vps-setup] Removing cockpit-packagekit and cockpit-files..."
   apt-get purge -y cockpit-packagekit cockpit-files 2>/dev/null || true
   systemctl try-restart cockpit.socket 2>/dev/null || true
   if [[ "${REMOVE_DOCKER:-false}" == "true" ]] && command_exists docker; then
-    log "Removing Docker (REMOVE_DOCKER=true)..."
+    zz_log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
     systemctl disable --now docker 2>/dev/null || true
     apt-get purge -y docker.io 2>/dev/null || true
   fi

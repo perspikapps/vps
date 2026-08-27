@@ -101,6 +101,13 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
+@test "common/run.sh no longer defines log/warn/die wrappers (call sites use zz_log directly)" {
+    ! grep -qE '^(log|warn|die)\(\)' "$REPO_ROOT/common/run.sh"
+    for f in "$REPO_ROOT"/*/run.sh; do
+        ! grep -qE '(^|[|&{;[:space:]])(log|warn|die) "' "$f"
+    done
+}
+
 @test "dispatch.sh never treats common/summary as auto-enable dependency targets" {
     # dispatch.sh isn't designed to be sourced (it runs to completion as a
     # script), so this reproduces feature_deps()'s own filtering logic

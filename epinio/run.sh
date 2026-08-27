@@ -10,13 +10,13 @@ zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run k3s/run.sh first."
-command_exists helm || die "helm not found; run k3s/run.sh first."
+command_exists kubectl || { zz_log e "[vps-setup] kubectl not found; run k3s/run.sh first."; exit 1; }
+command_exists helm || { zz_log e "[vps-setup] helm not found; run k3s/run.sh first."; exit 1; }
 
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
 if [[ -z "${EPINIO_DOMAIN:-}" ]]; then
   EPINIO_DOMAIN="${NODE_PUBLIC_IP}.sslip.io"
-  warn "EPINIO_DOMAIN not set - using ${EPINIO_DOMAIN} (sslip.io magic DNS)." \
+  zz_log w "[vps-setup] EPINIO_DOMAIN not set - using ${EPINIO_DOMAIN} (sslip.io magic DNS)." \
        "Fine to try Epinio with, but set EPINIO_DOMAIN to a real wildcard" \
        "domain you control (pointed at this VPS's public IP) before" \
        "relying on this for anything real."
@@ -37,7 +37,7 @@ umask 077
 echo "$EPINIO_ADMIN_PASSWORD" > "$PW_FILE"
 umask 022
 
-log "Adding epinio Helm repo..."
+zz_log i "[vps-setup] Adding epinio Helm repo..."
 helm repo add epinio https://epinio.github.io/helm-charts/ >/dev/null 2>&1 || true
 helm repo update >/dev/null
 
@@ -48,7 +48,7 @@ kubectl create namespace epinio --dry-run=client -o yaml | kubectl apply -f -
 CHART_VERSION_ARG=()
 [[ -n "${EPINIO_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$EPINIO_CHART_VERSION")
 
-log "Installing/upgrading Epinio (domain=${EPINIO_DOMAIN}, ingressClass=${EPINIO_INGRESS_CLASS}, tlsIssuer=${EPINIO_TLS_ISSUER}, timeout ${EPINIO_INSTALL_TIMEOUT})..."
+zz_log i "[vps-setup] Installing/upgrading Epinio (domain=${EPINIO_DOMAIN}, ingressClass=${EPINIO_INGRESS_CLASS}, tlsIssuer=${EPINIO_TLS_ISSUER}, timeout ${EPINIO_INSTALL_TIMEOUT})..."
 if ! helm upgrade --install epinio epinio/epinio \
   --namespace epinio \
   --set global.domain="$EPINIO_DOMAIN" \
@@ -59,24 +59,28 @@ if ! helm upgrade --install epinio epinio/epinio \
   --set containerregistry.ingressClassName="$EPINIO_INGRESS_CLASS" \
   "${CHART_VERSION_ARG[@]}" \
   --wait --timeout "$EPINIO_INSTALL_TIMEOUT"; then
-  warn "helm install/upgrade timed out or failed - pod status for diagnosis:"
+  zz_log w "[vps-setup] helm install/upgrade timed out or failed - pod status for diagnosis:"
   kubectl -n epinio get pods -o wide || true
-  warn "Recent events:"
+  zz_log w "[vps-setup] Recent events:"
   kubectl -n epinio get events --sort-by=.lastTimestamp 2>/dev/null | tail -30 || true
-  die "Epinio install did not finish within ${EPINIO_INSTALL_TIMEOUT}." \
+  zz_log e "[vps-setup] Epinio install did not finish within ${EPINIO_INSTALL_TIMEOUT}." \
       "Often just a slow first image pull (this chart also deploys" \
       "SeaweedFS for S3 storage, its own container registry, and Dex) -" \
       "check the pod status above for Pending/ImagePullBackOff, then" \
       "re-run: sudo sh dispatch.sh --only-epinio (helm resumes the same" \
       "release, it won't re-pull images already cached). To wait longer" \
       "instead, set EPINIO_INSTALL_TIMEOUT=25m (or similar) and re-run."
+  exit 1
 fi
 
-log "Installing the epinio CLI..."
+zz_log i "[vps-setup] Installing the epinio CLI..."
 case "$(dpkg --print-architecture)" in
   amd64) EPINIO_CLI_ARCH=x86_64 ;;
   arm64) EPINIO_CLI_ARCH=arm64 ;;
-  *) die "Unsupported architecture for the epinio CLI: $(dpkg --print-architecture)" ;;
+  *)
+    zz_log e "[vps-setup] Unsupported architecture for the epinio CLI: $(dpkg --print-architecture)"
+    exit 1
+    ;;
 esac
 retry curl -fsSL "https://github.com/epinio/epinio/releases/latest/download/epinio-linux-${EPINIO_CLI_ARCH}" -o /usr/local/bin/epinio
 chmod +x /usr/local/bin/epinio
@@ -86,7 +90,7 @@ ok "Dashboard/API: https://epinio.${EPINIO_DOMAIN} (user: admin)"
 ok "Admin password saved to ${PW_FILE}: ${EPINIO_ADMIN_PASSWORD}"
 ok "Log in with: epinio login -u admin -p '${EPINIO_ADMIN_PASSWORD}' https://epinio.${EPINIO_DOMAIN}"
 if [[ "$EPINIO_DOMAIN" == *.sslip.io ]]; then
-  warn "Using sslip.io magic DNS - fine to try Epinio with, but point" \
+  zz_log w "[vps-setup] Using sslip.io magic DNS - fine to try Epinio with, but point" \
        "EPINIO_DOMAIN at a real domain you own before deploying anything" \
        "you care about."
 fi
@@ -95,7 +99,7 @@ fi
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  command_exists kubectl || { zz_log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   helm_teardown epinio epinio
   rm -f /usr/local/bin/epinio /root/.epinio-admin-password
   ok "Epinio removed."

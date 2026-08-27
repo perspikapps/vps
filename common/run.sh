@@ -7,10 +7,7 @@ zz_use zz_colors zz_log
 # shellcheck disable=SC1091
 . zz_colors
 
-log()  { zz_log i "[vps-setup] $*"; }
-ok()   { zz_log s "[vps-setup] $*"; }
-warn() { zz_log w "[vps-setup] $*"; }
-die()  { zz_log e "[vps-setup] $*"; exit 1; }
+ok() { zz_log s "[vps-setup] $*"; }
 
 # Prints the failing command/file/line before exiting on any unguarded
 # failure under set -e (which otherwise fails silently).
@@ -22,18 +19,23 @@ trap _vps_setup_on_error ERR
 
 require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
-    die "This script must be run as root (use sudo)."
+    zz_log e "[vps-setup] This script must be run as root (use sudo)."
+    exit 1
   fi
 }
 
 require_ubuntu() {
-  [[ -r /etc/os-release ]] || die "Cannot detect OS: /etc/os-release missing."
+  if [[ ! -r /etc/os-release ]]; then
+    zz_log e "[vps-setup] Cannot detect OS: /etc/os-release missing."
+    exit 1
+  fi
   # shellcheck disable=SC1091
   . /etc/os-release
   if [[ "${ID:-}" != "ubuntu" ]]; then
-    die "This script targets Ubuntu only (detected: ${ID:-unknown})."
+    zz_log e "[vps-setup] This script targets Ubuntu only (detected: ${ID:-unknown})."
+    exit 1
   fi
-  log "Detected Ubuntu ${VERSION_ID:-unknown}."
+  zz_log i "[vps-setup] Detected Ubuntu ${VERSION_ID:-unknown}."
 }
 
 export DEBIAN_FRONTEND=noninteractive
@@ -44,7 +46,7 @@ apt_install() {
 
 apt_update_once() {
   if [[ -z "${VPS_SETUP_APT_UPDATED:-}" ]]; then
-    log "Running apt-get update..."
+    zz_log i "[vps-setup] Running apt-get update..."
     apt-get update -y
     export VPS_SETUP_APT_UPDATED=1
   fi
@@ -54,9 +56,10 @@ retry() {
   local attempts=5 delay=3 n=1
   until "$@"; do
     if (( n >= attempts )); then
-      die "Command failed after ${attempts} attempts: $*"
+      zz_log e "[vps-setup] Command failed after ${attempts} attempts: $*"
+      exit 1
     fi
-    warn "Command failed (attempt ${n}/${attempts}), retrying in ${delay}s: $*"
+    zz_log w "[vps-setup] Command failed (attempt ${n}/${attempts}), retrying in ${delay}s: $*"
     sleep "$delay"
     (( n++ ))
     (( delay *= 2 ))
@@ -77,7 +80,8 @@ feature_package_json() {
       return 0
     fi
   done
-  die "Unknown feature '${feature}' (no */package.json with name @tomgrv/vps-${feature})."
+  zz_log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name @tomgrv/vps-${feature})."
+  exit 1
 }
 
 net_port() {
@@ -120,10 +124,10 @@ ensure_line() {
 
 ensure_cert_manager() {
   if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
-    log "cert-manager already installed."
+    zz_log i "[vps-setup] cert-manager already installed."
     return
   fi
-  log "Installing cert-manager..."
+  zz_log i "[vps-setup] Installing cert-manager..."
   helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
   helm repo update >/dev/null
   kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
@@ -146,11 +150,13 @@ dispatch_action() {
       if declare -f down >/dev/null; then
         down
       else
-        die "This step has no 'down' action (nothing to undo)."
+        zz_log e "[vps-setup] This step has no 'down' action (nothing to undo)."
+        exit 1
       fi
       ;;
     *)
-      die "Unknown action '${action}' (expected 'up' or 'down')."
+      zz_log e "[vps-setup] Unknown action '${action}' (expected 'up' or 'down')."
+      exit 1
       ;;
   esac
 }
@@ -158,10 +164,10 @@ dispatch_action() {
 helm_teardown() {
   local namespace="$1" release="$2"
   if helm status "$release" -n "$namespace" >/dev/null 2>&1; then
-    log "Uninstalling Helm release ${release} (namespace ${namespace})..."
-    helm uninstall "$release" -n "$namespace" --wait || warn "helm uninstall ${release} timed out or failed."
+    zz_log i "[vps-setup] Uninstalling Helm release ${release} (namespace ${namespace})..."
+    helm uninstall "$release" -n "$namespace" --wait || zz_log w "[vps-setup] helm uninstall ${release} timed out or failed."
   else
-    warn "Helm release ${release} not found in namespace ${namespace}; nothing to uninstall."
+    zz_log w "[vps-setup] Helm release ${release} not found in namespace ${namespace}; nothing to uninstall."
   fi
   kubectl delete namespace "$namespace" --ignore-not-found --wait=false >/dev/null 2>&1 || true
 }
@@ -171,7 +177,7 @@ patch_service_port() {
   local idx
   idx="$(kubectl -n "$namespace" get service "$service" -o json | jq ".spec.ports | map(.name) | index(\"${port_name}\")")"
   if [[ "$idx" == "null" ]]; then
-    warn "Service ${service} in ${namespace} has no port named '${port_name}'; leaving its ports unchanged."
+    zz_log w "[vps-setup] Service ${service} in ${namespace} has no port named '${port_name}'; leaving its ports unchanged."
     return 1
   fi
   kubectl -n "$namespace" patch service "$service" --type=json \

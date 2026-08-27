@@ -10,13 +10,13 @@ zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || die "kubectl not found; run k3s/run.sh first."
-command_exists helm || die "helm not found; run k3s/run.sh first."
+command_exists kubectl || { zz_log e "[vps-setup] kubectl not found; run k3s/run.sh first."; exit 1; }
+command_exists helm || { zz_log e "[vps-setup] helm not found; run k3s/run.sh first."; exit 1; }
 
 ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-$(net_port argocd_http)}"
 ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-$(net_port argocd_https)}"
 
-log "Adding argo Helm repo..."
+zz_log i "[vps-setup] Adding argo Helm repo..."
 helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
 helm repo update >/dev/null
 
@@ -27,7 +27,7 @@ CHART_VERSION_ARG=()
 
 ARGOCD_INSTALL_TIMEOUT="${ARGOCD_INSTALL_TIMEOUT:-15m}"
 
-log "Installing/upgrading ArgoCD (timeout ${ARGOCD_INSTALL_TIMEOUT})..."
+zz_log i "[vps-setup] Installing/upgrading ArgoCD (timeout ${ARGOCD_INSTALL_TIMEOUT})..."
 if ! helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
   --set server.service.type=LoadBalancer \
@@ -36,24 +36,25 @@ if ! helm upgrade --install argocd argo/argo-cd \
   --set notifications.enabled=false \
   "${CHART_VERSION_ARG[@]}" \
   --wait --timeout "$ARGOCD_INSTALL_TIMEOUT"; then
-  warn "helm install/upgrade timed out or failed - pod status for diagnosis:"
+  zz_log w "[vps-setup] helm install/upgrade timed out or failed - pod status for diagnosis:"
   kubectl -n argocd get pods -o wide || true
-  warn "Recent events:"
+  zz_log w "[vps-setup] Recent events:"
   kubectl -n argocd get events --sort-by=.lastTimestamp 2>/dev/null | tail -30 || true
-  die "ArgoCD install did not finish within ${ARGOCD_INSTALL_TIMEOUT}." \
+  zz_log e "[vps-setup] ArgoCD install did not finish within ${ARGOCD_INSTALL_TIMEOUT}." \
       "Often just a slow first image pull on a small VPS - check the pod" \
       "status above for Pending/ImagePullBackOff, then re-run:" \
       "sudo sh dispatch.sh --only-argocd (helm resumes the same release," \
       "it won't re-pull images already cached). To wait longer instead," \
       "set ARGOCD_INSTALL_TIMEOUT=25m (or similar) and re-run."
+  exit 1
 fi
 
-log "Rebinding the argocd-server Service to ports ${ARGOCD_HTTP_PORT}/${ARGOCD_HTTPS_PORT}..."
+zz_log i "[vps-setup] Rebinding the argocd-server Service to ports ${ARGOCD_HTTP_PORT}/${ARGOCD_HTTPS_PORT}..."
 patch_service_port argocd argocd-server http "$ARGOCD_HTTP_PORT" || true
 patch_service_port argocd argocd-server https "$ARGOCD_HTTPS_PORT" || true
 
 PW_FILE=/root/.argocd-admin-password
-log "Reading ArgoCD's generated initial admin password..."
+zz_log i "[vps-setup] Reading ArgoCD's generated initial admin password..."
 for i in $(seq 1 12); do
   if kubectl -n argocd get secret argocd-initial-admin-secret >/dev/null 2>&1; then
     break
@@ -66,7 +67,7 @@ if kubectl -n argocd get secret argocd-initial-admin-secret >/dev/null 2>&1; the
   echo >> "$PW_FILE"
   umask 022
 else
-  warn "argocd-initial-admin-secret not found (it's deleted after the admin" \
+  zz_log w "[vps-setup] argocd-initial-admin-secret not found (it's deleted after the admin" \
        "password is changed) - if this is a re-run, your existing password" \
        "still works; check ${PW_FILE} from the original install."
 fi
@@ -79,7 +80,7 @@ ok "UI: https://<tailscale-ip>:${ARGOCD_HTTPS_PORT} (also plain-port ${ARGOCD_HT
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-  command_exists kubectl || { warn "kubectl not found; nothing to remove."; return; }
+  command_exists kubectl || { zz_log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   helm_teardown argocd argocd
   rm -f /root/.argocd-admin-password
   ok "ArgoCD removed."
