@@ -30,11 +30,6 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 }
 
 @test "no run.sh curls setup.sh itself - only dispatch.sh/setup.sh do that" {
-    # zz_use bootstrapping is centralized: dispatch.sh runs setup.sh once,
-    # up front, for every feature. Individual run.sh scripts (common/'s
-    # excepted - it's always sourced by a caller that already checked)
-    # just fail fast with a clear message if zz_use isn't already there,
-    # instead of each independently curling it.
     for f in "$REPO_ROOT"/*/run.sh; do
         name="$(basename "$(dirname "$f")")"
         case "$name" in
