@@ -397,8 +397,12 @@ entirely - there's no `sudo` involved.
   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
   execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
   if it's sitting next to `setup.sh` in a local checkout, forwarding every
-  arg through - so `curl .../setup.sh | sh -s -- --only-rancher` works the
-  same as calling `dispatch.sh` directly. A thin wrapper, deliberately:
+  arg through - so `sh setup.sh --only-rancher` from an existing checkout
+  works the same as calling `dispatch.sh` directly. Piped straight from
+  `curl` with no local checkout (`curl .../setup.sh | sh -s -- ...`), there's
+  no `package.json` next to the running script to find, so it only
+  bootstraps `zz_use` and stops - use `dispatch.sh`'s own one-liner (which
+  clones the repo first) for that case. A thin wrapper, deliberately:
   `zz_use` itself isn't this repo's script, so duplicating its own
   `setup.sh`'s bin-dir/linking logic here would just be a second copy to
   keep in sync. `dispatch.sh` runs it once, up front, itself falling back
@@ -450,7 +454,7 @@ entirely - there's no `sudo` involved.
   `package.json` port declarations: SSH and Traefik's 80/443 public,
   everything else Tailscale-only), sshd hardening, fail2ban, and a
   Cockpit/console login password.
-- `tailscale/` - installs Tailscale, enables `tailscaled` as a
+- `vps-tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
 - `cockpit/` - installs Cockpit, served on ports 9080/9083.
 - `k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
@@ -557,6 +561,7 @@ them directly, from any machine, without cloning this repo or running
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
+command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq  # common/run.sh needs it
 zz_use perspikapps/vps/rancher
 sudo rancher up
 ```

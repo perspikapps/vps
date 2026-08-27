@@ -9,6 +9,11 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 setup() {
     work="$BATS_TEST_TMPDIR"
     mkdir -p "$work/alpha" "$work/beta"
+    # feature_package_json/all_network_ports only look at directories with a
+    # run.sh alongside package.json (skips node_modules/*) - fixtures need
+    # one too, even though nothing here executes it.
+    : >"$work/alpha/run.sh"
+    : >"$work/beta/run.sh"
     cat >"$work/alpha/package.json" <<'EOF'
 {
     "name": "@tomgrv/vps-alpha",
@@ -46,6 +51,16 @@ _load_common() {
     [ "$status" -eq 0 ]
     [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
     [[ "$output" == *$'beta_http\t2222\ttailscale\t'* ]]
+}
+
+@test "all_network_ports: skips node_modules/* (no run.sh alongside its package.json)" {
+    mkdir -p "$work/node_modules/some-dep"
+    cat >"$work/node_modules/some-dep/package.json" <<'EOF'
+{ "name": "some-dep", "vps": { "ports": [{ "name": "should_not_appear", "port": 9999, "access": "public" }] } }
+EOF
+    run bash -c "source '$REPO_ROOT/common/run.sh'; VPS_SETUP_ROOT='$work'; all_network_ports"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"should_not_appear"* ]]
 }
 
 @test "feature_package_json: errors on an unknown feature name" {

@@ -75,7 +75,10 @@ VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && p
 feature_package_json() {
   local feature="$1" d
   for d in "$VPS_SETUP_ROOT"/*/; do
-    if [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/vps-${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
+    # run.sh alongside package.json is what marks a real feature folder -
+    # skips node_modules/* (and any other non-feature directory) instead of
+    # jq-parsing every package.json under the checkout.
+    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/vps-${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
       printf '%s' "${d}package.json"
       return 0
     fi
@@ -105,9 +108,14 @@ net_access() {
 }
 
 all_network_ports() {
-  local f
-  for f in "$VPS_SETUP_ROOT"/*/package.json; do
-    jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$f"
+  local d
+  for d in "$VPS_SETUP_ROOT"/*/; do
+    # Same run.sh-alongside-package.json filter as feature_package_json:
+    # skips node_modules/* instead of jq-parsing every package.json under
+    # the checkout.
+    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]]; then
+      jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}package.json"
+    fi
   done
 }
 
