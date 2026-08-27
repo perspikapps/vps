@@ -21,11 +21,16 @@ ZZ_SCRIPTS_SETUP_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || ZZ_SCRIPTS_SE
 
 if [ -n "$ZZ_SCRIPTS_SETUP_DIR" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/package.json" ]; then
   MAIN=$(sed -n 's/^[[:space:]]*"main"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$ZZ_SCRIPTS_SETUP_DIR/package.json" | head -n1)
+  # Reject anything that could point outside $ZZ_SCRIPTS_SETUP_DIR
+  # (absolute paths, ".." segments).
+  case "$MAIN" in
+    /* | *..*) MAIN="" ;;
+  esac
   if [ -n "$MAIN" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/$MAIN" ]; then
-    exec sh "$ZZ_SCRIPTS_SETUP_DIR/$MAIN" "$@"
+    exec sh -- "$ZZ_SCRIPTS_SETUP_DIR/$MAIN" "$@"
   fi
 fi
 
 if [ -n "$ZZ_SCRIPTS_SETUP_DIR" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/main.sh" ]; then
-  exec sh "$ZZ_SCRIPTS_SETUP_DIR/main.sh" "$@"
+  exec sh -- "$ZZ_SCRIPTS_SETUP_DIR/main.sh" "$@"
 fi
