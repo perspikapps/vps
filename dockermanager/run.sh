@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
-# Installs extra Cockpit modules (cockpit-packagekit for software updates,
-# cockpit-files for a file browser) plus the third-party cockpit-dockermanager
-# plugin (https://github.com/chrisjbawden/cockpit-dockermanager), which adds
-# a Docker container/image management tab to Cockpit.
-#
-# cockpit-dockermanager needs an actual Docker daemon to talk to - this repo
-# otherwise only sets up containerd via k3s (k3s/run.sh), so this
-# script also installs docker.io unless INSTALL_DOCKER=false.
-#
-# Env vars:
-#   INSTALL_DOCKER                  - "true" (default) to install docker.io
-#                                     if no docker daemon is present already.
-#   COCKPIT_DOCKERMANAGER_VERSION   - release tag to install (default:
-#                                     "latest", the repo's rolling release
-#                                     tag). Pin a specific tag, e.g. "v1.0.8.2",
-#                                     to avoid picking up unexpected updates.
+# cockpit-packagekit, cockpit-files, cockpit-dockermanager. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -41,7 +26,6 @@ else
        "will have nothing to manage until you install Docker yourself."
 fi
 
-# Let the Cockpit admin account talk to the Docker socket without sudo.
 DOCKER_USER="${VPS_ADMIN_USER:-root}"
 if command_exists docker && id "$DOCKER_USER" >/dev/null 2>&1 && [[ "$DOCKER_USER" != "root" ]]; then
   usermod -aG docker "$DOCKER_USER"
@@ -61,9 +45,6 @@ systemctl try-restart cockpit.socket 2>/dev/null || true
 ok "cockpit-packagekit, cockpit-files, and cockpit-dockermanager installed."
 }
 
-# Removes cockpit-dockermanager and the extra Cockpit modules installed by
-# up(). Leaves the Docker daemon installed by default (other things may use
-# it) - set REMOVE_DOCKER=true to also purge docker.io.
 down() {
   require_root
   log "Removing cockpit-dockermanager..."

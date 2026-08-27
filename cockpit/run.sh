@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-# Install Cockpit and serve it on both COCKPIT_HTTP_PORT and
-# COCKPIT_HTTPS_PORT (default 9080/9083) instead of the default 9090.
-# Cockpit's web server (cockpit-ws) is TLS-only regardless of which port
-# it's bound to; we just socket-activate it on two ports for convenience.
-#
-# Env vars:
-#   COCKPIT_HTTP_PORT   - default from this feature's own package.json (cockpit_http)
-#   COCKPIT_HTTPS_PORT  - default from this feature's own package.json (cockpit_https)
+# Cockpit, on COCKPIT_HTTP_PORT/COCKPIT_HTTPS_PORT. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }

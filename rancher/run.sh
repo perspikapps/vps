@@ -1,22 +1,5 @@
 #!/usr/bin/env bash
-# Install the latest SUSE Rancher release onto the k3s cluster from
-# k3s, exposed on RANCHER_HTTP_PORT/RANCHER_HTTPS_PORT (default
-# 7080/7083) via k3s's built-in ServiceLB (Klipper), which binds those
-# host ports directly -- no external load balancer needed for a single node.
-#
-# Env vars:
-#   RANCHER_HOSTNAME            - FQDN/IP used in Rancher's self-signed cert
-#                                 (default: the node's primary IP)
-#   RANCHER_BOOTSTRAP_PASSWORD  - initial admin password (default: random,
-#                                 printed at the end and saved to
-#                                 /root/.rancher-bootstrap-password)
-#   RANCHER_HTTP_PORT           - default from this feature's own package.json (rancher_http)
-#   RANCHER_HTTPS_PORT          - default from this feature's own package.json (rancher_https)
-#   RANCHER_CHART_VERSION       - pin a chart version (optional, default: latest)
-#   CERT_MANAGER_VERSION        - pin cert-manager's chart version (optional)
-#
-# Installs cert-manager first: Rancher's default self-signed TLS source
-# requires it to issue certs even when ingress is disabled.
+# Rancher on k3s. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -45,14 +28,9 @@ fi
 umask 077
 echo "$RANCHER_BOOTSTRAP_PASSWORD" > "$PW_FILE"
 
-log "Adding rancher-latest Helm repo..."
 helm repo add rancher-latest https://releases.rancher.com/server-charts/latest >/dev/null 2>&1 || true
 helm repo update >/dev/null
 
-# Rancher's default self-signed TLS source ("rancher") issues certs through
-# cert-manager regardless of whether an ingress is deployed, so without this
-# the rancher pod never becomes Ready and `helm ... --wait` below times out,
-# aborting the whole dispatch.sh run.
 ensure_cert_manager
 
 kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
@@ -83,9 +61,6 @@ ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RAN
 ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
-# Uninstalls the Rancher Helm release and its namespace. Leaves cert-manager
-# in place (epinio/run.sh may also depend on it - see ensure_cert_manager
-# in common/run.sh) and k3s itself untouched.
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"

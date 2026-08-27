@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Base system update and the small toolset every later script assumes exists.
-# Equivalent in spirit to devcontainers/features "common-utils": update apt,
-# set a sane locale/timezone, install common CLI utilities, non-interactively.
+# Base system update and common CLI utilities.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -46,10 +44,5 @@ EOF
 
   ok "Base system is up to date."
 }
-
-# No down(): this step is a base package update/upgrade, not a feature to
-# toggle - there's nothing meaningful to "uninstall" (you wouldn't want to
-# downgrade packages or turn unattended-upgrades back off). dispatch_action
-# reports a clear error if `down` is requested for this step.
 
 dispatch_action "$@"

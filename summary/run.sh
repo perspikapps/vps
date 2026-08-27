@@ -7,9 +7,6 @@ zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . common
 
-# net_port's default (no 3rd arg) resolves the *calling script's own*
-# package.json - since this file isn't any one feature's run.sh, every
-# lookup here names the feature explicitly instead.
 COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-$(net_port cockpit_http cockpit)}"
 COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-$(net_port cockpit_https cockpit)}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http rancher)}"

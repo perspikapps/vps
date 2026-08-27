@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
-# Install ArgoCD onto the k3s cluster from k3s, for GitOps-managed
-# deployments (a natural pairing with Rancher for cluster management - see
-# https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view).
-#
-# Exposed on ARGOCD_HTTP_PORT/ARGOCD_HTTPS_PORT (default 7090/7093) via
-# k3s's built-in ServiceLB, Tailscale-only like Cockpit/Rancher/the Traefik
-# dashboard (see security/run.sh's Security model).
-#
-# dex (SSO) and the notifications controller are disabled: this repo only
-# uses ArgoCD's built-in admin login, and skipping them means fewer pods
-# to pull images for and wait on - meaningful on a small single-node VPS
-# where that wait is what timed out before (see ARGOCD_INSTALL_TIMEOUT).
-#
-# Env vars:
-#   ARGOCD_HTTP_PORT      - default from this feature's own package.json (argocd_http)
-#   ARGOCD_HTTPS_PORT     - default from this feature's own package.json (argocd_https)
-#   ARGOCD_CHART_VERSION  - pin a chart version (optional, default: latest)
-#   ARGOCD_INSTALL_TIMEOUT - how long to wait for all pods to come up
-#                            (default 15m; a small VPS pulling several
-#                            images for the first time can be slow)
+# ArgoCD on k3s. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -95,7 +76,6 @@ ok "UI: https://<tailscale-ip>:${ARGOCD_HTTPS_PORT} (also plain-port ${ARGOCD_HT
 [[ -f "$PW_FILE" ]] && ok "Admin password saved to ${PW_FILE}: $(cat "$PW_FILE")"
 }
 
-# Uninstalls the ArgoCD Helm release and its namespace.
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"

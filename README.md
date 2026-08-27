@@ -401,7 +401,9 @@ entirely - there's no `sudo` involved.
   every feature's own `run.sh` no longer bootstraps `zz_use` itself (that
   would mean one `curl` per feature instead of one total) - it just fails
   fast with a one-line message pointing here if `zz_use` isn't already on
-  `PATH` when run standalone. See
+  `PATH` when run standalone. Pin the `tomgrv/scripts` ref with
+  `ZZ_SCRIPTS_REF` (default `main`), or bootstrap from a fork entirely with
+  `ZZ_SCRIPTS_SETUP_URL` (a full `setup.sh` URL). See
   [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
 [<every top-level folder>]`); ties every feature package together for

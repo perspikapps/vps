@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
-# Install Tailscale, join the tailnet, and make sure tailscaled runs as a
-# systemd service.
-#
-# dispatch.sh refuses to run at all if this step is enabled but
-# TAILSCALE_AUTHKEY is unset, since ufw only opens this repo's
-# Tailscale-only services (see this feature's own package.json) to the tailscale0 interface -
-# an unauthenticated node would leave all of them unreachable. Pass
-# --skip-tailscale there to opt out of that guard.
-#
-# Env vars:
-#   TAILSCALE_AUTHKEY     - auth key to auto-join a tailnet (required unless
-#                           this step is skipped - see dispatch.sh's guard)
-#   TAILSCALE_EXTRA_ARGS  - extra flags appended to `tailscale up` (optional)
+# Tailscale. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -47,10 +35,6 @@ tailscale up --authkey="${TAILSCALE_AUTHKEY}" --ssh ${TAILSCALE_EXTRA_ARGS:-}
 ok "Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
 }
 
-# Logs out of the tailnet and stops tailscaled, but leaves the tailscale
-# package installed (it's a single small binary; PURGE_TAILSCALE=true also
-# removes it). Note: every Tailscale-only service (see each feature's package.json) becomes
-# unreachable once this runs - see README's Security model.
 down() {
   require_root
   if ! command_exists tailscale; then

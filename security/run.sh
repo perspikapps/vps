@@ -1,29 +1,5 @@
 #!/usr/bin/env bash
-# Harden the server for exposure to the public internet:
-#   - optional non-root sudo admin user with SSH key
-#   - SSH: disable root login, disable password auth (only if a key exists)
-#   - UFW: default-deny inbound, then every port from every feature's
-#     package.json ("vps.ports") applied as either public or
-#     Tailscale-only, per its `access` field
-#   - fail2ban for SSH brute-force protection
-#
-# Every port this repo opens, and its public/Tailscale-only access, is
-# declared on the feature that owns it (its package.json's "vps.ports" -
-# see common/run.sh's all_network_ports()), not centralized here - see
-# README.md's "Security model" section. Each port can still be overridden
-# for a single run via an env var named after it (e.g. RANCHER_HTTP_PORT).
-#
-# Env vars:
-#   VPS_ADMIN_USER      - optional non-root user to create (default: unset/skip)
-#   VPS_ADMIN_SSH_KEY   - public key to authorize for VPS_ADMIN_USER and root
-#   VPS_ADMIN_PASSWORD  - Cockpit/console login password for VPS_ADMIN_USER (or
-#                         root if unset). Default: random, saved to
-#                         /root/.cockpit-admin-password. This is separate from
-#                         SSH: SSH password auth stays disabled once a key is
-#                         present, this password is only for logging into
-#                         Cockpit (and the local console) via PAM.
-#   SSH_PORT            - SSH port to keep open (default: from this feature's
-#                         own package.json)
+# Admin user, SSH hardening, ufw, fail2ban. Env vars: see README.
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
@@ -65,9 +41,6 @@ if [[ -n "${VPS_ADMIN_SSH_KEY:-}" ]]; then
   chmod 600 /root/.ssh/authorized_keys
 fi
 
-# Cockpit authenticates via PAM against a real Linux account/password, which
-# is independent of SSH key auth - without this, adduser --disabled-password
-# above leaves no way to log into Cockpit at all.
 COCKPIT_USER="${VPS_ADMIN_USER:-root}"
 COCKPIT_PW_FILE=/root/.cockpit-admin-password
 if [[ -n "${VPS_ADMIN_PASSWORD:-}" ]]; then
@@ -84,8 +57,6 @@ echo "$COCKPIT_USER" > /root/.cockpit-admin-user
 umask 022
 ok "Cockpit login set: user=${COCKPIT_USER} (password saved to ${COCKPIT_PW_FILE})."
 
-# Only disable password auth if at least one authorized_keys file has a key,
-# otherwise we'd lock everyone out.
 HAS_KEY=0
 for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
   [[ -s "$f" ]] 2>/dev/null && HAS_KEY=1
@@ -127,11 +98,6 @@ ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
 
-# Every port and its public/Tailscale-only access comes from its owning
-# feature's package.json ("vps.ports" - see common/run.sh's
-# all_network_ports()); a port whose `name` there is e.g. "rancher_http"
-# can still be overridden for this run via RANCHER_HTTP_PORT, same as
-# every feature that opens that port for its own app.
 while IFS=$'\t' read -r name pkg_port access note; do
   env_var="$(echo "$name" | tr '[:lower:]' '[:upper:]')_PORT"
   port="${!env_var:-$pkg_port}"
@@ -140,8 +106,6 @@ while IFS=$'\t' read -r name pkg_port access note; do
       ufw allow "${port}/tcp" comment "${note:-$name}"
       ;;
     tailscale)
-      # Not reachable from the public internet until tailscale brings
-      # tailscale0 up.
       ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
       ;;
     *)
@@ -150,21 +114,12 @@ while IFS=$'\t' read -r name pkg_port access note; do
   esac
 done < <(all_network_ports)
 
-# k3s node-to-node / API traffic, also tailscale-only (not a single fixed
-# port, so it isn't one of the per-feature port lists).
 ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
 
 ufw --force enable
 ok "ufw enabled from every feature's package.json: public ports open to everyone, tailscale ports reachable only via Tailscale."
 }
 
-# Reverts the hardening applied by up(): disables ufw (back to wide open -
-# be ready to re-run `up` or configure your own firewall before relying on
-# this), restores sshd's stock config, and disables the sshd fail2ban jail.
-# Deliberately leaves VPS_ADMIN_USER (if created) and its SSH key/Cockpit
-# password in place - removing a login account is destructive enough that
-# it should be a separate, explicit decision, not a side effect of turning
-# this step off.
 down() {
   require_root
 
