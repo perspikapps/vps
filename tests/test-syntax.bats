@@ -42,16 +42,28 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "every folder's package.json has a bin entry pointing at run.sh" {
+@test "every folder's package.json has a bin entry matching its own folder name" {
+    # zz_use has no notion of "bin" - it always installs <name>/run.sh
+    # under the literal folder name <name> it was asked for - so the "bin"
+    # entry must match the folder name exactly, not (necessarily) the
+    # feature's own package.json "name" field. This is why vps-tailscale/
+    # is named that instead of tailscale/ - see README's "One folder per
+    # feature".
     for f in "$REPO_ROOT"/*/run.sh; do
         d="$(dirname "$f")"
         name="$(basename "$d")"
-        # tailscale/run.sh calls the real tailscale CLI internally, so its
-        # bin name can't be the bare "tailscale" - see README's "One folder
-        # per feature".
-        expected="$name"
-        [ "$name" = "tailscale" ] && expected="vps-tailscale"
-        run node -e "const p = require('$d/package.json'); if (p.bin['$expected'] !== 'run.sh') process.exit(1)"
+        run node -e "const p = require('$d/package.json'); if (p.bin['$name'] !== 'run.sh') process.exit(1)"
+        [ "$status" -eq 0 ]
+    done
+}
+
+@test "no feature's package.json bin name is the bare 'tailscale'" {
+    # tailscale/run.sh's folder was renamed to vps-tailscale/ specifically
+    # to avoid zz_use ever installing it under the same name as the real
+    # tailscale CLI it calls internally - guard against that regressing.
+    for f in "$REPO_ROOT"/*/run.sh; do
+        d="$(dirname "$f")"
+        run node -e "const p = require('$d/package.json'); if ('tailscale' in p.bin) process.exit(1)"
         [ "$status" -eq 0 ]
     done
 }

@@ -341,7 +341,7 @@ Tailscale admin console:
 3. Copy the `tskey-auth-...` value into `TAILSCALE_AUTHKEY`.
 
 Docs: [Tailscale - Auth keys](https://tailscale.com/kb/1085/auth-keys).
-Without this variable, `tailscale/run.sh` still installs Tailscale;
+Without this variable, `vps-tailscale/run.sh` still installs Tailscale;
 just run `tailscale up` manually afterwards and follow the login link.
 
 **Rancher bootstrap password** (for `RANCHER_BOOTSTRAP_PASSWORD`) - any
@@ -496,11 +496,16 @@ needs; `dispatch.sh`'s own dependency reading (auto-enable,
 `--down-<step>` refusal) explicitly excludes `common`/`summary` from this
 field, since neither is an installable step.
 
-One name needs to differ from its folder for a different reason:
-`tailscale/`'s `"bin"` is `{"vps-tailscale": "run.sh"}`, not
-`{"tailscale": "run.sh"}` - `tailscale/run.sh` itself calls the real
-`tailscale` CLI internally, so giving it the bare name would let a
-`zz_use`-installed copy shadow the actual binary it depends on.
+One folder is named differently from its own feature for exactly this
+reason: `vps-tailscale/`, not `tailscale/` - its `run.sh` calls the real
+`tailscale` CLI internally, and `zz_use` has no notion of `"bin"` at all
+(it always installs `<name>/run.sh` under the literal folder name `<name>`
+it was asked for) - `zz_use perspikapps/vps/tailscale` would install this
+feature's own script as `tailscale`, shadowing the actual binary it
+depends on. Its `package.json`'s `"name"` field is still `"@vps/tailscale"`
+though (that's what `dispatch.sh` reads - CLI flags like `--only-tailscale`
+are unaffected), so only the folder (and therefore the `zz_use`/`"bin"`
+identity) differs from every other feature's own name.
 
 Adding a new feature is: create `whatever/` with a
 `package.json` (following the shape above, with an `order` that places it

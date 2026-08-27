@@ -39,7 +39,7 @@
         "security",
         "summary",
         "system",
-        "tailscale"
+        "vps-tailscale"
     ],
     "prettier": {
         "insertPragma": true,
