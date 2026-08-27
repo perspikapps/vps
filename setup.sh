@@ -11,15 +11,15 @@ ZZ_SCRIPTS_SETUP_URL="${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/
 
 curl -fsSL "$ZZ_SCRIPTS_SETUP_URL" | sh -s -- "$ZZ_SCRIPTS_REF"
 
-SETUP_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || SETUP_DIR=""
+ZZ_SCRIPTS_SETUP_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || ZZ_SCRIPTS_SETUP_DIR=""
 
-if [ -n "$SETUP_DIR" ] && [ -f "$SETUP_DIR/package.json" ]; then
-  MAIN=$(sed -n 's/^[[:space:]]*"main"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$SETUP_DIR/package.json" | head -n1)
-  if [ -n "$MAIN" ] && [ -f "$SETUP_DIR/$MAIN" ]; then
-    exec sh "$SETUP_DIR/$MAIN" "$@"
+if [ -n "$ZZ_SCRIPTS_SETUP_DIR" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/package.json" ]; then
+  MAIN=$(sed -n 's/^[[:space:]]*"main"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$ZZ_SCRIPTS_SETUP_DIR/package.json" | head -n1)
+  if [ -n "$MAIN" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/$MAIN" ]; then
+    exec sh "$ZZ_SCRIPTS_SETUP_DIR/$MAIN" "$@"
   fi
 fi
 
-if [ -n "$SETUP_DIR" ] && [ -f "$SETUP_DIR/main.sh" ]; then
-  exec sh "$SETUP_DIR/main.sh" "$@"
+if [ -n "$ZZ_SCRIPTS_SETUP_DIR" ] && [ -f "$ZZ_SCRIPTS_SETUP_DIR/main.sh" ]; then
+  exec sh "$ZZ_SCRIPTS_SETUP_DIR/main.sh" "$@"
 fi
