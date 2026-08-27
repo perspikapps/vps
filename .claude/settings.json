@@ -6,6 +6,12 @@
         "pr": "",
         "sessionUrl": false
     },
+    "permissions": {
+        "allow": [
+            "Bash(git push:*)",
+            "Bash(git tag:*)"
+        ]
+    },
     "hooks": {
         "PreToolUse": [
             {
