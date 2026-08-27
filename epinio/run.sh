@@ -53,7 +53,7 @@
 #                            shared with rancher/run.sh)
 
 set -euo pipefail
-command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh
+command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
 zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . common

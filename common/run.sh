@@ -8,14 +8,12 @@
 set -euo pipefail
 
 # Colors and leveled logging are shared with tomgrv/devcontainer-features'
-# common-utils via https://github.com/tomgrv/scripts (zz_colors/zz_log) -
-# bootstrap zz_use (via this repo's own setup.sh, which just delegates to
-# tomgrv/scripts' own) if it isn't already on PATH (it is, on every run
-# after the first: zz_use installs it into a persistent bin dir). By the
-# time any feature's run.sh sources this, dispatch.sh has already cloned
-# the repo and confirmed we're root, so network + write access are both
-# already given.
-command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh
+# common-utils via https://github.com/tomgrv/scripts (zz_colors/zz_log).
+# zz_use is always already on PATH by the time this file is sourced - every
+# caller (`zz_use perspikapps/vps/common; . common`) either already has it,
+# or fails fast before ever reaching the zz_use call that fetches this file
+# in the first place - so this doesn't bootstrap zz_use itself; see
+# setup.sh for that (dispatch.sh runs it once, up front, for every feature).
 zz_use zz_colors zz_log
 # shellcheck disable=SC1091
 . zz_colors
@@ -84,10 +82,17 @@ retry() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-# Repo root, computed from this file's own location so it resolves
-# correctly whether a script runs via dispatch.sh (from /opt/vps-setup) or
-# standalone from a checkout elsewhere.
-VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Repo root - computed from the *caller's* location (BASH_SOURCE[1]), not
+# this file's own (BASH_SOURCE[0]): zz_use's explicit
+# `zz_use perspikapps/vps/common` always (re)installs common under its own
+# bin dir (e.g. /usr/local/bin/common) rather than reusing a local
+# checkout's sibling common/run.sh - see zz_use's own docs on why an
+# org/repo-qualified request is never skipped as "already available". So
+# this file's own BASH_SOURCE[0] can be anywhere, but every caller
+# (system/run.sh, summary/run.sh, ...) still lives at its real place in the
+# checkout, which is what feature_package_json/net_port/all_network_ports
+# below actually need to find sibling feature folders from.
+VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && pwd)"
 
 # Every port this repo opens - and whether it's public or Tailscale-only -
 # lives under its owning feature's own package.json, in a "vps.ports"

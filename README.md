@@ -390,8 +390,19 @@ entirely - there's no `sudo` involved.
   updates this repo, discovers every `*/package.json`, resolves
   which steps run (flags, the [interactive menu](#interactive-menu), and
   [dependencies read straight from each package.json](#dependencies-between-steps)),
+  bootstraps `zz_use` once via `setup.sh` (not per-feature - see below),
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
+- `setup.sh` - installs `zz_use` (from
+  [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`. A
+  thin wrapper, deliberately: `zz_use` itself isn't this repo's script, so
+  duplicating its own `setup.sh`'s bin-dir/linking logic here would just
+  be a second copy to keep in sync. `dispatch.sh` runs it once, up front;
+  every feature's own `run.sh` no longer bootstraps `zz_use` itself (that
+  would mean one `curl` per feature instead of one total) - it just fails
+  fast with a one-line message pointing here if `zz_use` isn't already on
+  `PATH` when run standalone. See
+  [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
 [<every top-level folder>]`); ties every feature package together for
   tooling (`npm install`, `npm ls`, lint-staged, commitlint's
@@ -813,17 +824,21 @@ ingress itself is always 80/443, per HTTP/HTTPS convention, not part of
 this scheme.
 
 Each feature's `run.sh` can also be run standalone, from within a
-checkout or on its own (it bootstraps `zz_use` and fetches `common/run.sh`
-from this repo via `zz_use perspikapps/vps/common` if it isn't already
-installed - see [Layout](#layout)) - this is what `dispatch.sh
---only-<step>`, described in
-[Running a single step (or a subset)](#running-a-single-step-or-a-subset)
-above, does for you - for example to re-run just the Rancher install
-with a new hostname:
+checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
+`setup.sh`'s job, run once - see [Layout](#layout)); it just fetches
+`common/run.sh` from this repo via `zz_use perspikapps/vps/common` if
+`zz_use` is already on `PATH`, and fails fast with a one-line message
+pointing at `setup.sh` if it isn't:
 
-```bash
+```sh
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
 sudo RANCHER_HOSTNAME=new.example.com bash rancher/run.sh
 ```
+
+This is what `dispatch.sh --only-<step>`, described in
+[Running a single step (or a subset)](#running-a-single-step-or-a-subset)
+above, does for you (and bootstraps `zz_use` for, once, up front, for
+every step - not per-feature).
 
 Every `run.sh` also takes an explicit `up` or `down` action as its first
 argument (`up` is the default, so the invocation above is really `...
@@ -896,14 +911,24 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH` -
    copy this repo's `setup.sh` verbatim and swap `perspikapps/vps` for
    your own `org/repo` in its comments (the script itself doesn't
-   hardcode that - it only needs the `tomgrv/scripts` URL). Every script
-   that needs `zz_use` starts with one line:
+   hardcode that - it only needs the `tomgrv/scripts` URL). Your
+   dispatcher (this repo's `dispatch.sh`, or whatever entry point runs
+   every script in sequence) runs it **once**, up front:
     ```sh
-    command -v zz_use > /dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh}" | sh
+    command -v zz_use > /dev/null 2>&1 || sh "$REPO_ROOT/setup.sh"
     ```
-    (name the env var after your own repo, not `VPS_SETUP_URL`). Never
-    embed the `tomgrv/scripts` URL directly in more than one place - that's
-    exactly the duplication a root `setup.sh` exists to avoid.
+    Individual scripts don't bootstrap `zz_use` themselves - that would
+    mean one `curl` per script instead of one total, exactly the
+    duplication a root `setup.sh` exists to avoid. They just fail fast if
+    it's somehow still missing (e.g. run standalone, outside the
+    dispatcher):
+    ```sh
+    command -v zz_use > /dev/null 2>&1 || {
+        echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh | sh" >&2
+        exit 1
+    }
+    ```
+    Never embed the `tomgrv/scripts` URL directly in more than one place.
 3. **A shared `common/` folder** (or whatever you'd call it) for logic
    more than one script needs - not a "core" script itself, just another
    `<name>/run.sh` folder, sourced via

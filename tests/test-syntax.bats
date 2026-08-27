@@ -29,11 +29,24 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "every run.sh bootstraps zz_use via this repo's own setup.sh, not a duplicated tomgrv/scripts URL" {
+@test "no run.sh curls setup.sh itself - only dispatch.sh/setup.sh do that" {
+    # zz_use bootstrapping is centralized: dispatch.sh runs setup.sh once,
+    # up front, for every feature. Individual run.sh scripts (common/'s
+    # excepted - it's always sourced by a caller that already checked)
+    # just fail fast with a clear message if zz_use isn't already there,
+    # instead of each independently curling it.
     for f in "$REPO_ROOT"/*/run.sh; do
-        grep -q 'command -v zz_use >/dev/null 2>&1 || curl -fsSL "${VPS_SETUP_URL:-https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh}" | sh' "$f"
-        ! grep -q 'raw.githubusercontent.com/tomgrv/scripts' "$f"
+        name="$(basename "$(dirname "$f")")"
+        case "$name" in
+        common) continue ;;
+        esac
+        grep -q 'command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo'"'"'s setup.sh first' "$f"
+        ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$f"
     done
+}
+
+@test "dispatch.sh bootstraps zz_use once via setup.sh, not per-feature" {
+    grep -q 'sh "\$REPO_ROOT/setup.sh"' "$REPO_ROOT/dispatch.sh"
 }
 
 @test "setup.sh: parses as POSIX sh and delegates to tomgrv/scripts' own setup.sh" {

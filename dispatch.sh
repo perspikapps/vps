@@ -388,6 +388,12 @@ if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
 
+# Every feature's run.sh needs zz_use on PATH but no longer bootstraps it
+# itself (that would mean N curl calls instead of one) - install it once
+# here, before any feature runs, from the local checkout's own setup.sh
+# (already on disk at this point - see the checkout-detection above).
+command -v zz_use >/dev/null 2>&1 || sh "$REPO_ROOT/setup.sh"
+
 # ufw (security) only opens this repo's Tailscale-only services
 # (see this feature's own package.json) to the tailscale0 interface, so running the rest of
 # the install without Tailscale authenticated would leave all of them
