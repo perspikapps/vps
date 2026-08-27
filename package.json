@@ -1,6 +1,6 @@
 {
     "name": "vps-setup",
-    "version": "",
+    "version": "0.1.0",
     "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
