@@ -2,8 +2,12 @@
     "name": "@vps/rancher",
     "version": "1.0.0",
     "description": "Rancher install",
+    "bin": {
+        "rancher": "run.sh"
+    },
     "dependencies": {
-        "@vps/k3s": "*"
+        "@vps/k3s": "*",
+        "@vps/common": "*"
     },
     "private": true,
     "vps": {

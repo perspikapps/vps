@@ -461,8 +461,9 @@ Each feature is a small, self-contained npm workspace package:
 
 ```
 rancher/
-  package.json   # name, description, "vps": { "default": true|false },
-                 # and "dependencies": { "@vps/<other-feature>": "*" }
+  package.json   # name, description, "bin": { "rancher": "run.sh" },
+                 # "vps": { "default": true|false }, and
+                 # "dependencies": { "@vps/<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
 ```
 
@@ -479,10 +480,27 @@ depends on what) now lives in each feature's own `package.json` instead:
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
+    "bin": { "rancher": "run.sh" },
     "vps": { "order": 5, "default": true },
-    "dependencies": { "@vps/k3s": "*" }
+    "dependencies": { "@vps/k3s": "*", "@vps/common": "*" }
 }
 ```
+
+`"bin"` follows the same `{"<name>": "run.sh"}` convention
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
+scripts - what makes `zz_use perspikapps/vps/rancher` resolvable (see
+[Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
+below). `"dependencies"` always includes `@vps/common` (every feature
+sources it - see [Layout](#layout)), plus any other `@vps/<feature>` it
+needs; `dispatch.sh`'s own dependency reading (auto-enable,
+`--down-<step>` refusal) explicitly excludes `common`/`summary` from this
+field, since neither is an installable step.
+
+One name needs to differ from its folder for a different reason:
+`tailscale/`'s `"bin"` is `{"vps-tailscale": "run.sh"}`, not
+`{"tailscale": "run.sh"}` - `tailscale/run.sh` itself calls the real
+`tailscale` CLI internally, so giving it the bare name would let a
+`zz_use`-installed copy shadow the actual binary it depends on.
 
 Adding a new feature is: create `whatever/` with a
 `package.json` (following the shape above, with an `order` that places it
@@ -540,10 +558,10 @@ array (same file that carries `vps.default`/`dependencies` - see
 
 ```json
 {
-  "name": "rancher_http",
-  "port": 7080,
-  "access": "tailscale",
-  "note": "optional, becomes the ufw rule's comment"
+    "name": "rancher_http",
+    "port": 7080,
+    "access": "tailscale",
+    "note": "optional, becomes the ufw rule's comment"
 }
 ```
 
@@ -559,7 +577,7 @@ every `*/package.json` and builds ufw's rules from whatever it
 finds - there's no per-service ufw logic in that script at all, just a
 loop over that combined list. Every feature that binds a port itself
 (Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads its own default via
-`common/run.sh`'s `net_port()` helper (resolving its *own* package.json
+`common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
 automatically - see the function's comment for how `summary/run.sh`, which
 isn't any one feature, asks for another feature's port explicitly), so the
 port ufw opens and the port the app actually listens on can't drift apart.
@@ -840,7 +858,7 @@ issue with the exact command you ran and the last few lines of output.
 ## Tests
 
 ```sh
-npm install --global bats  # or: apt-get install bats
+npm install --global bats # or: apt-get install bats
 bats tests/
 ```
 

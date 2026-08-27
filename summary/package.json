@@ -2,6 +2,11 @@
     "name": "@vps/summary",
     "version": "1.0.0",
     "description": "Prints final connection info and credentials after a dispatch.sh run",
-    "dependencies": {},
+    "bin": {
+        "summary": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true
 }

@@ -2,6 +2,15 @@
     "name": "@vps/common",
     "version": "1.0.0",
     "description": "Shared bash helpers sourced by every feature's run.sh",
+    "bin": {
+        "common": "run.sh"
+    },
     "dependencies": {},
-    "private": true
+    "private": true,
+    "zzUse": {
+        "tomgrv/scripts": [
+            "zz_colors",
+            "zz_log"
+        ]
+    }
 }

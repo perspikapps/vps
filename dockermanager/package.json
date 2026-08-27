@@ -2,7 +2,12 @@
     "name": "@vps/dockermanager",
     "version": "1.0.0",
     "description": "cockpit-packagekit/files/dockermanager install",
-    "dependencies": {},
+    "bin": {
+        "dockermanager": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true,
     "vps": {
         "order": 6,

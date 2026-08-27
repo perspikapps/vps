@@ -2,7 +2,12 @@
     "name": "@vps/system",
     "version": "1.0.0",
     "description": "Base system update & essentials",
-    "dependencies": {},
+    "bin": {
+        "system": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true,
     "vps": {
         "order": 0,

@@ -2,7 +2,12 @@
     "name": "@vps/security",
     "version": "1.0.0",
     "description": "Firewall / SSH / fail2ban hardening",
-    "dependencies": {},
+    "bin": {
+        "security": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true,
     "vps": {
         "order": 1,

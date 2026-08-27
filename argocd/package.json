@@ -2,8 +2,12 @@
     "name": "@vps/argocd",
     "version": "1.0.0",
     "description": "ArgoCD install",
+    "bin": {
+        "argocd": "run.sh"
+    },
     "dependencies": {
-        "@vps/k3s": "*"
+        "@vps/k3s": "*",
+        "@vps/common": "*"
     },
     "private": true,
     "vps": {

@@ -24,3 +24,16 @@ zz_use perspikapps/vps/common
 `curl | sudo sh`, so every feature's own `run.sh` can rely on `zz_use`
 already being bootstrapped there too — but each `run.sh` still bootstraps
 `zz_use` itself first, for when it's run standalone.)
+
+## `package.json`
+
+Like every folder in this repo, `common/`'s `package.json` declares a
+`"bin"` entry (`{"common": "run.sh"}`) — the same convention
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
+scripts, and what `zz_use perspikapps/vps/common` relies on. Its real npm
+`"dependencies"` is empty: `zz_colors`/`zz_log` aren't npm-resolvable
+workspace members (they live in `tomgrv/scripts`, a separate repo,
+fetched at runtime by `zz_use` — not by `npm install`) — listing them
+there would break a plain `npm install`. They're documented instead under
+a `"zzUse"` field (`{"tomgrv/scripts": ["zz_colors", "zz_log"]}`), which
+`npm`/workspace tooling ignores.

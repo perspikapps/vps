@@ -2,7 +2,12 @@
     "name": "@vps/cockpit",
     "version": "1.0.0",
     "description": "Cockpit install",
-    "dependencies": {},
+    "bin": {
+        "cockpit": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true,
     "vps": {
         "order": 3,

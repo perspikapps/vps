@@ -2,7 +2,12 @@
     "name": "@vps/tailscale",
     "version": "1.0.0",
     "description": "Tailscale install",
-    "dependencies": {},
+    "bin": {
+        "vps-tailscale": "run.sh"
+    },
+    "dependencies": {
+        "@vps/common": "*"
+    },
     "private": true,
     "vps": {
         "order": 2,

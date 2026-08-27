@@ -135,7 +135,14 @@ list_feature_dirs() {
 feature_name() { pkg_str "$1/package.json" name | sed 's#^@vps/##'; }
 feature_desc() { pkg_str "$1/package.json" description; }
 feature_default() { pkg_bool "$1/package.json" default; }
-feature_deps() { pkg_deps "$1/package.json"; }
+feature_deps() {
+    # Every feature's package.json now declares "@vps/common" too (it's a
+    # real workspace dependency - see common/'s own README) - but common/
+    # isn't an installable step (list_feature_dirs excludes it), so it
+    # must never reach the auto-enable/down-refusal logic below as if it
+    # were one.
+    pkg_deps "$1/package.json" | grep -vxE 'common|summary'
+}
 
 feature_dir_for_name() {
   # $1=short name -> its directory, or nothing if unknown
