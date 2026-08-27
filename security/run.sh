@@ -9,7 +9,7 @@
 #
 # Every port this repo opens, and its public/Tailscale-only access, is
 # declared on the feature that owns it (its package.json's "vps.ports" -
-# see lib/common.sh's all_network_ports()), not centralized here - see
+# see common/run.sh's all_network_ports()), not centralized here - see
 # README.md's "Security model" section. Each port can still be overridden
 # for a single run via an env var named after it (e.g. RANCHER_HTTP_PORT).
 #
@@ -26,9 +26,12 @@
 #                         own package.json)
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! command -v zz_use >/dev/null 2>&1; then
+  curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh}" | sh
+fi
+zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../lib/common.sh"
+. common
 
 up() {
 require_root
@@ -127,7 +130,7 @@ ufw default deny incoming
 ufw default allow outgoing
 
 # Every port and its public/Tailscale-only access comes from its owning
-# feature's package.json ("vps.ports" - see lib/common.sh's
+# feature's package.json ("vps.ports" - see common/run.sh's
 # all_network_ports()); a port whose `name` there is e.g. "rancher_http"
 # can still be overridden for this run via RANCHER_HTTP_PORT, same as
 # every feature that opens that port for its own app.
@@ -139,7 +142,7 @@ while IFS=$'\t' read -r name pkg_port access note; do
       ufw allow "${port}/tcp" comment "${note:-$name}"
       ;;
     tailscale)
-      # Not reachable from the public internet until features/tailscale brings
+      # Not reachable from the public internet until tailscale brings
       # tailscale0 up.
       ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
       ;;

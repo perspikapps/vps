@@ -4,19 +4,23 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | sudo sh
 #
-# Every feature lives in its own npm workspace package under features/
-# (features/<name>/package.json + run.sh): its package.json declares
-# whether it runs by default (the "vps.default" field) and what it depends
-# on (the standard npm "dependencies" field, referencing other @vps/*
-# packages) - that's the single source of truth this script reads to build
-# its flags, its dependency graph, and its interactive menu.
+# Every feature lives in its own top-level npm workspace package
+# (<name>/package.json + run.sh, e.g. system/, k3s/, rancher/): its
+# package.json declares whether it runs by default (the "vps.default"
+# field) and what it depends on (the standard npm "dependencies" field,
+# referencing other @vps/* packages) - that's the single source of truth
+# this script reads to build its flags, its dependency graph, and its
+# interactive menu. Two special top-level folders aren't features: common/
+# (shared bash helpers every feature's run.sh sources via
+# `zz_use perspikapps/vps/common; . common`) and summary/ (the final
+# connection-info printout) - both excluded from feature discovery below.
 #
 # Deliberately POSIX /bin/sh, not bash: every VPS this targets has /bin/sh
 # before it has anything else, so the dispatcher itself has zero
 # dependencies beyond a shell and git/curl (which it bootstraps if
-# missing). Each feature's own run.sh is bash (lib/common.sh needs it) and
-# is invoked as a subprocess, never sourced, so this file never has to
-# parse bash-only syntax.
+# missing). Each feature's own run.sh is bash (it sources common/run.sh,
+# which needs it) and is invoked as a subprocess, never sourced, so this
+# file never has to parse bash-only syntax.
 
 set -eu
 
@@ -34,7 +38,7 @@ die() {
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-if [ -d "$SCRIPT_DIR/features" ]; then
+if [ -f "$SCRIPT_DIR/common/run.sh" ]; then
   # Already running from inside a full checkout (a dev working copy, CI, or
   # a re-exec from the bootstrap branch below) - use it directly, no clone.
   REPO_ROOT="$SCRIPT_DIR"
@@ -42,7 +46,7 @@ else
   # Standalone invocation: curl | sudo sh, or a lone downloaded copy of
   # just this file. Bootstrap by cloning/updating the full repo into
   # INSTALL_DIR, then re-exec dispatch.sh from there so everything below
-  # can assume features/ sits right next to this script.
+  # can assume the feature folders sit right next to this script.
   if [ "$(id -u)" -ne 0 ]; then
     die "This script must be run as root (use sudo)."
   fi
@@ -71,7 +75,7 @@ else
   exec sh "$INSTALL_DIR/dispatch.sh" "$@"
 fi
 
-FEATURES_DIR="$REPO_ROOT/features"
+FEATURES_DIR="$REPO_ROOT"
 cd "$REPO_ROOT"
 
 if [ ! -r /etc/os-release ]; then
@@ -111,12 +115,17 @@ pkg_deps() {
   ' "$1" | sed -n 's/^[[:space:]]*"@vps\/\([a-zA-Z0-9_-]*\)".*/\1/p'
 }
 
-# --- feature discovery: features/<name>/{package.json,run.sh}, in install
+# --- feature discovery: <name>/{package.json,run.sh}, in install
 # order - each package.json's "vps.order" (a plain integer) says where it
 # falls, since folder names carry no ordering of their own.
 
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
+    case "$(basename "${d%/}")" in
+    # common/ and summary/ are top-level packages too (so they resolve via
+    # `zz_use perspikapps/vps/<name>`), but aren't installable steps.
+    common | summary) continue ;;
+    esac
     if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
       printf '%s\t%s\n' "$(pkg_num "${d}package.json" order)" "${d%/}"
     fi
@@ -167,24 +176,24 @@ usage() {
   echo "Options:"
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --skip-%-14s Skip %s (features/%s)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --skip-%-14s Skip %s (%s/)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    [ "$(feature_default "$d")" = "false" ] && printf '  --with-%-14s Enable %s (features/%s) - opt-in, off by default\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    [ "$(feature_default "$d")" = "false" ] && printf '  --with-%-14s Enable %s (%s/) - opt-in, off by default\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --only-%-14s Run ONLY %s (features/%s)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --only-%-14s Run ONLY %s (%s/)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo "                        (repeat --only-* to run more than one step; any"
   echo "                        --only-* flag overrides all --skip-*/--with-* flags)"
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --down-%-14s Uninstall/disable %s (features/%s) instead of installing it\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --down-%-14s Uninstall/disable %s (%s/) instead of installing it\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   cat <<EOF
                         (repeat --down-* to remove more than one step in the
@@ -202,7 +211,7 @@ Dependencies:$(for n in $ALL_NAMES; do d=$(feature_dir_for_name "$n"); deps=$(fe
 (enabling a step auto-enables what it needs; --down-<step> is refused while
 a dependent step is still enabled).
 
-Every feature lives in its own workspace package: features/<name>/
+Every feature lives in its own workspace package: <name>/
 (package.json declares its default/dependencies, run.sh is its up()/down()
 script). See README.md's "Key environment variables" section for the full
 env var list (each feature's package.json for ports specifically).
@@ -372,7 +381,7 @@ if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
 
-# ufw (features/security) only opens this repo's Tailscale-only services
+# ufw (security) only opens this repo's Tailscale-only services
 # (see this feature's own package.json) to the tailscale0 interface, so running the rest of
 # the install without Tailscale authenticated would leave all of them
 # unreachable. Refuse to proceed rather than silently produce a VPS
@@ -419,4 +428,4 @@ for name in $ALL_NAMES; do
   esac
 done
 
-bash "$REPO_ROOT/lib/summary.sh"
+bash "$REPO_ROOT/summary/run.sh"

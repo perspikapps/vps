@@ -29,7 +29,17 @@
     },
     "private": true,
     "workspaces": [
-        "features/*"
+        "argocd",
+        "cockpit",
+        "common",
+        "dockermanager",
+        "epinio",
+        "k3s",
+        "rancher",
+        "security",
+        "summary",
+        "system",
+        "tailscale"
     ],
     "prettier": {
         "insertPragma": true,

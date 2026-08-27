@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Shared helpers sourced by every feature's run.sh under features/.
-# Style borrows from devcontainers/features common-utils: strict mode,
-# idempotent "already done" checks, non-interactive apt, plain logging.
+# Shared helpers sourced (via `zz_use perspikapps/vps/common; . common`) by
+# every feature's run.sh, each living in its own top-level folder
+# (<name>/package.json + run.sh). Style borrows from devcontainers/features
+# common-utils: strict mode, idempotent "already done" checks,
+# non-interactive apt, plain logging.
 
 set -euo pipefail
 
@@ -90,30 +92,30 @@ VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Every port this repo opens - and whether it's public or Tailscale-only -
 # lives under its owning feature's own package.json, in a "vps.ports"
-# array (see any of features/*/package.json for the shape). There's no
+# array (see any of */package.json for the shape). There's no
 # longer a single network.yaml: each feature owns the ports it binds.
 
 # Resolve a feature's package.json from its short name (e.g. "cockpit" ->
-# features/cockpit/package.json), by matching package.json's "name"
+# cockpit/package.json), by matching package.json's "name"
 # field ("@vps/cockpit"). Used by net_port/net_access when a caller needs
-# another feature's ports (see lib/summary.sh); every other caller omits
+# another feature's ports (see summary/run.sh); every other caller omits
 # the second argument and gets its own package.json for free (below).
 feature_package_json() {
   local feature="$1" d
-  for d in "$VPS_SETUP_ROOT"/features/*/; do
+  for d in "$VPS_SETUP_ROOT"/*/; do
     if [[ -f "${d}package.json" ]] && jq -e --arg n "@vps/${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
       printf '%s' "${d}package.json"
       return 0
     fi
   done
-  die "Unknown feature '${feature}' (no features/*/package.json with name @vps/${feature})."
+  die "Unknown feature '${feature}' (no */package.json with name @vps/${feature})."
 }
 
 # Look up a port/access value from a feature's package.json ("vps.ports"),
 # by its `name` field. With no $2, resolves the *calling script's own*
-# package.json (features/<name>/package.json, right next to run.sh) -
+# package.json (<name>/package.json, right next to run.sh) -
 # pass a feature name explicitly only when looking up another feature's
-# port (e.g. lib/summary.sh reading cockpit's port from outside cockpit's
+# port (e.g. summary/run.sh reading cockpit's port from outside cockpit's
 # own run.sh). Every caller should still layer its own env var override on
 # top, e.g.:
 #   RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
@@ -138,11 +140,11 @@ net_access() {
 }
 
 # Every port across every feature, as name/port/access/note TSV rows -
-# used by features/security/run.sh to build ufw's rules generically,
+# used by security/run.sh to build ufw's rules generically,
 # without needing to know which feature owns which port.
 all_network_ports() {
   local f
-  for f in "$VPS_SETUP_ROOT"/features/*/package.json; do
+  for f in "$VPS_SETUP_ROOT"/*/package.json; do
     jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$f"
   done
 }
@@ -164,7 +166,7 @@ ensure_line() {
 }
 
 # Install cert-manager if it isn't already on the cluster, and reuse it
-# as-is if it is - shared by features/rancher/run.sh and features/epinio/run.sh,
+# as-is if it is - shared by rancher/run.sh and epinio/run.sh,
 # whichever of the two runs first (order doesn't matter; the other then
 # just reuses this same installation). Respects CERT_MANAGER_VERSION.
 ensure_cert_manager() {
@@ -185,11 +187,11 @@ ensure_cert_manager() {
     --wait --timeout 5m
 }
 
-# Generic up/down dispatcher for every features/*/run.sh. Each script defines an
+# Generic up/down dispatcher for every */run.sh. Each script defines an
 # up() function (its existing install logic) and, where meaningful, a
 # down() function (teardown), then finishes with:
 #   dispatch_action "$@"
-# Defaults to "up" so `bash features/<name>/run.sh` with no argument behaves
+# Defaults to "up" so `bash <name>/run.sh` with no argument behaves
 # exactly as it did before up/down actions existed.
 dispatch_action() {
   local action="${1:-up}"

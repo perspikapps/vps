@@ -1,0 +1,7 @@
+{
+    "name": "@vps/common",
+    "version": "1.0.0",
+    "description": "Shared bash helpers sourced by every feature's run.sh",
+    "dependencies": {},
+    "private": true
+}

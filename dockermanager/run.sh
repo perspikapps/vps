@@ -5,7 +5,7 @@
 # a Docker container/image management tab to Cockpit.
 #
 # cockpit-dockermanager needs an actual Docker daemon to talk to - this repo
-# otherwise only sets up containerd via k3s (features/k3s/run.sh), so this
+# otherwise only sets up containerd via k3s (k3s/run.sh), so this
 # script also installs docker.io unless INSTALL_DOCKER=false.
 #
 # Env vars:
@@ -17,9 +17,12 @@
 #                                     to avoid picking up unexpected updates.
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! command -v zz_use >/dev/null 2>&1; then
+  curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh}" | sh
+fi
+zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../lib/common.sh"
+. common
 
 up() {
 require_root
