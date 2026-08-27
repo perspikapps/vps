@@ -1,6 +1,7 @@
 {
     "name": "vps-setup",
     "version": "",
+    "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
         "update": "npm-check-updates -i -u",
@@ -29,7 +30,17 @@
     },
     "private": true,
     "workspaces": [
-        "features/*"
+        "argocd",
+        "cockpit",
+        "common",
+        "dockermanager",
+        "epinio",
+        "k3s",
+        "rancher",
+        "security",
+        "summary",
+        "system",
+        "vps-tailscale"
     ],
     "prettier": {
         "insertPragma": true,

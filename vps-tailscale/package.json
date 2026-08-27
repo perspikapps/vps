@@ -1,0 +1,16 @@
+{
+    "name": "@tomgrv/vps-tailscale",
+    "version": "1.0.0",
+    "description": "Tailscale install",
+    "bin": {
+        "vps-tailscale": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-common": "*"
+    },
+    "private": true,
+    "vps": {
+        "order": 2,
+        "default": true
+    }
+}
