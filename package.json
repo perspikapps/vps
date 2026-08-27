@@ -1,6 +1,7 @@
 {
     "name": "vps-setup",
     "version": "",
+    "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
         "update": "npm-check-updates -i -u",

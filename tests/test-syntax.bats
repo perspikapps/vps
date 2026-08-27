@@ -40,14 +40,20 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "dispatch.sh bootstraps zz_use once via setup.sh, not per-feature" {
-    grep -q 'sh "\$REPO_ROOT/setup.sh"' "$REPO_ROOT/dispatch.sh"
+@test "dispatch.sh bootstraps zz_use once via setup.sh, not per-feature, forwarding args" {
+    grep -q 'exec sh "\$REPO_ROOT/setup.sh" "\$@"' "$REPO_ROOT/dispatch.sh"
 }
 
-@test "setup.sh: parses as POSIX sh and delegates to tomgrv/scripts' own setup.sh" {
+@test "setup.sh: parses as POSIX sh, delegates to tomgrv/scripts' own setup.sh, then execs this repo's main" {
     run sh -n "$REPO_ROOT/setup.sh"
     [ "$status" -eq 0 ]
     grep -q 'raw.githubusercontent.com/tomgrv/scripts' "$REPO_ROOT/setup.sh"
+    grep -q '"main"' "$REPO_ROOT/setup.sh"
+}
+
+@test "package.json declares dispatch.sh as \"main\" (setup.sh's exec target)" {
+    run node -e "const p = require('$REPO_ROOT/package.json'); if (p.main !== 'dispatch.sh') process.exit(1)"
+    [ "$status" -eq 0 ]
 }
 
 @test "every feature folder has a package.json with a name and vps.order" {

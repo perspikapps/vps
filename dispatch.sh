@@ -61,6 +61,8 @@ if [ "${ID:-}" != "ubuntu" ]; then
   die "This script targets Ubuntu only (detected: ${ID:-unknown})."
 fi
 
+command -v zz_use >/dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
+
 pkg_str() {
   sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$1" | head -n1
 }
@@ -323,8 +325,6 @@ fi
 if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
-
-command -v zz_use >/dev/null 2>&1 || sh "$REPO_ROOT/setup.sh"
 
 if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
   warn "TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." \

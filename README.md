@@ -394,16 +394,22 @@ entirely - there's no `sudo` involved.
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
 - `setup.sh` - installs `zz_use` (from
-  [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`. A
-  thin wrapper, deliberately: `zz_use` itself isn't this repo's script, so
-  duplicating its own `setup.sh`'s bin-dir/linking logic here would just
-  be a second copy to keep in sync. `dispatch.sh` runs it once, up front;
-  every feature's own `run.sh` no longer bootstraps `zz_use` itself (that
-  would mean one `curl` per feature instead of one total) - it just fails
-  fast with a one-line message pointing here if `zz_use` isn't already on
-  `PATH` when run standalone. Pin the `tomgrv/scripts` ref with
-  `ZZ_SCRIPTS_REF` (default `main`), or bootstrap from a fork entirely with
-  `ZZ_SCRIPTS_SETUP_URL` (a full `setup.sh` URL). See
+  [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
+  execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
+  if it's sitting next to `setup.sh` in a local checkout, forwarding every
+  arg through - so `curl .../setup.sh | sh -s -- --only-rancher` works the
+  same as calling `dispatch.sh` directly. A thin wrapper, deliberately:
+  `zz_use` itself isn't this repo's script, so duplicating its own
+  `setup.sh`'s bin-dir/linking logic here would just be a second copy to
+  keep in sync. `dispatch.sh` runs it once, up front, itself falling back
+  to `setup.sh` (and exec'ing back into itself) the same way if `zz_use`
+  isn't on `PATH` yet; every feature's own `run.sh` no longer bootstraps
+  `zz_use` itself (that would mean one `curl` per feature instead of one
+  total) - it just fails fast with a one-line message pointing here if
+  `zz_use` isn't already on `PATH` when run standalone. Pin the
+  `tomgrv/scripts` ref with `ZZ_SCRIPTS_REF` (default `main`), or bootstrap
+  from a fork entirely with `ZZ_SCRIPTS_SETUP_URL` (a full `setup.sh` URL).
+  See
   [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
 [<every top-level folder>]`); ties every feature package together for
@@ -910,14 +916,17 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    [One folder per feature](#one-folder-per-feature) above for why that
    distinction matters, e.g. `vps-tailscale/`).
 2. **A root `setup.sh`** that installs `zz_use` (from
-   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH` -
-   copy this repo's `setup.sh` verbatim and swap `perspikapps/vps` for
-   your own `org/repo` in its comments (the script itself doesn't
-   hardcode that - it only needs the `tomgrv/scripts` URL). Your
-   dispatcher (this repo's `dispatch.sh`, or whatever entry point runs
-   every script in sequence) runs it **once**, up front:
+   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
+   execs your `package.json`'s `"main"` field (falling back to a root
+   `main.sh`, or just stopping if neither exists) - copy this repo's
+   `setup.sh` verbatim; it doesn't hardcode `perspikapps/vps` anywhere, it
+   only needs the `tomgrv/scripts` URL and a `"main"`/`main.sh` next to
+   itself. Your dispatcher (this repo's `dispatch.sh`, or whatever entry
+   point runs every script in sequence) is that `"main"` target, and runs
+   `setup.sh` **once**, up front, forwarding its own args back into itself
+   on the way out:
     ```sh
-    command -v zz_use > /dev/null 2>&1 || sh "$REPO_ROOT/setup.sh"
+    command -v zz_use > /dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
     ```
     Individual scripts don't bootstrap `zz_use` themselves - that would
     mean one `curl` per script instead of one total, exactly the
