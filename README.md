@@ -399,15 +399,19 @@ entirely - there's no `sudo` involved.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `dispatch.sh` unattended on first boot.
 - `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
-  every feature's `run.sh` (style borrowed from `devcontainers/features`
-  common-utils: strict bash mode, non-interactive apt, "already done"
-  checks); `net_port`/`net_access`/`all_network_ports` for reading each
-  feature's own `package.json` port declarations - see
+  every feature's `run.sh` (strict bash mode, non-interactive apt,
+  "already done" checks); `net_port`/`net_access`/`all_network_ports` for
+  reading each feature's own `package.json` port declarations - see
   [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
-  feature's `up`/`down` actions. This is bash, not POSIX sh - every
-  `run.sh` is invoked by `dispatch.sh` as a `bash` subprocess, never
-  sourced from the sh dispatcher itself.
+  feature's `up`/`down` actions. Colors and leveled logging
+  (`log`/`ok`/`warn`/`die`) delegate to `zz_colors`/`zz_log` from
+  [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same core
+  shared with `tomgrv/devcontainer-features`' common-utils feature -
+  bootstrapped on first source via its `setup.sh` if not already on
+  `PATH`. This is bash, not POSIX sh - every `run.sh` is invoked by
+  `dispatch.sh` as a `bash` subprocess, never sourced from the sh
+  dispatcher itself.
 - `lib/summary.sh` - prints connection info, the Tailscale URL, and the
   Cockpit/Rancher/ArgoCD/Epinio credentials at the end of a run.
 - `features/system/` - apt update/upgrade, base tooling, unattended

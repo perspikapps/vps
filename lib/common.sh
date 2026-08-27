@@ -5,16 +5,24 @@
 
 set -euo pipefail
 
-COLOR_RED=$'\033[0;31m'
-COLOR_GREEN=$'\033[0;32m'
-COLOR_YELLOW=$'\033[0;33m'
-COLOR_BLUE=$'\033[0;34m'
-COLOR_RESET=$'\033[0m'
+# Colors and leveled logging are shared with tomgrv/devcontainer-features'
+# common-utils via https://github.com/tomgrv/scripts (zz_colors/zz_log) -
+# bootstrap zz_use from there if it isn't already on PATH (it is, on every
+# run after the first: zz_use installs it into a persistent bin dir). By
+# the time any feature's run.sh sources this, dispatch.sh has already
+# cloned the repo and confirmed we're root, so network + write access are
+# both already given.
+if ! command -v zz_use >/dev/null 2>&1; then
+  curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh}" | sh
+fi
+zz_use zz_colors zz_log
+# shellcheck disable=SC1091
+. zz_colors
 
-log()  { printf '%s[vps-setup]%s %s\n' "$COLOR_BLUE" "$COLOR_RESET" "$*"; }
-ok()   { printf '%s[vps-setup]%s %s\n' "$COLOR_GREEN" "$COLOR_RESET" "$*"; }
-warn() { printf '%s[vps-setup]%s %s\n' "$COLOR_YELLOW" "$COLOR_RESET" "$*" >&2; }
-die()  { printf '%s[vps-setup]%s %s\n' "$COLOR_RED" "$COLOR_RESET" "$*" >&2; exit 1; }
+log()  { zz_log i "[vps-setup] $*"; }
+ok()   { zz_log s "[vps-setup] $*"; }
+warn() { zz_log w "[vps-setup] $*"; }
+die()  { zz_log e "[vps-setup] $*"; exit 1; }
 
 # Under `set -e`, an unguarded command failing (anything not part of an
 # if/while/&&/||) kills the script immediately with only whatever *that
@@ -25,9 +33,7 @@ die()  { printf '%s[vps-setup]%s %s\n' "$COLOR_RED" "$COLOR_RESET" "$*" >&2; exi
 # so every script sourcing common.sh gets this diagnostic for free.
 _vps_setup_on_error() {
   local exit_code=$?
-  printf '%s[vps-setup]%s ERROR: command failed (exit %s) at %s line %s: %s\n' \
-    "$COLOR_RED" "$COLOR_RESET" "$exit_code" \
-    "${BASH_SOURCE[1]:-$0}" "${BASH_LINENO[0]:-?}" "$BASH_COMMAND" >&2
+  zz_log e "[vps-setup] ERROR: command failed (exit ${exit_code}) at ${BASH_SOURCE[1]:-$0} line ${BASH_LINENO[0]:-?}: ${BASH_COMMAND}"
 }
 trap _vps_setup_on_error ERR
 
