@@ -1,0 +1,19 @@
+# @format
+apiVersion: v2
+name: argocd
+description: ArgoCD for GitOps-managed deployments, wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: '3.x'
+icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+keywords:
+    - gitops
+    - continuous-delivery
+    - kubernetes
+home: https://argo-cd.readthedocs.io/
+sources:
+    - https://github.com/argoproj/argo-helm
+dependencies:
+    - name: argo-cd
+      version: '>=7.0.0'
+      repository: https://argoproj.github.io/argo-helm

@@ -1,0 +1,43 @@
+# @format
+# Values here are passed straight through to the upstream `argo-cd`
+# chart under the `argo-cd:` key (Helm's standard subchart-values
+# convention). Defaults below mirror what this repo's old
+# `argocd/run.sh` used to `--set` on a plain VPS install - adapt them
+# for your own cluster before installing from the Rancher UI.
+#
+# Upstream chart's full value reference:
+# https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
+
+argo-cd:
+    server:
+        service:
+            # The VPS bootstrapper exposed this via k3s's built-in ServiceLB
+            # (LoadBalancer) rebound to a fixed Tailscale-only port. On a
+            # normal cluster, ClusterIP + your own Ingress is usually the
+            # better choice - change this to fit how you expose apps here.
+            type: LoadBalancer
+
+        # server.insecure=true: the server talks plain HTTP on its own
+        # port rather than terminating TLS itself. Only safe if something
+        # in front of it (an Ingress, a service mesh, or - as on the VPS -
+        # nothing but a Tailscale-only network boundary) is handling
+        # transport security instead. Set to false and put a proper
+        # Ingress with TLS in front of it for a production install.
+        extraArgs:
+            - --insecure
+
+        # Uncomment and set a host to get an Ingress instead of a bare
+        # LoadBalancer/ClusterIP service:
+        # ingress:
+        #   enabled: true
+        #   ingressClassName: traefik
+        #   hostname: argocd.example.com
+
+    # No SSO/dex - this repo's default install only used ArgoCD's
+    # built-in admin login. Enable dex.enabled/configure an SSO provider
+    # if you want one.
+    dex:
+        enabled: false
+
+    notifications:
+        enabled: false

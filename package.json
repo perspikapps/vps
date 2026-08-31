@@ -30,12 +30,11 @@
     },
     "private": true,
     "workspaces": [
-        "argocd",
         "cockpit",
         "common",
         "dockermanager",
-        "epinio",
         "k3s",
+        "marketplace",
         "rancher",
         "security",
         "summary",

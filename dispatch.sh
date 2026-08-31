@@ -328,7 +328,7 @@ fi
 
 if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
   warn "TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." \
-    "Cockpit, Rancher, ArgoCD, the Traefik dashboard, and the k3s API" \
+    "Cockpit, Rancher, the Traefik dashboard, and the k3s API" \
     "are reachable ONLY over Tailscale (see README's Security model) -" \
     "continuing without it would leave all of them unreachable once ufw" \
     "locks the box down. Either:" \
