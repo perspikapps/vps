@@ -132,7 +132,7 @@ ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASH
 down() {
   require_root
   if [[ -x /usr/local/bin/k3s-uninstall.sh ]]; then
-    zz_log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, ArgoCD, Epinio, etc.)..."
+    zz_log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, any Marketplace-installed apps, etc.)..."
     /usr/local/bin/k3s-uninstall.sh
   else
     zz_log w "[vps-setup] k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."

@@ -12,8 +12,6 @@ COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-$(net_port cockpit_https cockpit)}"
 RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http rancher)}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https rancher)}"
 TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-$(net_port traefik_dashboard k3s)}"
-ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-$(net_port argocd_http argocd)}"
-ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-$(net_port argocd_https argocd)}"
 
 TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
 HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
@@ -25,12 +23,7 @@ COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not s
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$HOST_FOR_URLS}"
 RANCHER_PASSWORD="$(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run rancher/run.sh')"
 
-ARGOCD_PASSWORD="$(cat /root/.argocd-admin-password 2>/dev/null || echo 'not set - run argocd/run.sh')"
-
 NODE_PUBLIC_IP="$(hostname -I | awk '{print $1}')"
-
-EPINIO_DOMAIN="${EPINIO_DOMAIN:-${NODE_PUBLIC_IP}.sslip.io}"
-EPINIO_PASSWORD="$(cat /root/.epinio-admin-password 2>/dev/null || echo 'not set - run epinio/run.sh')"
 
 cat <<EOF
 
@@ -67,28 +60,20 @@ cat <<EOF
                        dashboard: http://${HOST_FOR_URLS}:${TRAEFIK_DASHBOARD_PORT}/dashboard/
                        (Tailscale-only, no login - see README's Security model)
 
- ArgoCD:              https://${HOST_FOR_URLS}:${ARGOCD_HTTPS_PORT}
-                       (also on plain port ${ARGOCD_HTTP_PORT})
-                       user:     admin
-                       password: ${ARGOCD_PASSWORD}
-                       (saved to /root/.argocd-admin-password; GitOps
-                       deployments for the k3s cluster - see README)
-
- Epinio:              https://epinio.${EPINIO_DOMAIN}
-                       user:     admin
-                       password: ${EPINIO_PASSWORD}
-                       (saved to /root/.epinio-admin-password; deploy an
-                       app from source with: epinio push - see README.
-                       Public via Traefik like any Ingress, not
-                       Tailscale-only - gated by this login, not ufw)
+ Marketplace:         Apps & Marketplace -> Repositories in Rancher should
+                       list "perspikapps-vps" (registered by the
+                       marketplace step) - install ArgoCD, Epinio, or any
+                       other chart from this repo's catalog from
+                       Apps & Marketplace -> Charts. See README's
+                       "Rancher Marketplace" section.
 
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
-                       this VPS's ingress, and so is Epinio, routed through
-                       it). Cockpit, Rancher, the Traefik dashboard, ArgoCD,
-                       and the k3s API are reachable ONLY over the
-                       tailscale0 interface - connect via Tailscale first.
+                       this VPS's ingress). Cockpit, Rancher, the Traefik
+                       dashboard, and the k3s API are reachable ONLY over
+                       the tailscale0 interface - connect via Tailscale
+                       first.
 ======================================================================
 EOF
