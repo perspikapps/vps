@@ -62,7 +62,7 @@ if [ "${ID:-}" != "ubuntu" ]; then
 fi
 
 # --- package.json reading, via jq. Installed on demand (see ensure_jq)
-# rather than assumed present, since this runs before features/system (the
+# rather than assumed present, since this runs before system (the
 # step that would otherwise install it) on a totally fresh box.
 
 ensure_jq() {
@@ -122,7 +122,7 @@ for d in $(list_feature_dirs); do
   ALL_NAMES="$ALL_NAMES $(feature_name "$d")"
 done
 
-# set/ask/run - see lib/dispatch-steps.sh's own header comment.
+# set/ask/run - see summary/dispatch-steps.sh's own header comment.
 # shellcheck disable=SC1091
 . "$REPO_ROOT/summary/dispatch-steps.sh"
 
