@@ -33,7 +33,7 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 ## Running a single step (or a subset)
 
 `dispatch.sh` runs ten feature folders, in the order each one's
-`package.json` declares (`config.order` - see
+`package.json` declares (`vps.order` - see
 [One folder per feature](#one-folder-per-feature)): `system`, `security`,
 `tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
 `dockermanager`, `argocd`, `epinio`, and `github-arc`. All of them run by
@@ -97,7 +97,7 @@ sudo sh /tmp/dispatch.sh --with-argocd
 
 This is equivalent to (and a convenience wrapper around) invoking a
 feature's own script directly, as shown in [Layout](#layout) below -
-`--only-rancher` just means "run `features/rancher/run.sh` through
+`--only-rancher` just means "run `rancher/run.sh` through
 `dispatch.sh`'s usual repo clone/update, dependency resolution, and final
 summary, instead of calling it by hand." Because every feature's script
 is idempotent, re-running a single step to pick up a changed env var
@@ -106,10 +106,10 @@ is idempotent, re-running a single step to pick up a changed env var
 
 ### Dependencies between steps
 
-Every feature is its own npm workspace package under `features/<name>/`,
+Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
-source of truth for what it needs - `features/rancher/package.json`
-declares `"@vps/k3s": "*"`, so do `argocd`'s, `epinio`'s, and
+source of truth for what it needs - `rancher/package.json`
+declares `"@tomgrv/vps-k3s": "*"`, as do `argocd`'s, `epinio`'s, and
 `github-arc`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
@@ -216,8 +216,8 @@ run it without going through `dispatch.sh` (e.g. from an existing
 `/opt/vps-setup` checkout):
 
 ```bash
-sudo bash features/argocd/run.sh down
-sudo bash features/argocd/run.sh up # same as calling it with no argument
+sudo bash argocd/run.sh down
+sudo bash argocd/run.sh up # same as calling it with no argument
 ```
 
 ## Full copy-paste example
@@ -249,8 +249,8 @@ tailnet. Save the printed Rancher bootstrap password (also written to
 
 The one-liner above always fetches `dispatch.sh` from `main`, but
 `dispatch.sh` itself clones the whole repo again (into `VPS_SETUP_DIR`) to
-get `features/*` - so to test a branch end-to-end you need to point _both_
-fetches at it with `VPS_SETUP_REPO_REF`.
+get every feature folder - so to test a branch end-to-end you need to
+point _both_ fetches at it with `VPS_SETUP_REPO_REF`.
 
 > [!WARNING]
 > **`export FOO=bar` then `... | sudo sh` will NOT work.** `sudo` resets
@@ -353,7 +353,7 @@ Tailscale admin console:
 3. Copy the `tskey-auth-...` value into `TAILSCALE_AUTHKEY`.
 
 Docs: [Tailscale - Auth keys](https://tailscale.com/kb/1085/auth-keys).
-Without this variable, `features/tailscale/run.sh` still installs Tailscale;
+Without this variable, `vps-tailscale/run.sh` still installs Tailscale;
 just run `tailscale up` manually afterwards and follow the login link.
 
 **Rancher bootstrap password** (for `RANCHER_BOOTSTRAP_PASSWORD`) - any
@@ -363,7 +363,7 @@ string works; generate a random one with:
 openssl rand -base64 24
 ```
 
-If you don't set it, `features/rancher/run.sh` generates and saves one for
+If you don't set it, `rancher/run.sh` generates and saves one for
 you automatically.
 
 **GitHub App credentials** (for `GITHUB_ARC_APP_ID`,
@@ -414,72 +414,107 @@ entirely - there's no `sudo` involved.
 
 - `dispatch.sh` - leading script, deliberately **plain POSIX `/bin/sh`**
   (see [One folder per feature](#one-folder-per-feature) for why): clones/
-  updates this repo, ensures `jq` is installed (`ensure_jq` - on demand,
-  since this runs before `features/system`, the step that would otherwise
-  install it, on a totally fresh box), discovers every
-  `features/*/package.json` with it, resolves which steps run (flags, the
+  updates this repo, ensures `jq` is installed on demand, discovers every
+  `*/package.json`, resolves which steps run (flags, the
   [interactive menu](#interactive-menu), and
   [dependencies read straight from each package.json](#dependencies-between-steps)),
+  bootstraps `zz_use` once via `setup.sh` (not per-feature - see below),
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
-- `lib/dispatch-steps.sh` - also plain POSIX `/bin/sh`, sourced by
+- `summary/dispatch-steps.sh` - also plain POSIX `/bin/sh`, sourced by
   `dispatch.sh` once it knows its own repo root: the three per-step
   operations `dispatch.sh` drives on each feature - `state_get`/`state_set`
   (up/skip/down, per [Removing a feature](#removing-a-feature-updown-per-step)),
   `ask_missing_inputs` (see
   [Interactive input prompts](#interactive-input-prompts-each-features-own-packagejson)),
-  and `run_step` (invokes `features/<name>/run.sh up|down` as a `bash`
+  and `run_step` (invokes `<name>/run.sh up|down` as a `bash`
   subprocess). Split out so the root script stays focused on flag parsing,
   the menu, and dependency resolution.
+- `setup.sh` - installs `zz_use` (from
+  [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
+  execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
+  if it's sitting next to `setup.sh` in a local checkout, forwarding every
+  arg through - so `sh setup.sh --only-rancher` from an existing checkout
+  works the same as calling `dispatch.sh` directly. Piped straight from
+  `curl` with no local checkout (`curl .../setup.sh | sh -s -- ...`), there's
+  no `package.json` next to the running script to find, so it only
+  bootstraps `zz_use` and stops - use `dispatch.sh`'s own one-liner (which
+  clones the repo first) for that case. A thin wrapper, deliberately:
+  `zz_use` itself isn't this repo's script, so duplicating its own
+  `setup.sh`'s bin-dir/linking logic here would just be a second copy to
+  keep in sync. `dispatch.sh` runs it once, up front, itself falling back
+  to `setup.sh` (and exec'ing back into itself) the same way if `zz_use`
+  isn't on `PATH` yet; every feature's own `run.sh` no longer bootstraps
+  `zz_use` itself (that would mean one `curl` per feature instead of one
+  total) - it just fails fast with a one-line message pointing here if
+  `zz_use` isn't already on `PATH` when run standalone. Pin the
+  `tomgrv/scripts` ref with `ZZ_SCRIPTS_REF` (default `main`), or bootstrap
+  from a fork entirely with `ZZ_SCRIPTS_SETUP_URL` (a full `setup.sh` URL).
+  See
+  [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
-["features/*"]`); ties every feature package together for tooling
-  (`npm install`, `npm ls`, lint-staged, commitlint's workspace-scope
-  rules) without dispatch.sh itself needing npm/node at all.
+[<every top-level folder>]`); ties every feature package together for
+  tooling (`npm install`, `npm ls`, lint-staged, commitlint's
+  workspace-scope rules) without dispatch.sh itself needing npm/node at
+  all.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `dispatch.sh` unattended on first boot.
-- `lib/common.sh` - shared logging/retry/idempotency helpers sourced by
-  every feature's `run.sh` (style borrowed from `devcontainers/features`
-  common-utils: strict bash mode, non-interactive apt, "already done"
-  checks); `net_port`/`net_access`/`all_network_ports` for reading each
-  feature's own `package.json` port declarations - see
+- `common/` - shared logging/retry/idempotency helpers sourced by every
+  feature's `run.sh` (strict bash mode, non-interactive apt, "already
+  done" checks); `net_port`/`net_access`/`all_network_ports` for reading
+  each feature's own `package.json` port declarations - see
   [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
-  feature's `up`/`down` actions. This is bash, not POSIX sh - every
-  `run.sh` is invoked by `dispatch.sh` as a `bash` subprocess, never
-  sourced from the sh dispatcher itself.
-- `lib/summary.sh` - prints connection info, the Tailscale URL, and the
-  Cockpit/Rancher/ArgoCD/Epinio credentials at the end of a run.
-- `features/system/` - apt update/upgrade, base tooling, unattended
+  feature's `up`/`down` actions. Colors and leveled logging
+  (`log`/`ok`/`warn`/`die`) delegate to `zz_colors`/`zz_log` from
+  [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same core
+  shared with `tomgrv/devcontainer-features`' common-utils feature -
+  bootstrapped on first source via its `setup.sh` if not already on
+  `PATH`. This is bash, not POSIX sh - every `run.sh` is invoked by
+  `dispatch.sh` as a `bash` subprocess, never sourced from the sh
+  dispatcher itself. Like every feature, `common/` is a top-level
+  `<name>/{package.json,run.sh}` folder in this repo, laid out the same
+  way [`tomgrv/scripts`](https://github.com/tomgrv/scripts) lays out its
+  own scripts - which is what lets `zz_use` fetch and install it (or any
+  feature) directly from this repo, from anywhere:
+  `zz_use perspikapps/vps/common`. It isn't an installable step itself,
+  though - `dispatch.sh`'s feature discovery skips it (and `summary/`)
+  explicitly.
+- `summary/` - prints connection info, the Tailscale URL, and the
+  Cockpit/Rancher/ArgoCD/Epinio credentials at the end of a run. Also its
+  own top-level `zz_use`-installable folder, also excluded from feature
+  discovery.
+- `system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
-- `features/security/` - optional non-root admin user, ufw
+- `security/` - optional non-root admin user, ufw
   (default-deny inbound, rules generated from every feature's own
   `package.json` port declarations: SSH and Traefik's 80/443 public,
   everything else Tailscale-only), sshd hardening, fail2ban, and a
   Cockpit/console login password.
-- `features/tailscale/` - installs Tailscale, enables `tailscaled` as a
+- `vps-tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
-- `features/cockpit/` - installs Cockpit, served on ports 9080/9083.
-- `features/k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
+- `cockpit/` - installs Cockpit, served on ports 9080/9083.
+- `k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
   configures Traefik as a public HTTP/HTTPS ingress with a Let's Encrypt
   certResolver and a Tailscale-only dashboard - see
   [Traefik ingress](#traefik-ingress-lets-encrypt-and-the-dashboard).
-- `features/rancher/` - installs cert-manager (required by Rancher's
+- `rancher/` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
   Helm, exposed on ports 7080/7083 through k3s's built-in ServiceLB.
   Depends on `k3s` (see its `package.json`).
-- `features/dockermanager/` - installs `cockpit-packagekit`,
+- `dockermanager/` - installs `cockpit-packagekit`,
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
-- `features/argocd/` - installs ArgoCD via Helm for GitOps-managed
+- `argocd/` - installs ArgoCD via Helm for GitOps-managed
   deployments onto the k3s cluster, exposed on ports 7090/7093 through
   k3s's built-in ServiceLB. Opt-in; depends on `k3s`.
-- `features/epinio/` - installs [Epinio](https://epinio.io) via Helm
+- `epinio/` - installs [Epinio](https://epinio.io) via Helm
   for deploying apps straight from source, routed through Traefik's
   existing ingress rather than a dedicated port - see
   [Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
   Opt-in; depends on `k3s`.
-- `features/github-arc/` - installs GitHub Actions Runner Controller
+- `github-arc/` - installs GitHub Actions Runner Controller
   (ARC) via Helm, registering self-hosted runners against a GitHub org
   or repo - see
   [GitHub Actions Runner Controller (ARC)](#github-actions-runner-controller-arc).
@@ -490,58 +525,106 @@ entirely - there's no `sudo` involved.
 Each feature is a small, self-contained npm workspace package:
 
 ```
-features/rancher/
-  package.json   # name, description, "config": { "default": true|false },
-                 # and "dependencies": { "@vps/<other-feature>": "*" }
+rancher/
+  package.json   # name, description, "bin": { "rancher": "run.sh" },
+                 # "vps": { "default": true|false }, and
+                 # "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
 ```
 
-Folder names carry no ordering (`features/rancher/`, not
-`features/05-rancher/`) - install order is a plain integer,
-`package.json`'s `config.order`, and `dispatch.sh` sorts by that instead of
+Folder names carry no ordering (`rancher/`, not
+`05-rancher/`) - install order is a plain integer,
+`package.json`'s `vps.order`, and `dispatch.sh` sorts by that instead of
 by folder name. Everything that used to live in `setup.sh`'s
 hand-maintained bash tables (label, install order, default on/off, what
-depends on what) now lives in each feature's own `package.json` instead,
-under `config` - npm's own reserved top-level `package.json` field for
-package-specific settings (see
-[the npm docs](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#config)),
-rather than a made-up field name a schema validator wouldn't recognize:
+depends on what) now lives in each feature's own `package.json`, under
+`vps`:
 
 ```json
 {
-    "name": "@vps/rancher",
+    "name": "@tomgrv/vps-rancher",
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
-    "config": { "order": 5, "default": true },
-    "dependencies": { "@vps/k3s": "*" }
+    "bin": { "rancher": "run.sh" },
+    "vps": { "order": 5, "default": true },
+    "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
 }
 ```
 
-Adding a new feature is: create `features/whatever/` with a
+`"bin"` follows the same `{"<name>": "run.sh"}` convention
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
+scripts - what makes `zz_use perspikapps/vps/rancher` resolvable (see
+[Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
+below). `"dependencies"` always includes `@tomgrv/vps-common` (every feature
+sources it - see [Layout](#layout)), plus any other `@tomgrv/vps-<feature>` it
+needs; `dispatch.sh`'s own dependency reading (auto-enable,
+`--down-<step>` refusal) explicitly excludes `common`/`summary` from this
+field, since neither is an installable step.
+
+One folder is named differently from its own feature for exactly this
+reason: `vps-tailscale/`, not `tailscale/` - its `run.sh` calls the real
+`tailscale` CLI internally, and `zz_use` has no notion of `"bin"` at all
+(it always installs `<name>/run.sh` under the literal folder name `<name>`
+it was asked for) - `zz_use perspikapps/vps/tailscale` would install this
+feature's own script as `tailscale`, shadowing the actual binary it
+depends on. Its `package.json`'s `"name"` field is still `"@tomgrv/vps-tailscale"`
+though (that's what `dispatch.sh` reads - CLI flags like `--only-tailscale`
+are unaffected), so only the folder (and therefore the `zz_use`/`"bin"`
+identity) differs from every other feature's own name.
+
+Adding a new feature is: create `whatever/` with a
 `package.json` (following the shape above, with an `order` that places it
 where you want in the install sequence) and a `run.sh` (`up()`/`down()` +
 `dispatch_action "$@"` at the end, same as any other feature - see
-`lib/common.sh`). `dispatch.sh` picks it up automatically; nothing else
-needs editing. Removing a feature is deleting its folder.
+`common/`). `dispatch.sh` picks it up automatically; add it to root
+`package.json`'s `"workspaces"` array too. Removing a feature is deleting
+its folder (and that array entry).
 
-The root `package.json`'s `"workspaces": ["features/*"]` registers every
+The root `package.json`'s `"workspaces"` array registers every
 feature as an npm workspace member, so standard npm tooling (`npm ls`,
 `npm install`, the repo's existing lint-staged/commitlint config, which
 already referenced `@commitlint/config-workspace-scopes`) understands the
-dependency graph too - `package-lock.json` resolves `@vps/rancher`'s
-`@vps/k3s` dependency like any other workspace package. `dispatch.sh`
+dependency graph too - `package-lock.json` resolves `@tomgrv/vps-rancher`'s
+`@tomgrv/vps-k3s` dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
-[Layout](#layout)) and reads each `package.json`'s `dependencies`/`config`
+[Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
 fields with `jq` - installed on demand (`ensure_jq`) if missing, since
-this runs before `features/system` (the step that would otherwise install
+this runs before `system` (the step that would otherwise install
 it) on a totally fresh box.
+
+### Running a single feature via `zz_use`, without this repo at all
+
+Because every feature is a top-level `<name>/run.sh` folder - the same
+layout [`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its
+own scripts - `zz_use` (from that repo) can fetch and install any one of
+them directly, from any machine, without cloning this repo or running
+`dispatch.sh`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
+command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq  # common/run.sh needs it
+zz_use perspikapps/vps/rancher
+sudo rancher up
+```
+
+`zz_use`'s `[org/repo/]<tool>[@ref]` syntax resolves `perspikapps/vps` as
+the origin and `rancher` as the script, downloads this repo (cached
+locally after the first call, per-origin/ref - see
+[`tomgrv/scripts`'s README](https://github.com/tomgrv/scripts#caching-zz_update-and-pinning-an-originref)),
+and symlinks `rancher/run.sh` onto `PATH` as `rancher`. Since every
+feature's own `run.sh` in turn fetches `common/run.sh` from this same
+repo the same way, a feature installed this way works exactly like it
+would through `dispatch.sh` - it just skips discovery, ordering,
+dependency auto-enable, and the interactive menu, so you're responsible
+for running any features it depends on yourself first (see
+[Dependencies between steps](#dependencies-between-steps)).
 
 ## Network config (each feature's own `package.json`)
 
 Every port this repo opens, and whether it's public or Tailscale-only, is
-declared on the feature that owns it, in its `package.json`'s `config.ports`
-array (same file that carries `config.default`/`dependencies` - see
+declared on the feature that owns it, in its `package.json`'s `vps.ports`
+array (same file that carries `vps.default`/`dependencies` - see
 [One folder per feature](#one-folder-per-feature)). Each entry looks like:
 
 ```json
@@ -553,20 +636,20 @@ array (same file that carries `config.default`/`dependencies` - see
 }
 ```
 
-(`access` is `"tailscale"` or `"public"`.) `features/rancher/package.json`
-carries `rancher_http`/`rancher_https`, `features/k3s/package.json`
+(`access` is `"tailscale"` or `"public"`.) `rancher/package.json`
+carries `rancher_http`/`rancher_https`, `k3s/package.json`
 carries `http`/`https`/`traefik_dashboard`, and so on - each feature's own
 `run.sh` is what actually binds the port, so its declaration lives right
 next to the code that uses it instead of a separate central file.
 
-`features/security/run.sh` doesn't know about any of that port detail
-itself: it calls `lib/common.sh`'s `all_network_ports()`, which scans
-every `features/*/package.json` and builds ufw's rules from whatever it
+`security/run.sh` doesn't know about any of that port detail
+itself: it calls `common/run.sh`'s `all_network_ports()`, which scans
+every `*/package.json` and builds ufw's rules from whatever it
 finds - there's no per-service ufw logic in that script at all, just a
 loop over that combined list. Every feature that binds a port itself
 (Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads its own default via
-`lib/common.sh`'s `net_port()` helper (resolving its _own_ package.json
-automatically - see the function's comment for how `lib/summary.sh`, which
+`common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
+automatically - see the function's comment for how `summary/run.sh`, which
 isn't any one feature, asks for another feature's port explicitly), so the
 port ufw opens and the port the app actually listens on can't drift apart.
 
@@ -583,15 +666,15 @@ alongside everything else npm already parses.
 
 ## Interactive input prompts (each feature's own `package.json`)
 
-Every feature's `package.json` also declares `config.inputs` and
-`config.outputs`, in the same shape as a
+Every feature's `package.json` also declares `vps.inputs` and
+`vps.outputs`, in the same shape as a
 [GitHub composite action's `inputs:`/`outputs:`](https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#inputs)
 
 - except each input's key IS the env var its own `run.sh` reads (no
   separate id-to-env-var mapping to keep in sync):
 
 ```json
-"config": {
+"vps": {
     "inputs": {
         "TAILSCALE_AUTHKEY": {
             "description": "Auth key to auto-join a tailnet",
@@ -608,7 +691,7 @@ Every feature's `package.json` also declares `config.inputs` and
 ```
 
 Before running any enabled step, `dispatch.sh` walks every "up" step's
-`config.inputs` and, for each one not already set in the environment, prompts
+`vps.inputs` and, for each one not already set in the environment, prompts
 for it on stdin - showing its `description` and `default` (empty **Enter**
 accepts the default, or leaves an optional var unset). This only happens
 on an actual terminal (`[ -t 0 ]`): the piped one-liner
@@ -627,13 +710,13 @@ by an earlier prompt) is never re-asked.
 This runs early enough that answering the prompt for a required var (like
 `TAILSCALE_AUTHKEY` above) also satisfies the dedicated
 [tailscale guard](#security-model) further down - you're not asked twice.
-`config.outputs` is documentation only (what a feature produces and, where
+`vps.outputs` is documentation only (what a feature produces and, where
 meaningful, where it's saved - e.g. `/root/.rancher-bootstrap-password`);
 nothing currently reads it back programmatically.
 
 Adding a new input to a feature is a `package.json` edit plus reading the
 matching env var in that feature's `run.sh` - no change to `dispatch.sh`
-itself (its `pkg_input_*` helpers read `config.inputs` generically via
+itself (its `pkg_input_*` helpers read `vps.inputs` generically via
 `jq`).
 
 ## Security model
@@ -660,7 +743,7 @@ sh dispatch.sh --only-tailscale`).
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
-`features/k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
+`k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
 disabling it, as you'll see suggested in some k3s+Rancher guides) and
 configures it as this VPS's public ingress via a `HelmChartConfig` -
 k3s's own mechanism for overriding a bundled chart's values, watched
@@ -704,7 +787,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 ## Cockpit, Rancher, and ArgoCD logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
-  password - separate from SSH, which stays key-only. `features/security/run.sh`
+  password - separate from SSH, which stays key-only. `security/run.sh`
   sets a password for `VPS_ADMIN_USER` (or `root` if that's unset): either
   `VPS_ADMIN_PASSWORD` if you set it, or a random one saved to
   `/root/.cockpit-admin-password` (username in `/root/.cockpit-admin-user`).
@@ -723,8 +806,8 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 Opt-in - pass `--with-argocd` (or `--only-argocd`) to install it; it
 doesn't run on a plain `dispatch.sh` with no flags.
 
-`features/argocd/run.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
-via the `argo/argo-cd` Helm chart onto the k3s cluster from `features/k3s`,
+`argocd/run.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
+via the `argo/argo-cd` Helm chart onto the k3s cluster from `k3s`,
 a natural pairing with Rancher for cluster management (see
 [this write-up](https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view)
 on running the two together). It's exposed on `ARGOCD_HTTP_PORT`/
@@ -752,15 +835,15 @@ Point ArgoCD at your Git repos and `Application` manifests the usual way
   and reachable.
 
 Both credentials, along with the Tailscale IP/URL to reach them on, are
-printed by `lib/summary.sh` at the end of the install (and any time
-you re-run it: `sudo bash /opt/vps-setup/lib/summary.sh`).
+printed by `summary/run.sh` at the end of the install (and any time
+you re-run it: `sudo bash /opt/vps-setup/summary/run.sh`).
 
 ## Epinio (deploy apps from source)
 
 Opt-in - pass `--with-epinio` (or `--only-epinio`) to install it; it
 doesn't run on a plain `dispatch.sh` with no flags.
 
-`features/epinio/run.sh` installs [Epinio](https://epinio.io) - "from app to
+`epinio/run.sh` installs [Epinio](https://epinio.io) - "from app to
 URL in one command" - via the official `epinio/epinio` Helm chart, per
 [the getting-started guide](https://docs.epinio.io/getting-started/install-epinio)
 (mirrored here from [the chart repo's own README](https://github.com/epinio/helm-charts),
@@ -773,7 +856,7 @@ chart's ingress-class settings (its own server, deployed apps, and its
 internal container registry) rather than relying on Traefik just
 happening to be k3s's default IngressClass; and cert-manager, installed
 only if not already present - the same idempotent check
-`features/rancher/run.sh` uses, so it reuses Rancher's cert-manager if that
+`rancher/run.sh` uses, so it reuses Rancher's cert-manager if that
 step ran, or installs its own if you skipped Rancher.
 
 Unlike Cockpit/Rancher/ArgoCD, Epinio doesn't get a dedicated port: it
@@ -807,7 +890,7 @@ login, not by `ufw` (see [Security model](#security-model)).
 --only-epinio` (helm resumes the same release without re-pulling cached
   images), or set `EPINIO_INSTALL_TIMEOUT` higher first.
 
-The login and dashboard URL are printed by `lib/summary.sh` like
+The login and dashboard URL are printed by `summary/run.sh` like
 every other step's credentials.
 
 ## GitHub Actions Runner Controller (ARC)
@@ -815,7 +898,7 @@ every other step's credentials.
 Opt-in - pass `--with-github-arc` (or `--only-github-arc`) to install it;
 it doesn't run on a plain `dispatch.sh` with no flags.
 
-`features/github-arc/run.sh` installs
+`github-arc/run.sh` installs
 [GitHub Actions Runner Controller](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started)
 (ARC) via its two official Helm charts - the controller
 (`gha-runner-scale-set-controller`) and a runner scale set
@@ -850,7 +933,7 @@ sudo GITHUB_ARC_CONFIG_URL=https://github.com/perspikapps/vps \
 ```
 
 Check on it with `kubectl -n github get autoscalingrunnersets` and
-`kubectl -n github get pods`; `lib/summary.sh` reports whether it's
+`kubectl -n github get pods`; `summary/run.sh` reports whether it's
 installed like every other step.
 
 ## Key environment variables
@@ -902,34 +985,39 @@ Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the
 ingress itself is always 80/443, per HTTP/HTTPS convention, not part of
 this scheme.
 
-Each feature's `run.sh` can also be run standalone from within a checkout
-(it finds `lib/common.sh` via `../../lib/common.sh`, so it needs to stay
-inside its `features/<name>/` folder) - this is what `dispatch.sh
---only-<step>`, described in
-[Running a single step (or a subset)](#running-a-single-step-or-a-subset)
-above, does for you - for example to re-run just the Rancher install
-with a new hostname:
+Each feature's `run.sh` can also be run standalone, from within a
+checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
+`setup.sh`'s job, run once - see [Layout](#layout)); it just fetches
+`common/run.sh` from this repo via `zz_use perspikapps/vps/common` if
+`zz_use` is already on `PATH`, and fails fast with a one-line message
+pointing at `setup.sh` if it isn't:
 
-```bash
-sudo RANCHER_HOSTNAME=new.example.com bash features/rancher/run.sh
+```sh
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+sudo RANCHER_HOSTNAME=new.example.com bash rancher/run.sh
 ```
+
+This is what `dispatch.sh --only-<step>`, described in
+[Running a single step (or a subset)](#running-a-single-step-or-a-subset)
+above, does for you (and bootstraps `zz_use` for, once, up front, for
+every step - not per-feature).
 
 Every `run.sh` also takes an explicit `up` or `down` action as its first
 argument (`up` is the default, so the invocation above is really `...
-bash features/rancher/run.sh up`) - see
+bash rancher/run.sh up`) - see
 [Removing a feature](#removing-a-feature-updown-per-step) for what each
 step's `down` does.
 
 ## Troubleshooting: a step fails or "just stops"
 
-Every script runs under `set -euo pipefail` and sources `lib/common.sh`,
+Every script runs under `set -euo pipefail` and sources `common/run.sh`,
 which installs an error trap: the first command that fails without being
 explicitly handled (i.e. not part of an `if`/`&&`/`||`) prints its exact
 file, line number, and the failing command, then the script exits. For
 example:
 
 ```
-[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/features/rancher/run.sh line 52: helm upgrade --install rancher ...
+[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/rancher/run.sh line 52: helm upgrade --install rancher ...
 ```
 
 When a step fails during a full `dispatch.sh` run, it also prints which
@@ -937,14 +1025,95 @@ numbered step failed and how to re-run just that one after fixing the
 issue:
 
 ```
-[vps-setup] Step 'Rancher install' (06-rancher.sh) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-rancher
+[vps-setup] Step 'Rancher install' (rancher/run.sh up) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-rancher
 ```
 
 If you ever see a step stop with truly no output at all (not even its own
 first `log` line), that most often means a _prerequisite_ step was
 skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
-`features/rancher/run.sh`, `features/argocd/run.sh`, and `features/epinio/run.sh`
+`rancher/run.sh`, `argocd/run.sh`, and `epinio/run.sh`
 all check for `kubectl`/`helm` explicitly and `die` with a clear message
 in that case; if you hit a silent stop anywhere else, please open an
 issue with the exact command you ran and the last few lines of output.
+
+## Tests
+
+```sh
+npm install --global bats # or: apt-get install bats
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
+bats tests/
+```
+
+Covers script syntax (`sh -n`/`bash -n` on every `run.sh`/`dispatch.sh`),
+the `zz_use`/`common` wiring every `run.sh` is expected to have, and
+`common/run.sh`'s pure logic (`net_port`, `net_access`,
+`all_network_ports`, `feature_package_json`, `dispatch_action`) against a
+small fixture tree. The features themselves (apt/Helm/k3s installs) need
+a live root Ubuntu box to actually test, so that part of this repo has no
+automated coverage.
+
+## Replicating this pattern in another repo
+
+This repo, [`tomgrv/devcontainer-features`](https://github.com/tomgrv/devcontainer-features)'
+`common-utils` feature, and [`tomgrv/scripts`](https://github.com/tomgrv/scripts)
+itself all share the same shape - a repo that's both a normal codebase
+and a `zz_use`-installable source of scripts. Adopting it elsewhere:
+
+1. **One top-level folder per script**, each an npm workspace package:
+   `<name>/package.json` + `<name>/run.sh` (+ optionally `README.md`,
+   `test.bats`, `config/`). This is the one hard requirement -
+   `zz_use org/repo/<name>` only works if `<name>/run.sh` sits directly
+   under the repo root. `package.json` needs at minimum a `"name"` and
+   `"bin": {"<name>": "run.sh"}` (the latter is for `npm`/workspace
+   tooling only - `zz_use` itself always installs under the literal
+   folder name requested, never reads `"bin"` - see
+   [One folder per feature](#one-folder-per-feature) above for why that
+   distinction matters, e.g. `vps-tailscale/`).
+2. **A root `setup.sh`** that installs `zz_use` (from
+   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
+   execs your `package.json`'s `"main"` field (falling back to a root
+   `main.sh`, or just stopping if neither exists) - copy this repo's
+   `setup.sh` verbatim; it doesn't hardcode `perspikapps/vps` anywhere, it
+   only needs the `tomgrv/scripts` URL and a `"main"`/`main.sh` next to
+   itself. Your dispatcher (this repo's `dispatch.sh`, or whatever entry
+   point runs every script in sequence) is that `"main"` target, and runs
+   `setup.sh` **once**, up front, forwarding its own args back into itself
+   on the way out:
+    ```sh
+    command -v zz_use > /dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
+    ```
+    Individual scripts don't bootstrap `zz_use` themselves - that would
+    mean one `curl` per script instead of one total, exactly the
+    duplication a root `setup.sh` exists to avoid. They just fail fast if
+    it's somehow still missing (e.g. run standalone, outside the
+    dispatcher):
+    ```sh
+    command -v zz_use > /dev/null 2>&1 || {
+        echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh | sh" >&2
+        exit 1
+    }
+    ```
+    Never embed the `tomgrv/scripts` URL directly in more than one place.
+3. **A shared `common/` folder** (or whatever you'd call it) for logic
+   more than one script needs - not a "core" script itself, just another
+   `<name>/run.sh` folder, sourced via
+   `zz_use <org>/<repo>/common; . common` rather than a relative
+   `source ../lib/common.sh`, so it resolves the same way whether a
+   script runs from a local checkout, standalone, or `zz_use`-installed
+   from anywhere. Exclude it (and anything else that's shared logic
+   rather than an installable unit, like this repo's `summary/`) from
+   whatever discovers your installable units by convention - see
+   `dispatch.sh`'s `list_feature_dirs()`/`feature_deps()` here for how
+   this repo does it.
+4. **Root `package.json`**: an npm workspaces root listing every folder
+   explicitly (not a glob - see [tomgrv/scripts](https://github.com/tomgrv/scripts)'s
+   own `package.json` for the same convention), so `npm install`/`npm ls`
+   understand the whole graph and `zz_use`-resolvable folders that
+   reference each other as real `"dependencies"` (`@<org>/<repo>-<name>`
+   here) actually work.
+5. **Tests**: `sh -n`/`bash -n` every script at minimum; `bats` for
+   anything with pure logic worth covering (see `tests/` here). Anything
+   that genuinely needs a live target system (this repo's own apt/Helm/k3s
+   installs) won't have automated coverage from within the repo alone -
+   say so rather than skipping the question.

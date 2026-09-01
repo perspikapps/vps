@@ -1,0 +1,34 @@
+{
+    "name": "@tomgrv/vps-tailscale",
+    "version": "1.0.0",
+    "description": "Tailscale install",
+    "bin": {
+        "vps-tailscale": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-common": "*"
+    },
+    "private": true,
+    "vps": {
+        "order": 2,
+        "default": true,
+        "inputs": {
+            "PURGE_TAILSCALE": {
+                "description": "Also remove the tailscale package on down (true/false)",
+                "required": false,
+                "default": "false"
+            },
+            "TAILSCALE_AUTHKEY": {
+                "description": "Auth key to auto-join a tailnet",
+                "required": true,
+                "default": ""
+            },
+            "TAILSCALE_EXTRA_ARGS": {
+                "description": "Extra flags appended to tailscale up",
+                "required": false,
+                "default": ""
+            }
+        },
+        "outputs": {}
+    }
+}

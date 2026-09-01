@@ -1,0 +1,67 @@
+{
+    "name": "@tomgrv/vps-rancher",
+    "version": "1.0.0",
+    "description": "Rancher install",
+    "bin": {
+        "rancher": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-k3s": "*",
+        "@tomgrv/vps-common": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": true,
+        "inputs": {
+            "CERT_MANAGER_VERSION": {
+                "description": "Pin cert-manager's chart version",
+                "required": false,
+                "default": ""
+            },
+            "RANCHER_BOOTSTRAP_PASSWORD": {
+                "description": "Initial admin password",
+                "required": false,
+                "default": ""
+            },
+            "RANCHER_CHART_VERSION": {
+                "description": "Pin a chart version",
+                "required": false,
+                "default": ""
+            },
+            "RANCHER_HOSTNAME": {
+                "description": "FQDN/IP used in Rancher's self-signed cert",
+                "required": false,
+                "default": ""
+            },
+            "RANCHER_HTTPS_PORT": {
+                "description": "Rancher HTTPS port",
+                "required": false,
+                "default": "7083"
+            },
+            "RANCHER_HTTP_PORT": {
+                "description": "Rancher HTTP port",
+                "required": false,
+                "default": "7080"
+            }
+        },
+        "order": 5,
+        "outputs": {
+            "RANCHER_BOOTSTRAP_PASSWORD_FILE": {
+                "description": "Path to the saved Rancher bootstrap password",
+                "value": "/root/.rancher-bootstrap-password"
+            }
+        },
+        "ports": [
+            {
+                "name": "rancher_http",
+                "port": 7080,
+                "access": "tailscale"
+            },
+            {
+                "name": "rancher_https",
+                "port": 7083,
+                "access": "tailscale"
+            }
+        ]
+    }
+}

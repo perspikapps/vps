@@ -4,20 +4,7 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | sudo sh
 #
-# Every feature lives in its own npm workspace package under features/
-# (features/<name>/package.json + run.sh): its package.json declares
-# whether it runs by default (the "config.default" field) and what it depends
-# on (the standard npm "dependencies" field, referencing other @vps/*
-# packages) - that's the single source of truth this script reads to build
-# its flags, its dependency graph, and its interactive menu, via jq (see
-# ensure_jq below, which installs it before it's first needed if missing).
-#
-# Deliberately POSIX /bin/sh, not bash: every VPS this targets has /bin/sh
-# before it has anything else, so the dispatcher itself has zero
-# dependencies beyond a shell, git/curl, and jq (all bootstrapped if
-# missing). Each feature's own run.sh is bash (lib/common.sh needs it) and
-# is invoked as a subprocess, never sourced, so this file never has to
-# parse bash-only syntax.
+# See README.md for the full flag/env var reference.
 
 set -eu
 
@@ -35,15 +22,9 @@ die() {
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-if [ -d "$SCRIPT_DIR/features" ]; then
-  # Already running from inside a full checkout (a dev working copy, CI, or
-  # a re-exec from the bootstrap branch below) - use it directly, no clone.
+if [ -f "$SCRIPT_DIR/common/run.sh" ]; then
   REPO_ROOT="$SCRIPT_DIR"
 else
-  # Standalone invocation: curl | sudo sh, or a lone downloaded copy of
-  # just this file. Bootstrap by cloning/updating the full repo into
-  # INSTALL_DIR, then re-exec dispatch.sh from there so everything below
-  # can assume features/ sits right next to this script.
   if [ "$(id -u)" -ne 0 ]; then
     die "This script must be run as root (use sudo)."
   fi
@@ -55,10 +36,6 @@ else
   fi
   if [ -d "$INSTALL_DIR/.git" ]; then
     log "Updating existing checkout in $INSTALL_DIR..."
-    # A one-off `fetch origin <ref>` populates FETCH_HEAD but does NOT
-    # create/update a remote-tracking ref like origin/<ref> (that only
-    # happens with the repo's configured fetch refspec) - so reset against
-    # FETCH_HEAD directly, which works for branches, tags, and commit SHAs.
     git -C "$INSTALL_DIR" fetch --depth 1 origin "$REPO_REF"
     git -C "$INSTALL_DIR" checkout -q -B "$REPO_REF" FETCH_HEAD
     git -C "$INSTALL_DIR" reset --hard FETCH_HEAD
@@ -72,7 +49,7 @@ else
   exec sh "$INSTALL_DIR/dispatch.sh" "$@"
 fi
 
-FEATURES_DIR="$REPO_ROOT/features"
+FEATURES_DIR="$REPO_ROOT"
 cd "$REPO_ROOT"
 
 if [ ! -r /etc/os-release ]; then
@@ -100,36 +77,38 @@ ensure_jq() {
 ensure_jq
 
 pkg_input_names() {
-  # $1=file -> env var names (one per line), the keys of "config.inputs" -
+  # $1=file -> env var names (one per line), the keys of "vps.inputs" -
   # same shape as a GitHub composite action's "inputs:", except each key IS
   # the env var name run.sh reads.
-  jq -r '(.config.inputs // {}) | keys[]' "$1"
+  jq -r '(.vps.inputs // {}) | keys[]' "$1"
 }
 
-pkg_input_description() { jq -r --arg n "$2" '.config.inputs[$n].description // empty' "$1"; }
-pkg_input_required() { jq -r --arg n "$2" '.config.inputs[$n].required // false' "$1"; }
-pkg_input_default() { jq -r --arg n "$2" '.config.inputs[$n].default // empty' "$1"; }
+pkg_input_description() { jq -r --arg n "$2" '.vps.inputs[$n].description // empty' "$1"; }
+pkg_input_required() { jq -r --arg n "$2" '.vps.inputs[$n].required // false' "$1"; }
+pkg_input_default() { jq -r --arg n "$2" '.vps.inputs[$n].default // empty' "$1"; }
 
-# --- feature discovery: features/<name>/{package.json,run.sh}, in install
-# order - each package.json's "config.order" (a plain integer) says where it
+# --- feature discovery: <name>/{package.json,run.sh}, in install
+# order - each package.json's "vps.order" (a plain integer) says where it
 # falls, since folder names carry no ordering of their own.
-
+command -v zz_use >/dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
+    case "$(basename "${d%/}")" in
+    common | summary) continue ;;
+    esac
     if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
-      printf '%s\t%s\n' "$(jq -r '.config.order' "${d}package.json")" "${d%/}"
+      printf '%s\t%s\n' "$(jq -r '.vps.order' "${d}package.json")" "${d%/}"
     fi
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { jq -r '.name | sub("^@vps/"; "")' "$1/package.json"; }
+feature_name() { jq -r '.name | sub("^@tomgrv/vps-"; "")' "$1/package.json"; }
 feature_desc() { jq -r '.description' "$1/package.json"; }
-feature_default() { jq -r '.config.default' "$1/package.json"; }
-feature_deps() { jq -r '(.dependencies // {}) | keys[] | select(startswith("@vps/")) | sub("^@vps/"; "")' "$1/package.json"; }
+feature_default() { jq -r '.vps.default' "$1/package.json"; }
+feature_deps() { jq -r '(.dependencies // {}) | keys[] | select(startswith("@tomgrv/vps-")) | sub("^@tomgrv/vps-"; "")' "$1/package.json" | grep -vxE 'common|summary'; }
 feature_inputs() { pkg_input_names "$1/package.json"; }
 
 feature_dir_for_name() {
-  # $1=short name -> its directory, or nothing if unknown
   for d in $(list_feature_dirs); do
     [ "$(feature_name "$d")" = "$1" ] && printf '%s\n' "$d" && return 0
   done
@@ -145,7 +124,7 @@ done
 
 # set/ask/run - see lib/dispatch-steps.sh's own header comment.
 # shellcheck disable=SC1091
-. "$REPO_ROOT/lib/dispatch-steps.sh"
+. "$REPO_ROOT/summary/dispatch-steps.sh"
 
 for name in $ALL_NAMES; do
   d=$(feature_dir_for_name "$name")
@@ -165,24 +144,24 @@ usage() {
   echo "Options:"
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --skip-%-14s Skip %s (features/%s)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --skip-%-14s Skip %s (%s/)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    [ "$(feature_default "$d")" = "false" ] && printf '  --with-%-14s Enable %s (features/%s) - opt-in, off by default\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    [ "$(feature_default "$d")" = "false" ] && printf '  --with-%-14s Enable %s (%s/) - opt-in, off by default\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --only-%-14s Run ONLY %s (features/%s)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --only-%-14s Run ONLY %s (%s/)\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   echo "                        (repeat --only-* to run more than one step; any"
   echo "                        --only-* flag overrides all --skip-*/--with-* flags)"
   echo
   for name in $ALL_NAMES; do
     d=$(feature_dir_for_name "$name")
-    printf '  --down-%-14s Uninstall/disable %s (features/%s) instead of installing it\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
+    printf '  --down-%-14s Uninstall/disable %s (%s/) instead of installing it\n' "$name" "$(feature_desc "$d")" "$(basename "$d")"
   done
   cat <<EOF
                         (repeat --down-* to remove more than one step in the
@@ -200,15 +179,12 @@ Dependencies:$(for n in $ALL_NAMES; do d=$(feature_dir_for_name "$n"); deps=$(fe
 (enabling a step auto-enables what it needs; --down-<step> is refused while
 a dependent step is still enabled).
 
-Every feature lives in its own workspace package: features/<name>/
+Every feature lives in its own workspace package: <name>/
 (package.json declares its default/dependencies, run.sh is its up()/down()
 script). See README.md's "Key environment variables" section for the full
 env var list (each feature's package.json for ports specifically).
 EOF
 }
-
-# --- interactive menu: no args, on a real terminal (curl | sudo sh pipes
-# the script itself into stdin, so it never reaches here).
 
 run_menu() {
   while true; do
@@ -254,8 +230,6 @@ run_menu() {
     esac
   done
 }
-
-# --- flag parsing
 
 ONLY_LIST=""
 for arg in "$@"; do
@@ -313,22 +287,15 @@ for arg in "$@"; do
   esac
 done
 
-# No flags at all, and a human is actually watching (not curl | sudo sh,
-# which pipes the script itself into stdin): offer the interactive menu.
 if [ "$#" -eq 0 ] && [ -t 0 ]; then
   run_menu
 fi
 
-# Any --only-<step> flag overrides everything else: start from "skip
-# everything" and re-enable just the requested step(s).
 if [ -n "$ONLY_LIST" ]; then
   for name in $ALL_NAMES; do state_set "$name" skip; done
   for name in $ONLY_LIST; do state_set "$name" up; done
 fi
 
-# Enabling a step auto-enables whatever it depends on. Three passes covers
-# this repo's dependency depth; loop until stable to stay correct if a
-# deeper chain is ever added.
 pass=0
 while [ "$pass" -lt 3 ]; do
   changed=0
@@ -347,9 +314,6 @@ while [ "$pass" -lt 3 ]; do
   pass=$((pass + 1))
 done
 
-# A step going down while another still-enabled step depends on it would
-# leave that dependent step broken - refuse unless --force-down says
-# otherwise.
 if [ "$FORCE_DOWN" -ne 1 ]; then
   for name in $ALL_NAMES; do
     [ "$(state_get "$name")" = "down" ] || continue
@@ -371,10 +335,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Ask for any input every enabled ("up") step declares that isn't already
-# set in the environment - see lib/dispatch-steps.sh's ask_missing_inputs.
+# set in the environment - see summary/dispatch-steps.sh's ask_missing_inputs.
 ask_missing_inputs
 
-# ufw (features/security) only opens this repo's Tailscale-only services
+# ufw (security) only opens this repo's Tailscale-only services
 # (see this feature's own package.json) to the tailscale0 interface, so running the rest of
 # the install without Tailscale authenticated would leave all of them
 # unreachable. Refuse to proceed rather than silently produce a VPS
@@ -408,4 +372,4 @@ for name in $ALL_NAMES; do
   esac
 done
 
-bash "$REPO_ROOT/lib/summary.sh"
+bash "$REPO_ROOT/summary/run.sh"
