@@ -1,7 +1,6 @@
 {
     "name": "vps-setup",
     "version": "0.1.0",
-    "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
         "test": "bats --recursive .",
@@ -38,7 +37,7 @@
         "vps-marketplace",
         "vps-rancher",
         "vps-security",
-        "vps-summary",
+        "vps-setup",
         "vps-system",
         "vps-tailscale"
     ],

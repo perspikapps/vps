@@ -1,9 +1,9 @@
 {
-    "name": "@tomgrv/vps-summary",
+    "name": "@tomgrv/vps-setup",
     "version": "1.0.0",
-    "description": "Prints final connection info and credentials after a dispatch.sh run",
+    "description": "Interactive/flag-driven orchestrator: runs every step, then prints the final connection summary",
     "bin": {
-        "vps-summary": "run.sh"
+        "vps-setup": "run.sh"
     },
     "dependencies": {
         "@tomgrv/vps-common": "*"

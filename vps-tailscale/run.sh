@@ -25,7 +25,7 @@ systemctl is-active --quiet tailscaled || { zz_log e "[vps-setup] tailscaled is 
 ok "tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
 if [[ -z "${TAILSCALE_AUTHKEY:-}" ]]; then
-  zz_log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo sh dispatch.sh --only-tailscale"
+  zz_log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
   exit 0
 fi
 

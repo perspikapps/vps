@@ -1,14 +1,13 @@
 #!/bin/sh
-# set/ask/run: the three per-step operations dispatch.sh drives - kept in
-# their own file so the root script stays focused on flag parsing, the
-# menu, and dependency resolution. POSIX /bin/sh, same as dispatch.sh
-# itself: sourced only after the bootstrap clone (see dispatch.sh) has put
-# this file on disk, so it's never needed by the curl | sh bootstrap path.
+# set/ask/run: the three per-step operations vps-setup/run.sh drives -
+# kept in their own file so that script stays focused on flag parsing,
+# the menu, and dependency resolution. POSIX /bin/sh, same as run.sh
+# itself.
 #
-# Expects log/warn/die, ALL_NAMES, feature_dir_for_name, feature_desc,
-# feature_inputs, and pkg_input_* (all defined earlier in dispatch.sh) to
-# already be in scope - this file only adds functions, so sourcing it
-# early (before any of those run) is fine.
+# Expects zz_log/ok (from vps-common), ALL_NAMES, feature_dir_for_name,
+# feature_desc, feature_inputs, and pkg_input_* (all defined earlier in
+# run.sh) to already be in scope - this file only adds functions, so
+# sourcing it early (before any of those run) is fine.
 
 # --- set: per-feature state (up/skip/down), emulated with eval'd
 # variables (POSIX sh has no arrays/maps): STATE_<name> holds it.
@@ -63,7 +62,7 @@ ask_missing_inputs() {
         eval "${input}=\"\${answer}\""
         eval "export ${input}"
       elif [ "$required" = "true" ]; then
-        warn "${input} is required by '${name}' but was left empty; that step will likely fail without it."
+        zz_log w "[vps-setup] ${input} is required by '${name}' but was left empty; that step will likely fail without it."
       fi
     done
   done
@@ -76,11 +75,12 @@ run_step() {
   # $1=name $2=action
   d=$(feature_dir_for_name "$1")
   label="$(feature_desc "$d")"
-  log "=== Running ${label} ($(basename "$d")/run.sh $2) ==="
+  zz_log i "[vps-setup] === Running ${label} ($(basename "$d")/run.sh $2) ==="
   rc=0
   bash "$d/run.sh" "$2" || rc=$?
   if [ "$rc" -ne 0 ]; then
-    die "Step '${label}' ($(basename "$d")/run.sh $2) failed (exit ${rc}) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-${1}"
+    zz_log e "[vps-setup] Step '${label}' ($(basename "$d")/run.sh $2) failed (exit ${rc}) - see the error above. Fix it and re-run just this step with: sudo vps-setup --only-${1}"
+    exit 1
   fi
   ok "=== Done: ${label} (${2}) ==="
 }
