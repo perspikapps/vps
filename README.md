@@ -8,7 +8,7 @@ with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, and the
 Traefik dashboard are Tailscale-only; the ingress itself (80/443) is
 public on purpose - see [Security model](#security-model). This repo
 also publishes a Helm chart catalog (ArgoCD, Epinio, and anything else
-added under `charts/`) that the `marketplace` step registers in Rancher
+added under `charts/`) that the `vps-marketplace` step registers in Rancher
 automatically - see [Rancher Marketplace](#rancher-marketplace). Every
 step can be turned back off later without reinstalling anything else -
 see [Removing a feature](#removing-a-feature-updown-per-step).
@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | 
 Run it with no arguments on an actual terminal (not piped from `curl`) and
 you get an interactive menu instead of having to remember flag names - see
 [Interactive menu](#interactive-menu). Run with `-h` for the full flag
-list (`--skip-vps-tailscale`, `--skip-rancher`, etc.), or set env vars
+list (`--skip-vps-tailscale`, `--skip-vps-rancher`, etc.), or set env vars
 beforehand, e.g.:
 
 ```bash
@@ -34,9 +34,9 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 `dispatch.sh` runs eight feature folders, in the order each one's
 `package.json` declares (`vps.order` - see
-[One folder per feature](#one-folder-per-feature)): `system`, `security`,
-`vps-tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
-`dockermanager`, and `marketplace`. All of them run by default. Three
+[One folder per feature](#one-folder-per-feature)): `vps-system`, `vps-security`,
+`vps-tailscale`, `vps-cockpit`, `vps-k3s` (includes Traefik configuration), `vps-rancher`,
+`vps-dockermanager`, and `vps-marketplace`. All of them run by default. Three
 flag families control which of them run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
@@ -54,24 +54,24 @@ download), pass flags after the filename like any script:
 
 ```bash
 # Re-run just Rancher, e.g. after changing RANCHER_HOSTNAME:
-sudo RANCHER_HOSTNAME=new.example.com sh /tmp/dispatch.sh --only-rancher
+sudo RANCHER_HOSTNAME=new.example.com sh /tmp/dispatch.sh --only-vps-rancher
 
 # Re-run Cockpit and the dockermanager plugin together, skipping everything else:
-sudo sh /tmp/dispatch.sh --only-cockpit --only-dockermanager
+sudo sh /tmp/dispatch.sh --only-vps-cockpit --only-vps-dockermanager
 
 # Full run except Rancher (e.g. you're not using Kubernetes on this box):
-sudo sh /tmp/dispatch.sh --skip-rancher --skip-k3s
+sudo sh /tmp/dispatch.sh --skip-vps-rancher --skip-vps-k3s
 
 # Re-run just the marketplace catalog registration:
-sudo sh /tmp/dispatch.sh --only-marketplace
+sudo sh /tmp/dispatch.sh --only-vps-marketplace
 ```
 
 > [!WARNING]
 > **With the piped one-liner (`curl ... | sudo sh`), you cannot just
-> append flags after `sh`** - `sudo sh --only-rancher` fails with
-> `sh: --only-rancher: invalid option`, because the shell parses
-> `--only-rancher` as an option _to the shell itself_ (it looks like one:
-> `--only-rancher` starts with `--`, same shape as `sh`'s own
+> append flags after `sh`** - `sudo sh --only-vps-rancher` fails with
+> `sh: --only-vps-rancher: invalid option`, because the shell parses
+> `--only-vps-rancher` as an option _to the shell itself_ (it looks like one:
+> `--only-vps-rancher` starts with `--`, same shape as `sh`'s own
 > `--posix`/etc.), not as an argument to hand the script being read from
 > stdin. You must add `-s --` first: `-s` tells the shell to read the
 > script from stdin, and `--` marks the end of the shell's own options so
@@ -79,7 +79,7 @@ sudo sh /tmp/dispatch.sh --only-marketplace
 >
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh \
->     | sudo sh -s -- --only-rancher
+>     | sudo sh -s -- --only-vps-rancher
 > ```
 >
 > This composes with env vars the usual way (see the
@@ -88,12 +88,12 @@ sudo sh /tmp/dispatch.sh --only-marketplace
 >
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh \
->     | sudo RANCHER_HOSTNAME=new.example.com sh -s -- --only-rancher
+>     | sudo RANCHER_HOSTNAME=new.example.com sh -s -- --only-vps-rancher
 > ```
 
 This is equivalent to (and a convenience wrapper around) invoking a
 feature's own script directly, as shown in [Layout](#layout) below -
-`--only-rancher` just means "run `rancher/run.sh` through
+`--only-vps-rancher` just means "run `vps-rancher/run.sh` through
 `dispatch.sh`'s usual repo clone/update, dependency resolution, and final
 summary, instead of calling it by hand." Because every feature's script
 is idempotent, re-running a single step to pick up a changed env var
@@ -104,21 +104,21 @@ is idempotent, re-running a single step to pick up a changed env var
 
 Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
-source of truth for what it needs - `rancher/package.json`
-declares `"k3s": "*"`, so does `marketplace`'s. `dispatch.sh`
+source of truth for what it needs - `vps-rancher/package.json`
+declares `"@tomgrv/vps-k3s": "*"`, so does `vps-marketplace`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
-any of them auto-enables `k3s` too, even if you didn't ask for it
+any of them auto-enables `vps-k3s` too, even if you didn't ask for it
 explicitly:
 
 ```bash
-# k3s isn't named here, but this still installs it - rancher needs it:
-sudo sh dispatch.sh --only-rancher
-# -> [vps-setup] Also enabling 'k3s' (required by 'rancher').
+# vps-k3s isn't named here, but this still installs it - vps-rancher needs it:
+sudo sh dispatch.sh --only-vps-rancher
+# -> [vps-setup] Also enabling 'vps-k3s' (required by 'vps-rancher').
 ```
 
 The same `dependencies` field is read in reverse for
-[`--down-<step>`](#removing-a-feature-updown-per-step): bringing `k3s`
-down while `rancher`/`marketplace` are still enabled is refused, since
+[`--down-<step>`](#removing-a-feature-updown-per-step): bringing `vps-k3s`
+down while `vps-rancher`/`vps-marketplace` are still enabled is refused, since
 it would leave them broken. Adding a new dependency for a feature is a
 one-line edit to its `package.json` - see
 [One folder per feature](#one-folder-per-feature) below.
@@ -136,14 +136,14 @@ sudo sh /tmp/dispatch.sh
 
 ```
 ==== VPS setup menu ====
-   1) * system         [up  ] Base system update & essentials
-   2) * security        [up  ] Firewall / SSH / fail2ban hardening
+   1) * vps-system       [up  ] Base system update & essentials
+   2) * vps-security     [up  ] Firewall / SSH / fail2ban hardening
    3) * vps-tailscale    [up  ] Tailscale install
-   4) * cockpit          [up  ] Cockpit install
-   5) * k3s              [up  ] k3s / kubectl / helm install (includes Traefik configuration)
-   6) * rancher          [up  ] Rancher install
-   7) * dockermanager    [up  ] cockpit-packagekit/files/dockermanager install
-   8) * marketplace      [up  ] Rancher Apps & Marketplace catalog registration
+   4) * vps-cockpit      [up  ] Cockpit install
+   5) * vps-k3s          [up  ] k3s / kubectl / helm install (includes Traefik configuration)
+   6) * vps-rancher      [up  ] Rancher install
+   7) * vps-dockermanager [up  ] cockpit-packagekit/files/dockermanager install
+   8) * vps-marketplace  [up  ] Rancher Apps & Marketplace catalog registration
   (* = installed by default) Enter a number to cycle
   skip -> up -> down -> skip for that step.
   <enter> to proceed, 'q' to quit without changing anything.
@@ -168,46 +168,46 @@ instead of installing it:
 # Remove the marketplace catalog registration only (Rancher, k3s,
 # Cockpit, etc. are untouched - apps already installed from the
 # catalog via Rancher's UI are untouched too):
-sudo sh /tmp/dispatch.sh --down-marketplace
+sudo sh /tmp/dispatch.sh --down-vps-marketplace
 
 # Remove more than one step in the same run:
-sudo sh /tmp/dispatch.sh --down-marketplace --down-dockermanager
+sudo sh /tmp/dispatch.sh --down-vps-marketplace --down-vps-dockermanager
 ```
 
 A step whose dependency is still enabled refuses to come down, so you
 don't accidentally break something still running:
 
 ```bash
-sudo sh /tmp/dispatch.sh --down-k3s
-# [vps-setup] Refusing to bring 'k3s' down: 'rancher' depends on it and is still enabled.
-# [vps-setup] Also pass --down-rancher, or --force-down to override (may leave 'rancher' broken).
+sudo sh /tmp/dispatch.sh --down-vps-k3s
+# [vps-setup] Refusing to bring 'vps-k3s' down: 'vps-rancher' depends on it and is still enabled.
+# [vps-setup] Also pass --down-vps-rancher, or --force-down to override (may leave 'vps-rancher' broken).
 ```
 
-Either bring the dependent step down in the same run (`--down-k3s
---down-rancher --down-marketplace`, to remove the whole cluster
-cleanly), or pass `--force-down` if you really want to pull `k3s` out from
+Either bring the dependent step down in the same run (`--down-vps-k3s
+--down-vps-rancher --down-vps-marketplace`, to remove the whole cluster
+cleanly), or pass `--force-down` if you really want to pull `vps-k3s` out from
 under something still enabled.
 
 What each step's `down` action actually does - and doesn't - undo:
 
-| Step            | `down` removes                                                                                                   | Left in place                                                            |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
-| `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
-| `vps-tailscale` | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
-| `cockpit`       | the Cockpit packages and socket config                                                                           | nothing else depends on it                                               |
-| `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher and anything installed via the Marketplace down with it** | -                                                                        |
-| `rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
-| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
-| `marketplace`   | the `ClusterRepo` catalog registration only                                                                      | any apps already installed from it (uninstall those from Rancher's UI)   |
+| Step                | `down` removes                                                                                                   | Left in place                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `vps-system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
+| `vps-security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
+| `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `vps-cockpit`       | the Cockpit packages and socket config                                                                           | nothing else depends on it                                               |
+| `vps-k3s`           | k3s itself (via its own uninstaller) - **takes Rancher and anything installed via the Marketplace down with it** | -                                                                        |
+| `vps-rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
+| `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
+| `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                                      | any apps already installed from it (uninstall those from Rancher's UI)   |
 
 Each feature's `run.sh` also accepts the action directly if you'd rather
 run it without going through `dispatch.sh` (e.g. from an existing
 `/opt/vps-setup` checkout):
 
 ```bash
-sudo bash marketplace/run.sh down
-sudo bash marketplace/run.sh up # same as calling it with no argument
+sudo bash vps-marketplace/run.sh down
+sudo bash vps-marketplace/run.sh up # same as calling it with no argument
 ```
 
 ## Full copy-paste example
@@ -347,7 +347,7 @@ string works; generate a random one with:
 openssl rand -base64 24
 ```
 
-If you don't set it, `rancher/run.sh` generates and saves one for
+If you don't set it, `vps-rancher/run.sh` generates and saves one for
 you automatically.
 
 ## Provisioning via cloud-init / Kairos
@@ -393,7 +393,7 @@ entirely - there's no `sudo` involved.
   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
   execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
   if it's sitting next to `setup.sh` in a local checkout, forwarding every
-  arg through - so `sh setup.sh --only-rancher` from an existing checkout
+  arg through - so `sh setup.sh --only-vps-rancher` from an existing checkout
   works the same as calling `dispatch.sh` directly. Piped straight from
   `curl` with no local checkout (`curl .../setup.sh | sh -s -- ...`), there's
   no `package.json` next to the running script to find, so it only
@@ -418,7 +418,7 @@ entirely - there's no `sudo` involved.
   all.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
   runs `dispatch.sh` unattended on first boot.
-- `common/` - shared logging/retry/idempotency helpers sourced by every
+- `vps-common/` - shared logging/retry/idempotency helpers sourced by every
   feature's `run.sh` (strict bash mode, non-interactive apt, "already
   done" checks); `net_port`/`net_access`/`all_network_ports` for reading
   each feature's own `package.json` port declarations - see
@@ -431,44 +431,44 @@ entirely - there's no `sudo` involved.
   bootstrapped on first source via its `setup.sh` if not already on
   `PATH`. This is bash, not POSIX sh - every `run.sh` is invoked by
   `dispatch.sh` as a `bash` subprocess, never sourced from the sh
-  dispatcher itself. Like every feature, `common/` is a top-level
+  dispatcher itself. Like every feature, `vps-common/` is a top-level
   `<name>/{package.json,run.sh}` folder in this repo, laid out the same
   way [`tomgrv/scripts`](https://github.com/tomgrv/scripts) lays out its
   own scripts - which is what lets `zz_use` fetch and install it (or any
   feature) directly from this repo, from anywhere:
-  `zz_use perspikapps/vps/common`. It isn't an installable step itself,
-  though - `dispatch.sh`'s feature discovery skips it (and `summary/`)
+  `zz_use perspikapps/vps/vps-common`. It isn't an installable step itself,
+  though - `dispatch.sh`'s feature discovery skips it (and `vps-summary/`)
   explicitly.
-- `summary/` - prints connection info, the Tailscale URL, and the
+- `vps-summary/` - prints connection info, the Tailscale URL, and the
   Cockpit/Rancher credentials at the end of a run. Also its own
   top-level `zz_use`-installable folder, also excluded from feature
   discovery.
-- `system/` - apt update/upgrade, base tooling, unattended
+- `vps-system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
-- `security/` - optional non-root admin user, ufw
+- `vps-security/` - optional non-root admin user, ufw
   (default-deny inbound, rules generated from every feature's own
   `package.json` port declarations: SSH and Traefik's 80/443 public,
   everything else Tailscale-only), sshd hardening, fail2ban, and a
   Cockpit/console login password.
 - `vps-tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
-- `cockpit/` - installs Cockpit, served on ports 9080/9083.
-- `k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
+- `vps-cockpit/` - installs Cockpit, served on ports 9080/9083.
+- `vps-k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
   configures Traefik as a public HTTP/HTTPS ingress with a Let's Encrypt
   certResolver and a Tailscale-only dashboard - see
   [Traefik ingress](#traefik-ingress-lets-encrypt-and-the-dashboard).
-- `rancher/` - installs cert-manager (required by Rancher's
+- `vps-rancher/` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
   Helm, exposed on ports 7080/7083 through k3s's built-in ServiceLB.
-  Depends on `k3s` (see its `package.json`).
-- `dockermanager/` - installs `cockpit-packagekit`,
+  Depends on `vps-k3s` (see its `package.json`).
+- `vps-dockermanager/` - installs `cockpit-packagekit`,
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
-- `marketplace/` - registers this repo's Helm chart catalog
+- `vps-marketplace/` - registers this repo's Helm chart catalog
   (`charts/`, published to GitHub Pages) as a Rancher `ClusterRepo`, so
   it shows up under Apps & Marketplace → Repositories - see
-  [Rancher Marketplace](#rancher-marketplace). Depends on `k3s`/`rancher`.
+  [Rancher Marketplace](#rancher-marketplace). Depends on `vps-k3s`/`vps-rancher`.
 - `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio) that
   install onto the k3s cluster rather than the host itself - not a
   `dispatch.sh` feature folder (no `run.sh`), published as a standard
@@ -480,11 +480,12 @@ entirely - there's no `sudo` involved.
 Each feature is a small, self-contained npm workspace package:
 
 ```
-rancher/
-  package.json   # "name": "rancher" (matches the folder - see below),
-                 # description, "bin": { "rancher": "run.sh" },
+vps-rancher/
+  package.json   # "name": "@tomgrv/vps-rancher" (npm scope + this repo's
+                 # own "vps-" prefix - see below), description,
+                 # "bin": { "vps-rancher": "run.sh" } (matches the folder),
                  # "vps": { "default": true|false }, "scripts": { "test": "bats test.bats" },
-                 # and "dependencies": { "<other-feature-folder>": "*" }
+                 # and "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
   test.bats      # syntax + shape checks - see Tests, below
   README.md      # this feature's env vars, up/down usage, and dependencies
@@ -495,8 +496,8 @@ and `test.bats` aren't optional here, even though
 [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo)
 below lists them as optional for adopting the convention elsewhere.
 
-Folder names carry no ordering (`rancher/`, not
-`05-rancher/`) - install order is a plain integer,
+Folder names carry no ordering (`vps-rancher/`, not
+`05-vps-rancher/`) - install order is a plain integer,
 `package.json`'s `vps.order`, and `dispatch.sh` sorts by that instead of
 by folder name. Everything that used to live in `setup.sh`'s
 hand-maintained bash tables (label, install order, default on/off, what
@@ -504,47 +505,54 @@ depends on what) now lives in each feature's own `package.json` instead:
 
 ```json
 {
-    "name": "rancher",
+    "name": "@tomgrv/vps-rancher",
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
-    "bin": { "rancher": "run.sh" },
+    "bin": { "vps-rancher": "run.sh" },
     "vps": { "order": 5, "default": true },
-    "dependencies": { "k3s": "*", "common": "*" }
+    "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
 }
 ```
 
-`"name"` is always the bare folder name - the same convention
-[`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
-scripts (no npm scope, no `vps-` prefix) - and `"bin"` follows the same
-`{"<name>": "run.sh"}` shape, what makes `zz_use perspikapps/vps/rancher`
-resolvable (see
+`"name"` is always `@tomgrv/<folder>` - this repo's own npm scope plus
+the folder's bare name, which itself always carries the `vps-` prefix
+(`vps-rancher/`, not `rancher/`) - unlike
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s own convention of
+an unscoped `"name"` identical to the folder, since that repo's scripts
+aren't all prefixed the same way. `"bin"` follows the usual
+`{"<folder>": "run.sh"}` shape, what makes
+`zz_use perspikapps/vps/vps-rancher` resolvable (see
 [Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
-below). `"dependencies"` always includes `common` (every feature sources
-it - see [Layout](#layout)), plus any other feature folder it needs, keyed
-by that folder's own bare name; `dispatch.sh`'s own dependency reading
-(auto-enable, `--down-<step>` refusal) explicitly excludes `common`/`summary`
-from this field, since neither is an installable step, and only counts a
-key that actually names a real `<folder>/{package.json,run.sh}` - so an
-ordinary (non-feature) npm dependency, if this repo ever adds one, won't
-be mistaken for a step to auto-enable.
+below) - and what every internal identity (the folder itself, `"bin"`,
+`dispatch.sh`'s own flags/state tracking, e.g. `--only-vps-rancher`) is
+built from: the package `"name"` with only the npm scope (`@tomgrv/`)
+stripped, never the `vps-` prefix too. `"dependencies"` always includes
+`@tomgrv/vps-common` (every feature sources it - see [Layout](#layout)),
+plus any other feature folder it needs, keyed by that folder's own scoped
+name; `dispatch.sh`'s own dependency reading (auto-enable, `--down-<step>`
+refusal) strips the npm scope the same way and explicitly excludes
+`vps-common`/`vps-summary` from the result, since neither is an
+installable step, and only counts a key that actually names a real
+`<folder>/{package.json,run.sh}` - so an ordinary (non-feature) npm
+dependency, if this repo ever adds one, won't be mistaken for a step to
+auto-enable.
 
-This folder is named `vps-tailscale/`, not `tailscale/`, for exactly this
-reason: its `run.sh` calls the real `tailscale` CLI internally, and
-`zz_use` has no notion of `"bin"` at all (it always installs
-`<name>/run.sh` under the literal folder name `<name>` it was asked for)
-- `zz_use perspikapps/vps/tailscale` would install this feature's own
-script as `tailscale`, shadowing the actual binary it depends on. Its
-`package.json`'s `"name"` field is `"vps-tailscale"` too (folder names
-match workspace names - see above), so `dispatch.sh`'s own flags/state
-tracking use the full `vps-tailscale` identity as well: `--only-vps-tailscale`,
-`--skip-vps-tailscale`, not the shorter `--only-tailscale`.
+Because every folder already carries the `vps-` prefix uniformly, there's
+no longer a special case here the way there used to be for
+`vps-tailscale/` alone (its `run.sh` calls the real `tailscale` CLI
+internally, and `zz_use` has no notion of `"bin"` at all - it always
+installs `<name>/run.sh` under the literal folder name `<name>` it was
+asked for - so a folder named plain `tailscale/` would have `zz_use
+perspikapps/vps/tailscale` shadow the actual binary it depends on).
+Prefixing every folder the same way sidesteps that class of collision for
+free, for any feature, not just this one.
 
-Adding a new feature is: create `whatever/` with a
+Adding a new feature is: create `vps-whatever/` with a
 `package.json` (following the shape above, with an `order` that places it
 where you want in the install sequence), a `run.sh` (`up()`/`down()` +
 `dispatch_action "$@"` at the end, same as any other feature - see
-`common/`), a `test.bats` (see any existing feature's for the shape to
+`vps-common/`), a `test.bats` (see any existing feature's for the shape to
 copy), and a `README.md`. `dispatch.sh` picks it up automatically; add it
 to root `package.json`'s `"workspaces"` array too. Removing a feature is deleting
 its folder (and that array entry).
@@ -553,8 +561,8 @@ The root `package.json`'s `"workspaces"` array registers every
 feature as an npm workspace member, so standard npm tooling (`npm ls`,
 `npm install`, the repo's existing lint-staged/commitlint config, which
 already referenced `@commitlint/config-workspace-scopes`) understands the
-dependency graph too - `package-lock.json` resolves `rancher`'s `k3s`
-dependency like any other workspace package. `dispatch.sh`
+dependency graph too - `package-lock.json` resolves `vps-rancher`'s
+`vps-k3s` dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
 [Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
 fields directly with `sed`/`awk`, precisely because those fields are
@@ -572,17 +580,17 @@ them directly, from any machine, without cloning this repo or running
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # common/run.sh needs it
-zz_use perspikapps/vps/rancher
-sudo rancher up
+command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # vps-common/run.sh needs it
+zz_use perspikapps/vps/vps-rancher
+sudo vps-rancher up
 ```
 
 `zz_use`'s `[org/repo/]<tool>[@ref]` syntax resolves `perspikapps/vps` as
-the origin and `rancher` as the script, downloads this repo (cached
+the origin and `vps-rancher` as the script, downloads this repo (cached
 locally after the first call, per-origin/ref - see
 [`tomgrv/scripts`'s README](https://github.com/tomgrv/scripts#caching-zz_update-and-pinning-an-originref)),
-and symlinks `rancher/run.sh` onto `PATH` as `rancher`. Since every
-feature's own `run.sh` in turn fetches `common/run.sh` from this same
+and symlinks `vps-rancher/run.sh` onto `PATH` as `vps-rancher`. Since every
+feature's own `run.sh` in turn fetches `vps-common/run.sh` from this same
 repo the same way, a feature installed this way works exactly like it
 would through `dispatch.sh` - it just skips discovery, ordering,
 dependency auto-enable, and the interactive menu, so you're responsible
@@ -605,32 +613,32 @@ array (same file that carries `vps.default`/`dependencies` - see
 }
 ```
 
-(`access` is `"tailscale"` or `"public"`.) `rancher/package.json`
-carries `rancher_http`/`rancher_https`, `k3s/package.json`
+(`access` is `"tailscale"` or `"public"`.) `vps-rancher/package.json`
+carries `rancher_http`/`rancher_https`, `vps-k3s/package.json`
 carries `http`/`https`/`traefik_dashboard`, and so on - each feature's own
 `run.sh` is what actually binds the port, so its declaration lives right
 next to the code that uses it instead of a separate central file.
 
-`security/run.sh` doesn't know about any of that port detail
-itself: it calls `common/run.sh`'s `all_network_ports()`, which scans
+`vps-security/run.sh` doesn't know about any of that port detail
+itself: it calls `vps-common/run.sh`'s `all_network_ports()`, which scans
 every `*/package.json` and builds ufw's rules from whatever it
 finds - there's no per-service ufw logic in that script at all, just a
 loop over that combined list. Every feature that binds a port itself
 (Cockpit, Rancher, Traefik's dashboard) reads its own default via
-`common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
-automatically - see the function's comment for how `summary/run.sh`, which
+`vps-common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
+automatically - see the function's comment for how `vps-summary/run.sh`, which
 isn't any one feature, asks for another feature's port explicitly), so the
 port ufw opens and the port the app actually listens on can't drift apart.
 
 To change a default port for good, edit that feature's `package.json` and
-re-run the affected step(s) (e.g. `--only-security --only-rancher` after
+re-run the affected step(s) (e.g. `--only-vps-security --only-vps-rancher` after
 changing `rancher_http`). To override a port for a single run without
 editing anything, use its env var - the name is always the entry's `name`,
 upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
 `ssh` -> `SSH_PORT`, and so on.
 
 Lookups are done with `jq` (already a base dependency installed by
-`system`) - no separate YAML tooling needed now that this
+`vps-system`) - no separate YAML tooling needed now that this
 lives in `package.json` alongside everything else npm already parses.
 
 ## Security model
@@ -658,11 +666,11 @@ sh dispatch.sh --only-vps-tailscale`).
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
-`k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
+`vps-k3s/run.sh` leaves k3s's bundled Traefik enabled (rather than
 disabling it, as you'll see suggested in some k3s+Rancher guides) and
 configures it as this VPS's public ingress via a `HelmChartConfig` -
 k3s's own mechanism for overriding a bundled chart's values, watched
-continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
+continuously so it's safe to re-apply any time (e.g. via `--only-vps-k3s`).
 
 - **Public HTTP/HTTPS, any hostname**: ports 80/443 are k3s's own defaults
   for Traefik's `web`/`websecure` entrypoints, exposed via its built-in
@@ -703,7 +711,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
 ## Cockpit and Rancher logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
-  password - separate from SSH, which stays key-only. `security/run.sh`
+  password - separate from SSH, which stays key-only. `vps-security/run.sh`
   sets a password for `VPS_ADMIN_USER` (or `root` if that's unset): either
   `VPS_ADMIN_PASSWORD` if you set it, or a random one saved to
   `/root/.cockpit-admin-password` (username in `/root/.cockpit-admin-user`).
@@ -722,7 +730,7 @@ under [`charts/`](charts/).
 "Extra", non-essential apps - things that run _on_ the k3s cluster
 rather than being part of the host-level bootstrap - aren't installed by
 `dispatch.sh` any more. Instead, this repo publishes them as a standard
-Helm chart repo from [`charts/`](charts/), and the `marketplace` step
+Helm chart repo from [`charts/`](charts/), and the `vps-marketplace` step
 (on by default) registers that repo as a Rancher `ClusterRepo` so it
 shows up under **Apps & Marketplace → Repositories** as
 `perspikapps-vps`, pointed at `https://perspikapps.github.io/vps/`.
@@ -732,10 +740,10 @@ this repo publishes is just using Rancher's own **Apps & Marketplace →
 Charts** UI like any other catalog app - fill in that chart's values
 (see its `README.md` under `charts/<name>/` for what's required) and
 install. `dispatch.sh` itself no longer knows how to install/uninstall
-these apps directly; `marketplace/run.sh down` only removes the catalog
+these apps directly; `vps-marketplace/run.sh down` only removes the catalog
 registration; uninstall an already-installed app from Rancher's UI.
 
-**Why this split**: `cockpit/` and `dockermanager/` stay as `dispatch.sh`
+**Why this split**: `vps-cockpit/` and `vps-dockermanager/` stay as `dispatch.sh`
 steps because they configure the host itself (apt packages, systemd
 services) - a Helm chart doesn't fit them. ArgoCD and Epinio, by
 contrast, are ordinary Kubernetes workloads with nothing VPS-specific
@@ -758,7 +766,7 @@ serves. Adding a new app to the catalog is: add
 any required values), push to `main`, and it's live in the catalog
 within a few minutes.
 
-Cockpit/Rancher's own credentials are still printed by `summary/run.sh`
+Cockpit/Rancher's own credentials are still printed by `vps-summary/run.sh`
 at the end of an install; anything installed through the Marketplace
 prints its own credentials/URLs the way that chart's own notes (or its
 `README.md` under `charts/`) describe.
@@ -787,9 +795,9 @@ that file to change a default for good, or set the env var for one run.
 | `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set this to a real address                                              |
 | `TRAEFIK_ACME_STAGING`                     | `true`                               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                           |
 | `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (Tailscale-only)                                                               |
-| `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `marketplace` step registers                                    |
+| `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `vps-marketplace` step registers                                |
 | `MARKETPLACE_REPO_URL`                     | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
-| `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `rancher`)                                             |
+| `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                         |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the
@@ -801,13 +809,13 @@ Ingresses via that chart's own values, outside this table.
 Each feature's `run.sh` can also be run standalone, from within a
 checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
 `setup.sh`'s job, run once - see [Layout](#layout)); it just fetches
-`common/run.sh` from this repo via `zz_use perspikapps/vps/common` if
+`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/common` if
 `zz_use` is already on `PATH`, and fails fast with a one-line message
 pointing at `setup.sh` if it isn't:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
-sudo RANCHER_HOSTNAME=new.example.com bash rancher/run.sh
+sudo RANCHER_HOSTNAME=new.example.com bash vps-rancher/run.sh
 ```
 
 This is what `dispatch.sh --only-<step>`, described in
@@ -817,20 +825,20 @@ every step - not per-feature).
 
 Every `run.sh` also takes an explicit `up` or `down` action as its first
 argument (`up` is the default, so the invocation above is really `...
-bash rancher/run.sh up`) - see
+bash vps-rancher/run.sh up`) - see
 [Removing a feature](#removing-a-feature-updown-per-step) for what each
 step's `down` does.
 
 ## Troubleshooting: a step fails or "just stops"
 
-Every script runs under `set -euo pipefail` and sources `common/run.sh`,
+Every script runs under `set -euo pipefail` and sources `vps-common/run.sh`,
 which installs an error trap: the first command that fails without being
 explicitly handled (i.e. not part of an `if`/`&&`/`||`) prints its exact
 file, line number, and the failing command, then the script exits. For
 example:
 
 ```
-[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/rancher/run.sh line 52: helm upgrade --install rancher ...
+[vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/vps-rancher/run.sh line 52: helm upgrade --install rancher ...
 ```
 
 When a step fails during a full `dispatch.sh` run, it also prints which
@@ -838,15 +846,15 @@ numbered step failed and how to re-run just that one after fixing the
 issue:
 
 ```
-[vps-setup] Step 'Rancher install' (rancher/run.sh up) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-rancher
+[vps-setup] Step 'Rancher install' (vps-rancher/run.sh up) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-vps-rancher
 ```
 
 If you ever see a step stop with truly no output at all (not even its own
 first `log` line), that most often means a _prerequisite_ step was
-skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
+skipped - e.g. running `--only-vps-rancher` on a box where `--only-vps-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
-`rancher/run.sh` and `marketplace/run.sh`
-both check for `kubectl` (and `rancher/run.sh` for `helm`) explicitly and
+`vps-rancher/run.sh` and `vps-marketplace/run.sh`
+both check for `kubectl` (and `vps-rancher/run.sh` for `helm`) explicitly and
 `die` with a clear message in that case; if you hit a silent stop
 anywhere else, please open an issue with the exact command you ran and
 the last few lines of output.
@@ -862,9 +870,9 @@ Following [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s own
 convention, every feature folder carries its own `<name>/test.bats`
 (runnable on its own with `bats <name>/test.bats`, or via that folder's
 `npm test`), covering that folder's `run.sh` syntax (`bash -n`), its
-`zz_use`/`common` wiring, `up()`/(where applicable) `down()`, and its
+`zz_use`/`vps-common` wiring, `up()`/(where applicable) `down()`, and its
 `package.json`'s `bin`/`vps.order`/`dependencies` shape.
-[`common/test.bats`](common/test.bats) additionally covers `common/run.sh`'s
+[`vps-common/test.bats`](vps-common/test.bats) additionally covers `vps-common/run.sh`'s
 pure logic (`net_port`, `net_access`, `all_network_ports`,
 `feature_package_json`, `dispatch_action`) against a small fixture tree.
 [`tests/`](tests/) holds only what doesn't belong to any single folder:

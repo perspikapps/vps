@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Static checks for vps-tailscale/run.sh and package.json - a live install
+# Static checks for vps-cockpit/run.sh and package.json - a live install
 # needs a real root Ubuntu box, so this stops at syntax + shape (see
 # this folder's README's "Tests" section, and ../tests/ for repo-wide checks).
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-DIR="$REPO_ROOT/vps-tailscale"
+DIR="$REPO_ROOT/vps-cockpit"
 
 @test "run.sh parses as bash" {
     run bash -n "$DIR/run.sh"
@@ -31,7 +31,7 @@ DIR="$REPO_ROOT/vps-tailscale"
 }
 
 @test "package.json bin entry matches the folder name" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['vps-tailscale'] === 'run.sh' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['vps-cockpit'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -42,15 +42,6 @@ DIR="$REPO_ROOT/vps-tailscale"
 
 @test "package.json depends on @tomgrv/vps-common" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
-
-@test "package.json bin name is not the bare 'tailscale'" {
-    # This folder is named vps-tailscale/, not tailscale/, specifically so
-    # zz_use (which always installs <name>/run.sh under the literal folder
-    # name requested) never shadows the real tailscale CLI this run.sh
-    # calls internally - see the README's "Usage" section.
-    run node -e "const p = require('$DIR/package.json'); process.exit('tailscale' in p.bin ? 1 : 0)"
     [ "$status" -eq 0 ]
 }
 

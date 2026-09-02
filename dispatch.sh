@@ -22,7 +22,7 @@ die() {
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-if [ -f "$SCRIPT_DIR/common/run.sh" ]; then
+if [ -f "$SCRIPT_DIR/vps-common/run.sh" ]; then
   REPO_ROOT="$SCRIPT_DIR"
 else
   if [ "$(id -u)" -ne 0 ]; then
@@ -94,7 +94,7 @@ command -v zz_use >/dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
     case "$(basename "${d%/}")" in
-    common | summary) continue ;;
+    vps-common | vps-summary) continue ;;
     esac
     if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
       printf '%s\t%s\n' "$(jq -r '.vps.order' "${d}package.json")" "${d%/}"
@@ -102,15 +102,21 @@ list_feature_dirs() {
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { jq -r '.name' "$1/package.json"; }
+# CLI/state identity is the package.json "name" with only the npm scope
+# stripped ("@tomgrv/vps-rancher" -> "vps-rancher") - same as the folder
+# name, since folder names match workspace names (see README's "One
+# folder per feature"). No further "vps-" stripping: every folder and
+# every --skip-<x>/--only-<x>/--down-<x> flag carries it uniformly, same
+# as this repo's own package scope.
+feature_name() { jq -r '.name | sub("^@tomgrv/"; "")' "$1/package.json"; }
 feature_desc() { jq -r '.description' "$1/package.json"; }
 feature_default() { jq -r '.vps.default' "$1/package.json"; }
 # A dependency key is only a feature dependency (as opposed to some future
-# ordinary npm dependency) if it names another folder in this repo with its
-# own package.json + run.sh - package.json "name" fields are bare folder
-# names (see README's "One folder per feature"), so no prefix to match on.
+# ordinary npm dependency) if, once its npm scope is stripped the same way
+# as feature_name(), it names another folder in this repo with its own
+# package.json + run.sh.
 feature_deps() {
-  jq -r '(.dependencies // {}) | keys[]' "$1/package.json" | grep -vxE 'common|summary' | while IFS= read -r dep; do
+  jq -r '(.dependencies // {}) | keys[] | sub("^@tomgrv/"; "")' "$1/package.json" | grep -vxE 'vps-common|vps-summary' | while IFS= read -r dep; do
     [ -f "$FEATURES_DIR/$dep/package.json" ] && [ -f "$FEATURES_DIR/$dep/run.sh" ] && printf '%s\n' "$dep"
   done
 }
@@ -130,9 +136,9 @@ for d in $(list_feature_dirs); do
   ALL_NAMES="$ALL_NAMES $(feature_name "$d")"
 done
 
-# set/ask/run - see summary/dispatch-steps.sh's own header comment.
+# set/ask/run - see vps-summary/dispatch-steps.sh's own header comment.
 # shellcheck disable=SC1091
-. "$REPO_ROOT/summary/dispatch-steps.sh"
+. "$REPO_ROOT/vps-summary/dispatch-steps.sh"
 
 for name in $ALL_NAMES; do
   d=$(feature_dir_for_name "$name")
@@ -343,7 +349,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Ask for any input every enabled ("up") step declares that isn't already
-# set in the environment - see summary/dispatch-steps.sh's ask_missing_inputs.
+# set in the environment - see vps-summary/dispatch-steps.sh's ask_missing_inputs.
 ask_missing_inputs
 
 # ufw (security) only opens this repo's Tailscale-only services
@@ -380,4 +386,4 @@ for name in $ALL_NAMES; do
   esac
 done
 
-bash "$REPO_ROOT/summary/run.sh"
+bash "$REPO_ROOT/vps-summary/run.sh"
