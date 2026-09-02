@@ -10,8 +10,21 @@
     },
     "private": true,
     "vps": {
-        "order": 3,
         "default": true,
+        "inputs": {
+            "COCKPIT_HTTPS_PORT": {
+                "description": "Cockpit HTTPS port",
+                "required": false,
+                "default": "9083"
+            },
+            "COCKPIT_HTTP_PORT": {
+                "description": "Cockpit HTTP port",
+                "required": false,
+                "default": "9080"
+            }
+        },
+        "order": 3,
+        "outputs": {},
         "ports": [
             {
                 "name": "cockpit_http",

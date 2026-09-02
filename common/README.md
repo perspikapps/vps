@@ -3,8 +3,8 @@
 # common
 
 Shared bash helpers sourced by every feature's `run.sh` (and by
-`summary/run.sh`): leveled logging (`log`/`ok`/`warn`/`die`, delegating to
-[`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz_colors`/`zz_log`),
+`summary/run.sh`): the `ok` helper and leveled logging through
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz_colors`/`zz_log`,
 an `ERR` trap that prints the failing command/file/line, apt helpers
 (`apt_install`, `apt_update_once`), `retry`, `command_exists`,
 `net_port`/`net_access`/`all_network_ports` (reading each feature's own

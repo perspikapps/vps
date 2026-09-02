@@ -35,6 +35,7 @@
         "common",
         "dockermanager",
         "epinio",
+        "github-arc",
         "k3s",
         "rancher",
         "security",

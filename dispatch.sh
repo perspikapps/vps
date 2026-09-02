@@ -61,45 +61,52 @@ if [ "${ID:-}" != "ubuntu" ]; then
   die "This script targets Ubuntu only (detected: ${ID:-unknown})."
 fi
 
+# --- package.json reading, via jq. Installed on demand (see ensure_jq)
+# rather than assumed present, since this runs before system (the
+# step that would otherwise install it) on a totally fresh box.
+
+ensure_jq() {
+  command -v jq >/dev/null 2>&1 && return 0
+  if [ "$(id -u)" -ne 0 ]; then
+    die "jq is required to read each feature's package.json but isn't installed, and this script isn't running as root to install it. Install it yourself (apt-get install -y jq) or re-run with sudo."
+  fi
+  log "Installing jq (used to read each feature's package.json)..."
+  apt-get update -y >/dev/null
+  apt-get install -y --no-install-recommends jq >/dev/null
+}
+ensure_jq
+
+pkg_input_names() {
+  # $1=file -> env var names (one per line), the keys of "vps.inputs" -
+  # same shape as a GitHub composite action's "inputs:", except each key IS
+  # the env var name run.sh reads.
+  jq -r '(.vps.inputs // {}) | keys[]' "$1"
+}
+
+pkg_input_description() { jq -r --arg n "$2" '.vps.inputs[$n].description // empty' "$1"; }
+pkg_input_required() { jq -r --arg n "$2" '.vps.inputs[$n].required // false' "$1"; }
+pkg_input_default() { jq -r --arg n "$2" '.vps.inputs[$n].default // empty' "$1"; }
+
+# --- feature discovery: <name>/{package.json,run.sh}, in install
+# order - each package.json's "vps.order" (a plain integer) says where it
+# falls, since folder names carry no ordering of their own.
 command -v zz_use >/dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
-
-pkg_str() {
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p' "$1" | head -n1
-}
-
-pkg_bool() {
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$1" | head -n1
-}
-
-pkg_num() {
-  sed -n 's/^[[:space:]]*"'"$2"'"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$1" | head -n1
-}
-
-pkg_deps() {
-  awk '
-    /"dependencies"[[:space:]]*:[[:space:]]*\{/ { infields = 1; next }
-    infields && /\}/ { infields = 0 }
-    infields { print }
-  ' "$1" | sed -n 's/^[[:space:]]*"@tomgrv\/vps-\([a-zA-Z0-9_-]*\)".*/\1/p'
-}
-
 list_feature_dirs() {
   for d in "$FEATURES_DIR"/*/; do
     case "$(basename "${d%/}")" in
     common | summary) continue ;;
     esac
     if [ -f "${d}package.json" ] && [ -f "${d}run.sh" ]; then
-      printf '%s\t%s\n' "$(pkg_num "${d}package.json" order)" "${d%/}"
+      printf '%s\t%s\n' "$(jq -r '.vps.order' "${d}package.json")" "${d%/}"
     fi
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { pkg_str "$1/package.json" name | sed 's#^@tomgrv/vps-##'; }
-feature_desc() { pkg_str "$1/package.json" description; }
-feature_default() { pkg_bool "$1/package.json" default; }
-feature_deps() {
-    pkg_deps "$1/package.json" | grep -vxE 'common|summary'
-}
+feature_name() { jq -r '.name | sub("^@tomgrv/vps-"; "")' "$1/package.json"; }
+feature_desc() { jq -r '.description' "$1/package.json"; }
+feature_default() { jq -r '.vps.default' "$1/package.json"; }
+feature_deps() { jq -r '(.dependencies // {}) | keys[] | select(startswith("@tomgrv/vps-")) | sub("^@tomgrv/vps-"; "")' "$1/package.json" | grep -vxE 'common|summary'; }
+feature_inputs() { pkg_input_names "$1/package.json"; }
 
 feature_dir_for_name() {
   for d in $(list_feature_dirs); do
@@ -115,8 +122,9 @@ for d in $(list_feature_dirs); do
   ALL_NAMES="$ALL_NAMES $(feature_name "$d")"
 done
 
-state_get() { eval "printf '%s' \"\${STATE_$1:-skip}\""; }
-state_set() { eval "STATE_$1=\$2"; }
+# set/ask/run - see summary/dispatch-steps.sh's own header comment.
+# shellcheck disable=SC1091
+. "$REPO_ROOT/summary/dispatch-steps.sh"
 
 for name in $ALL_NAMES; do
   d=$(feature_dir_for_name "$name")
@@ -326,6 +334,15 @@ if [ "$(id -u)" -ne 0 ]; then
   die "This script must be run as root (use sudo)."
 fi
 
+# Ask for any input every enabled ("up") step declares that isn't already
+# set in the environment - see summary/dispatch-steps.sh's ask_missing_inputs.
+ask_missing_inputs
+
+# ufw (security) only opens this repo's Tailscale-only services
+# (see this feature's own package.json) to the tailscale0 interface, so running the rest of
+# the install without Tailscale authenticated would leave all of them
+# unreachable. Refuse to proceed rather than silently produce a VPS
+# nothing can be managed on.
 if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
   warn "TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." \
     "Cockpit, Rancher, ArgoCD, the Traefik dashboard, and the k3s API" \
@@ -338,18 +355,9 @@ if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
   die "Refusing to run with tailscale enabled and TAILSCALE_AUTHKEY unset."
 fi
 
-run_step() {
-  d=$(feature_dir_for_name "$1")
-  label="$(feature_desc "$d")"
-  log "=== Running ${label} ($(basename "$d")/run.sh $2) ==="
-  rc=0
-  bash "$d/run.sh" "$2" || rc=$?
-  if [ "$rc" -ne 0 ]; then
-    die "Step '${label}' ($(basename "$d")/run.sh $2) failed (exit ${rc}) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-${1}"
-  fi
-  ok "=== Done: ${label} (${2}) ==="
-}
-
+# Tear down requested steps first (in reverse order, so dependents come
+# down before what they depend on), then install/reconcile everything
+# still enabled.
 for name in $(echo "$ALL_NAMES" | tr ' ' '\n' | sed '1!G;h;$!d' | tr '\n' ' '); do
   [ "$(state_get "$name")" = "down" ] && run_step "$name" down
 done
