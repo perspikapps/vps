@@ -4,14 +4,14 @@
 
 cockpit-packagekit/files/dockermanager install.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `dispatch.sh`'s install sequence (order `6`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order `6`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-vps-dockermanager
+sudo vps-setup --only-vps-dockermanager
 ```
 
 Or directly, from a checkout (`up` is the default action):
@@ -26,7 +26,7 @@ sudo bash vps-dockermanager/run.sh down
 `down` removes cockpit-dockermanager, cockpit-packagekit, and cockpit-files. Leaves Docker itself installed unless `REMOVE_DOCKER=true`.
 
 ```bash
-sudo sh dispatch.sh --down-vps-dockermanager
+sudo vps-setup --down-vps-dockermanager
 ```
 
 ## Environment variables
@@ -39,7 +39,7 @@ sudo sh dispatch.sh --down-vps-dockermanager
 
 ## Dependencies
 
-`vps-common` (shared helpers), plus `vps-cockpit` (see this folder's `package.json` `dependencies`). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers), plus `vps-cockpit` (see this folder's `package.json` `dependencies`). `vps-setup` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 

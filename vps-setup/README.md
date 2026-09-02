@@ -54,8 +54,8 @@ for pinning a fork/branch.
 ## Dependencies
 
 `vps-common` (shared helpers). Not itself a dependency target for any
-other step (it isn't a "step" - see above), so `dispatch.sh`-style
-auto-enable doesn't apply to it.
+other step (it isn't a "step" - see above), so the auto-enable logic it
+runs for other steps doesn't apply to it.
 
 ## Tests
 

@@ -40,7 +40,7 @@ else
   fi
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     zz_log i "[vps-setup] Updating existing checkout in $INSTALL_DIR..."
-    git -C "$INSTALL_DIR" fetch --depth 1 origin "$REPO_REF"
+    git -C "$INSTALL_DIR" fetch --depth 1 origin -- "$REPO_REF"
     git -C "$INSTALL_DIR" checkout -q -B "$REPO_REF" FETCH_HEAD
     git -C "$INSTALL_DIR" reset --hard FETCH_HEAD
   elif [[ -d "$INSTALL_DIR" ]]; then
@@ -121,8 +121,19 @@ feature_default() { jq -r '.vps.default' "$1/package.json"; }
 # as feature_name(), it names another folder in this repo with its own
 # package.json + run.sh.
 feature_deps() {
-  jq -r '(.dependencies // {}) | keys[] | sub("^@tomgrv/"; "")' "$1/package.json" | grep -vxE 'vps-common|vps-setup' | while IFS= read -r dep; do
-    [[ -f "$FEATURES_DIR/$dep/package.json" ]] && [[ -f "$FEATURES_DIR/$dep/run.sh" ]] && printf '%s\n' "$dep"
+  # Filtering out vps-common/vps-setup in jq itself (rather than piping
+  # through `grep -v`) means an empty result - e.g. a feature whose only
+  # dependency is vps-common - doesn't leave a `grep` with no matching
+  # lines as the last exit status feeding into `set -o pipefail`.
+  jq -r '(.dependencies // {}) | keys[] | sub("^@tomgrv/"; "") | select(. != "vps-common" and . != "vps-setup")' "$1/package.json" | while IFS= read -r dep; do
+    # if/then, not `[[ ]] && [[ ]] && printf` - under `set -e`, a bad/typo
+    # dependency that doesn't resolve to a real folder would make that
+    # iteration's compound command fail and abort this loop early,
+    # silently dropping every dependency after it instead of just
+    # skipping the bad one.
+    if [[ -f "$FEATURES_DIR/$dep/package.json" ]] && [[ -f "$FEATURES_DIR/$dep/run.sh" ]]; then
+      printf '%s\n' "$dep"
+    fi
   done
 }
 feature_inputs() { pkg_input_names "$1/package.json"; }

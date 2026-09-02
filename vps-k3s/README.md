@@ -4,14 +4,14 @@
 
 k3s / kubectl / helm install (includes Traefik configuration).
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `dispatch.sh`'s install sequence (order `4`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order `4`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-vps-k3s
+sudo vps-setup --only-vps-k3s
 ```
 
 Or directly, from a checkout (`up` is the default action):
@@ -26,7 +26,7 @@ sudo bash vps-k3s/run.sh down
 `down` removes k3s itself, via its own uninstaller - **takes Rancher and anything installed via the Marketplace down with it**, since they all run on this cluster.
 
 ```bash
-sudo sh dispatch.sh --down-vps-k3s
+sudo vps-setup --down-vps-k3s
 ```
 
 ## Environment variables
@@ -47,7 +47,7 @@ sudo sh dispatch.sh --down-vps-k3s
 
 ## Dependencies
 
-`vps-common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers). `vps-setup` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 
