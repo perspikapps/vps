@@ -1,9 +1,9 @@
 {
     "name": "vps-setup",
     "version": "0.1.0",
-    "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
+        "test": "bats --recursive .",
         "update": "npm-check-updates -i -u",
         "update-all": "npm run update -w --root"
     },
@@ -30,15 +30,15 @@
     },
     "private": true,
     "workspaces": [
-        "cockpit",
-        "common",
-        "dockermanager",
-        "k3s",
-        "marketplace",
-        "rancher",
-        "security",
-        "summary",
-        "system",
+        "vps-cockpit",
+        "vps-common",
+        "vps-dockermanager",
+        "vps-k3s",
+        "vps-marketplace",
+        "vps-rancher",
+        "vps-security",
+        "vps-setup",
+        "vps-system",
         "vps-tailscale"
     ],
     "prettier": {
