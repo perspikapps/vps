@@ -14,11 +14,23 @@ step can be turned back off later without reinstalling anything else -
 see [Removing a feature](#removing-a-feature-updown-per-step).
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+zz_use perspikapps/vps/vps-setup
+sudo vps-setup
 ```
 
-Run it with no arguments on an actual terminal (not piped from `curl`) and
-you get an interactive menu instead of having to remember flag names - see
+The first two lines bootstrap [`zz_use`](https://github.com/tomgrv/scripts)
+(this repo's own package/dependency-fetching mechanism - see
+[One folder per feature](#one-folder-per-feature)) and fetch `vps-setup`,
+the interactive/flag-driven orchestrator that runs every step and prints
+a final connection summary; `sudo vps-setup` is the one that actually
+installs anything, and is safe to re-run any time afterwards. See
+[Running vps-setup](#running-vps-setup) for the full picture - there is
+no single one-liner that does everything end-to-end, deliberately: see
+that section for why.
+
+Run `vps-setup` with no arguments on an actual terminal and you get an
+interactive menu instead of having to remember flag names - see
 [Interactive menu](#interactive-menu). Run with `-h` for the full flag
 list (`--skip-vps-tailscale`, `--skip-vps-rancher`, etc.), or set env vars
 beforehand, e.g.:
@@ -27,12 +39,55 @@ beforehand, e.g.:
 sudo TAILSCALE_AUTHKEY=tskey-... \
     VPS_ADMIN_USER=ops VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAA..." \
     RANCHER_HOSTNAME=rancher.example.internal \
-    sh dispatch.sh
+    vps-setup
 ```
+
+## Running vps-setup
+
+There's no single command that clones this repo, bootstraps everything,
+and runs it end-to-end - by design. Every folder here, `vps-setup`
+included, is fetched and run the same way any `tomgrv/scripts`-style
+package is: `zz_use <origin>/<name>` then run `<name>`. Bootstrapping is
+always the same two steps:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+zz_use perspikapps/vps/vps-setup
+```
+
+`setup.sh` only installs `zz_use` (and the rest of the core `zz_*`
+bundle) onto `PATH` - it's a bulk copy of
+[`tomgrv/scripts`'s own `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh),
+byte-for-byte, kept here only so the one-liner's URL lives under this
+repo instead of pointing straight at `tomgrv/scripts`. It never runs
+anything from this repo itself. `zz_use perspikapps/vps/vps-setup` is the
+separate step that actually fetches `vps-setup`.
+
+From there, `sudo vps-setup [flags]` is what installs (or removes)
+anything - see [Running a single step](#running-a-single-step-or-a-subset)
+below for the full flag reference, and
+[Interactive menu](#interactive-menu) for running it with no flags on a
+terminal. It's always safe to re-run: every step's script is idempotent,
+and `vps-setup` itself re-clones/updates its own working checkout (see
+below) each time.
+
+### Why this needs its own checkout
+
+A single `zz_use perspikapps/vps/vps-setup` only fetches the
+`vps-setup/` folder - orchestrating every other step means reading every
+sibling folder's `package.json`/`run.sh`, which a single-folder fetch
+doesn't give you. `vps-setup/run.sh` handles this itself: run from inside
+a full local checkout (this repo cloned, `vps-setup/run.sh` invoked
+directly), it uses that checkout as-is; run standalone (the `zz_use`
+case, which is how the one-liner above works), it clones/updates a full
+checkout into `VPS_SETUP_DIR` (default `/opt/vps-setup`) first, then
+proceeds exactly the same way. `VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`/
+`VPS_SETUP_DIR` (same env vars as before) control that clone - see
+[Running from a non-standard branch or fork](#running-from-a-non-standard-branch-or-fork).
 
 ## Running a single step (or a subset)
 
-`dispatch.sh` runs eight feature folders, in the order each one's
+`vps-setup` runs eight feature folders, in the order each one's
 `package.json` declares (`vps.order` - see
 [One folder per feature](#one-folder-per-feature)): `vps-system`, `vps-security`,
 `vps-tailscale`, `vps-cockpit`, `vps-k3s` (includes Traefik configuration), `vps-rancher`,
@@ -48,53 +103,28 @@ flag families control which of them run:
   default; pass it more than once to run a few together. Any `--only-*`
   flag overrides every `--skip-*`/`--with-*` flag on the command line.
 
-When you already have `dispatch.sh` on disk (e.g. after the
-[full copy-paste example](#full-copy-paste-example)'s `-o /tmp/dispatch.sh`
-download), pass flags after the filename like any script:
+Once `vps-setup` is installed (see [above](#running-vps-setup)), flags are
+just ordinary arguments - no piped-`curl` shell-parsing gotchas to worry
+about:
 
 ```bash
 # Re-run just Rancher, e.g. after changing RANCHER_HOSTNAME:
-sudo RANCHER_HOSTNAME=new.example.com sh /tmp/dispatch.sh --only-vps-rancher
+sudo RANCHER_HOSTNAME=new.example.com vps-setup --only-vps-rancher
 
 # Re-run Cockpit and the dockermanager plugin together, skipping everything else:
-sudo sh /tmp/dispatch.sh --only-vps-cockpit --only-vps-dockermanager
+sudo vps-setup --only-vps-cockpit --only-vps-dockermanager
 
 # Full run except Rancher (e.g. you're not using Kubernetes on this box):
-sudo sh /tmp/dispatch.sh --skip-vps-rancher --skip-vps-k3s
+sudo vps-setup --skip-vps-rancher --skip-vps-k3s
 
 # Re-run just the marketplace catalog registration:
-sudo sh /tmp/dispatch.sh --only-vps-marketplace
+sudo vps-setup --only-vps-marketplace
 ```
-
-> [!WARNING]
-> **With the piped one-liner (`curl ... | sudo sh`), you cannot just
-> append flags after `sh`** - `sudo sh --only-vps-rancher` fails with
-> `sh: --only-vps-rancher: invalid option`, because the shell parses
-> `--only-vps-rancher` as an option _to the shell itself_ (it looks like one:
-> `--only-vps-rancher` starts with `--`, same shape as `sh`'s own
-> `--posix`/etc.), not as an argument to hand the script being read from
-> stdin. You must add `-s --` first: `-s` tells the shell to read the
-> script from stdin, and `--` marks the end of the shell's own options so
-> everything after it is passed through as `$1`, `$2`, ... to `dispatch.sh`:
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh \
->     | sudo sh -s -- --only-vps-rancher
-> ```
->
-> This composes with env vars the usual way (see the
-> [sudo env-var gotcha](#running-from-a-non-standard-branch-or-fork)
-> above - put them on the `sudo` line, not in a plain `export`):
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh \
->     | sudo RANCHER_HOSTNAME=new.example.com sh -s -- --only-vps-rancher
-> ```
 
 This is equivalent to (and a convenience wrapper around) invoking a
 feature's own script directly, as shown in [Layout](#layout) below -
 `--only-vps-rancher` just means "run `vps-rancher/run.sh` through
-`dispatch.sh`'s usual repo clone/update, dependency resolution, and final
+`vps-setup`'s usual repo clone/update, dependency resolution, and final
 summary, instead of calling it by hand." Because every feature's script
 is idempotent, re-running a single step to pick up a changed env var
 (like `RANCHER_HOSTNAME` above) is safe and won't disturb the others. See
@@ -109,7 +139,7 @@ source of truth for what it needs - `vps-rancher/package.json` declares
 `"@tomgrv/vps-rancher": "*"` (Rancher's `ClusterRepo` API needs Rancher,
 not k3s directly), and `vps-dockermanager/package.json` declares
 `"@tomgrv/vps-cockpit": "*"` (its plugins are meaningless without Cockpit
-itself). `dispatch.sh` reads that field directly (no separate config to
+itself). `vps-setup` reads that field directly (no separate config to
 keep in sync) and resolves it transitively: enabling `vps-marketplace`
 auto-enables `vps-rancher`, which in turn auto-enables `vps-k3s`, even
 though `vps-marketplace/package.json` never mentions `vps-k3s` at all:
@@ -117,7 +147,7 @@ though `vps-marketplace/package.json` never mentions `vps-k3s` at all:
 ```bash
 # vps-k3s isn't named here, but this still installs it - vps-rancher needs it,
 # and vps-marketplace needs vps-rancher:
-sudo sh dispatch.sh --only-vps-marketplace
+sudo vps-setup --only-vps-marketplace
 # -> [vps-setup] Also enabling 'vps-rancher' (required by 'vps-marketplace').
 # -> [vps-setup] Also enabling 'vps-k3s' (required by 'vps-rancher').
 ```
@@ -133,13 +163,11 @@ below.
 
 ## Interactive menu
 
-Run `dispatch.sh` with **no arguments**, on an actual terminal (an SSH
-session, not `curl ... | sudo sh`, which pipes the script itself into
-stdin and never triggers this), to get a menu instead of having to
-remember flag names:
+Run `vps-setup` with **no arguments**, on an actual terminal, to get a
+menu instead of having to remember flag names:
 
 ```bash
-sudo sh /tmp/dispatch.sh
+sudo vps-setup
 ```
 
 ```
@@ -176,17 +204,17 @@ instead of installing it:
 # Remove the marketplace catalog registration only (Rancher, k3s,
 # Cockpit, etc. are untouched - apps already installed from the
 # catalog via Rancher's UI are untouched too):
-sudo sh /tmp/dispatch.sh --down-vps-marketplace
+sudo vps-setup --down-vps-marketplace
 
 # Remove more than one step in the same run:
-sudo sh /tmp/dispatch.sh --down-vps-marketplace --down-vps-dockermanager
+sudo vps-setup --down-vps-marketplace --down-vps-dockermanager
 ```
 
 A step whose dependency is still enabled refuses to come down, so you
 don't accidentally break something still running:
 
 ```bash
-sudo sh /tmp/dispatch.sh --down-vps-k3s
+sudo vps-setup --down-vps-k3s
 # [vps-setup] Refusing to bring 'vps-k3s' down: 'vps-rancher' depends on it and is still enabled.
 # [vps-setup] Also pass --down-vps-rancher, or --force-down to override (may leave 'vps-rancher' broken).
 ```
@@ -210,7 +238,7 @@ What each step's `down` action actually does - and doesn't - undo:
 | `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                                      | any apps already installed from it (uninstall those from Rancher's UI)   |
 
 Each feature's `run.sh` also accepts the action directly if you'd rather
-run it without going through `dispatch.sh` (e.g. from an existing
+run it without going through `vps-setup` (e.g. from an existing
 `/opt/vps-setup` checkout):
 
 ```bash
@@ -225,14 +253,15 @@ first boot. Replace the SSH key and auth key with your own (see
 [Getting the keys you'll need](#getting-the-keys-youll-need) below):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh -o /tmp/dispatch.sh
+curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+zz_use perspikapps/vps/vps-setup
 
 VPS_ADMIN_USER=ops \
     VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" \
     TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
     RANCHER_HOSTNAME="rancher.tailnet-name.ts.net" \
     RANCHER_BOOTSTRAP_PASSWORD="$(openssl rand -base64 24)" \
-    sh /tmp/dispatch.sh
+    vps-setup
 ```
 
 This creates the `ops` sudo user with your key, disables SSH password
@@ -245,59 +274,36 @@ tailnet. Save the printed Rancher bootstrap password (also written to
 
 ## Running from a non-standard branch or fork
 
-The one-liner above always fetches `dispatch.sh` from `main`, but
-`dispatch.sh` itself clones the whole repo again (into `VPS_SETUP_DIR`) to
-get every feature folder - so to test a branch end-to-end you need to
-point _both_ fetches at it with `VPS_SETUP_REPO_REF`.
+Two separate fetches need to agree on the branch/fork you're testing:
+`zz_use`'s own fetch of the `vps-setup` folder itself (`@<ref>` in the
+`zz_use` call), and `vps-setup/run.sh`'s _internal_ clone of the full repo
+(`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`, since it needs every sibling
+feature folder too - see [Running vps-setup](#running-vps-setup)):
+
+```bash
+BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
+
+curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/setup.sh" | sh
+zz_use "perspikapps/vps/vps-setup@${BRANCH}"
+
+sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
+```
 
 > [!WARNING]
-> **`export FOO=bar` then `... | sudo sh` will NOT work.** `sudo` resets
-> the environment by default, so a plain shell `export` is invisible to the
-> command it runs - `dispatch.sh` will silently fall back to `main` even
-> though `echo $VPS_SETUP_REPO_REF` shows the right value in your shell.
-> Either put the assignment directly on the `sudo` line (it is passed
-> through even with env reset on), or use `sudo -E`. Don't do this:
+> **`export FOO=bar` then `sudo vps-setup` will NOT pick it up.** `sudo`
+> resets the environment by default, so a plain shell `export` is invisible
+> to the command it runs - `vps-setup` will silently fall back to `main`
+> for its internal clone even though `echo $VPS_SETUP_REPO_REF` shows the
+> right value in your shell. Either put the assignment directly on the
+> `sudo` line (as above - it's passed through even with env reset on), or
+> use `sudo -E` (only works if your sudoers config allows it):
 >
 > ```bash
-> export VPS_SETUP_REPO_REF=my-branch # WRONG: lost by sudo
-> curl -fsSL ".../my-branch/dispatch.sh" | sudo sh
+> export VPS_SETUP_REPO_REF=my-branch # WRONG on its own: lost by sudo
+> sudo vps-setup # falls back to main - use sudo -E vps-setup instead
 > ```
 
-Piped directly (no intermediate file), with the var set on the `sudo` line
-so it survives:
-
-```bash
-BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
-
-curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/dispatch.sh" \
-    | sudo VPS_SETUP_REPO_REF="$BRANCH" bash
-```
-
-Or equivalently, keep your `export` but tell `sudo` to preserve it with `-E`
-(only works if your sudoers config allows it - the explicit form above
-always works and needs no special sudoers setup):
-
-```bash
-export VPS_SETUP_REPO_REF=claude/vps-setup-ubuntu-scripts-br4ddo
-curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${VPS_SETUP_REPO_REF}/dispatch.sh" \
-    | sudo -E bash
-```
-
-Downloading to a file first (useful when passing several variables, as in
-the [full example](#full-copy-paste-example) above) works the same way -
-put every variable on the same line as `sudo`, before `bash`:
-
-```bash
-BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
-
-curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/dispatch.sh" -o /tmp/dispatch.sh
-
-sudo VPS_SETUP_REPO_REF="$BRANCH" \
-    VPS_ADMIN_USER=ops VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAA..." \
-    sh /tmp/dispatch.sh
-```
-
-Env vars for this:
+Env vars for the internal clone:
 
 | Variable             | Default                                  | Purpose                             |
 | -------------------- | ---------------------------------------- | ----------------------------------- |
@@ -305,18 +311,22 @@ Env vars for this:
 | `VPS_SETUP_REPO_REF` | `main`                                   | Branch, tag, or commit to check out |
 | `VPS_SETUP_DIR`      | `/opt/vps-setup`                         | Where the repo is cloned/updated    |
 
-To point at a fork as well as a branch, set both:
+To point at a fork as well as a branch, set both (and fetch `vps-setup`
+itself from the fork's ref too):
 
 ```bash
-sudo VPS_SETUP_REPO_URL=https://github.com/ \
+zz_use "perspikapps/vps/vps-setup@my-feature"
+sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
     VPS_SETUP_REPO_REF=my-feature \
-    sh /tmp/dispatch.sh < you > /vps.git
+    vps-setup
 ```
 
-`dispatch.sh` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
+`vps-setup` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
 `reset --hard` if it's already a checkout), so re-running it after pushing
-new commits to the same branch picks them up automatically - no need to
-re-download `dispatch.sh` itself unless you're switching branches/forks.
+new commits to the same branch picks them up automatically - only
+`zz_use`'s own fetch of `vps-setup` itself is cached (`zz_update` forces a
+fresh download of that, bypassing the cache, if you've changed
+`vps-setup/run.sh` itself on the branch you're testing).
 
 ## Getting the keys you'll need
 
@@ -361,8 +371,9 @@ you automatically.
 ## Provisioning via cloud-init / Kairos
 
 [`cloud-init/kairos-vps-setup.yaml`](cloud-init/kairos-vps-setup.yaml) is a
-`#cloud-config` user-data file that runs `dispatch.sh` unattended on first
-boot - no interactive SSH session needed to kick it off. It works with:
+`#cloud-config` user-data file that bootstraps `zz_use` and runs
+`vps-setup` unattended on first boot - no interactive SSH session needed
+to kick it off. It works with:
 
 - **[Kairos](https://kairos.io)** Ubuntu-flavored images, passed as the
   install config (e.g. `kairos-agent install --config
@@ -383,74 +394,61 @@ To use it:
 3. On first boot the VPS installs itself unattended; check
    `/var/log/vps-setup.log` for progress/output.
 
-Because `runcmd` already executes as root, this sidesteps the
-[`export ... | sudo sh` env-var gotcha](#running-from-a-non-standard-branch-or-fork)
-entirely - there's no `sudo` involved.
+Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
+`sudo` at all here - see the note in the file itself.
 
 ## Layout
 
-- `dispatch.sh` - leading script, deliberately **plain POSIX `/bin/sh`**
-  (see [One folder per feature](#one-folder-per-feature) for why): clones/
-  updates this repo, discovers every `*/package.json`, resolves
-  which steps run (flags, the [interactive menu](#interactive-menu), and
-  [dependencies read straight from each package.json](#dependencies-between-steps)),
-  bootstraps `zz_use` once via `setup.sh` (not per-feature - see below),
-  and runs each feature's `run.sh` in order, idempotent and re-runnable,
-  either `up` or [`down`](#removing-a-feature-updown-per-step).
-- `setup.sh` - installs `zz_use` (from
-  [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
-  execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
-  if it's sitting next to `setup.sh` in a local checkout, forwarding every
-  arg through - so `sh setup.sh --only-vps-rancher` from an existing checkout
-  works the same as calling `dispatch.sh` directly. Piped straight from
-  `curl` with no local checkout (`curl .../setup.sh | sh -s -- ...`), there's
-  no `package.json` next to the running script to find, so it only
-  bootstraps `zz_use` and stops - use `dispatch.sh`'s own one-liner (which
-  clones the repo first) for that case. A thin wrapper, deliberately:
-  `zz_use` itself isn't this repo's script, so duplicating its own
-  `setup.sh`'s bin-dir/linking logic here would just be a second copy to
-  keep in sync. `dispatch.sh` runs it once, up front, itself falling back
-  to `setup.sh` (and exec'ing back into itself) the same way if `zz_use`
-  isn't on `PATH` yet; every feature's own `run.sh` no longer bootstraps
-  `zz_use` itself (that would mean one `curl` per feature instead of one
-  total) - it just fails fast with a one-line message pointing here if
-  `zz_use` isn't already on `PATH` when run standalone. Pin the
-  `tomgrv/scripts` ref with `ZZ_SCRIPTS_REF` (default `main`), or bootstrap
-  from a fork entirely with `ZZ_SCRIPTS_SETUP_URL` (a full `setup.sh` URL).
-  See
+- `setup.sh` - installs `zz_use` (and the rest of the core `zz_*` bundle,
+  from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`,
+  then stops - a bulk copy of `tomgrv/scripts`'s own `setup.sh`, kept
+  here only so the one-liner's URL lives under this repo. It never runs
+  anything from this repo itself; `zz_use perspikapps/vps/vps-setup` is
+  the separate next step - see [Running vps-setup](#running-vps-setup).
+  Pin the `tomgrv/scripts` ref with `ZZ_ORIGIN_REF` (default `main`), or
+  bootstrap from a fork entirely with `ZZ_ORIGIN`. See
   [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
+- `vps-setup/` - the interactive/flag-driven orchestrator (see
+  [Running vps-setup](#running-vps-setup)): resolves which steps run
+  (flags, the [interactive menu](#interactive-menu), and
+  [dependencies read straight from each package.json](#dependencies-between-steps)),
+  runs each feature's `run.sh` in order, idempotent and re-runnable,
+  either `up` or [`down`](#removing-a-feature-updown-per-step), then
+  prints the final connection summary (Tailscale URL, Cockpit/Rancher
+  credentials). Like every feature, a top-level `<name>/{package.json,run.sh}`
+  folder, `zz_use`-installable on its own
+  (`zz_use perspikapps/vps/vps-setup`) - but since a single `zz_use` fetch
+  only pulls this one folder, it clones/updates a full checkout of
+  everything else itself when run standalone (see
+  [Running vps-setup](#running-vps-setup)). Not an installable step
+  itself, though - its own feature discovery skips it (and `vps-common/`)
+  explicitly.
 - `package.json` (root) - an npm **workspace** root (`"workspaces":
 [<every top-level folder>]`); ties every feature package together for
   tooling (`npm install`, `npm ls`, lint-staged, commitlint's
-  workspace-scope rules) without dispatch.sh itself needing npm/node at
+  workspace-scope rules) without `vps-setup` itself needing npm/node at
   all.
 - `cloud-init/kairos-vps-setup.yaml` - cloud-init/Kairos user-data that
-  runs `dispatch.sh` unattended on first boot.
+  bootstraps `zz_use` and runs `vps-setup` unattended on first boot.
 - `vps-common/` - shared logging/retry/idempotency helpers sourced by every
   feature's `run.sh` (strict bash mode, non-interactive apt, "already
   done" checks); `net_port`/`net_access`/`all_network_ports` for reading
   each feature's own `package.json` port declarations - see
   [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
-  feature's `up`/`down` actions. Colors and leveled logging
-  (`log`/`ok`/`warn`/`die`) delegate to `zz_colors`/`zz_log` from
-  [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same core
-  shared with `tomgrv/devcontainer-features`' common-utils feature -
+  feature's `up`/`down` actions. Colors and leveled logging (`ok`, and
+  `zz_log` directly for everything else) delegate to `zz_colors`/`zz_log`
+  from [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same
+  core shared with `tomgrv/devcontainer-features`' common-utils feature -
   bootstrapped on first source via its `setup.sh` if not already on
-  `PATH`. This is bash, not POSIX sh - every `run.sh` is invoked by
-  `dispatch.sh` as a `bash` subprocess, never sourced from the sh
-  dispatcher itself. Like every feature, `vps-common/` is a top-level
-  `<name>/{package.json,run.sh}` folder in this repo, laid out the same
-  way [`tomgrv/scripts`](https://github.com/tomgrv/scripts) lays out its
-  own scripts - which is what lets `zz_use` fetch and install it (or any
-  feature) directly from this repo, from anywhere:
+  `PATH`. This is bash, not POSIX sh - every `run.sh` (`vps-setup`
+  included) is a `bash` script. Like every feature, `vps-common/` is a
+  top-level `<name>/{package.json,run.sh}` folder in this repo, laid out
+  the same way [`tomgrv/scripts`](https://github.com/tomgrv/scripts) lays
+  out its own scripts - which is what lets `zz_use` fetch and install it
+  (or any feature) directly from this repo, from anywhere:
   `zz_use perspikapps/vps/vps-common`. It isn't an installable step itself,
-  though - `dispatch.sh`'s feature discovery skips it (and `vps-summary/`)
-  explicitly.
-- `vps-summary/` - prints connection info, the Tailscale URL, and the
-  Cockpit/Rancher credentials at the end of a run. Also its own
-  top-level `zz_use`-installable folder, also excluded from feature
-  discovery.
+  though - feature discovery skips it (and `vps-setup/`) explicitly.
 - `vps-system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
 - `vps-security/` - optional non-root admin user, ufw
@@ -481,7 +479,7 @@ entirely - there's no `sudo` involved.
   [Rancher Marketplace](#rancher-marketplace). Depends on `vps-k3s`/`vps-rancher`.
 - `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio) that
   install onto the k3s cluster rather than the host itself - not a
-  `dispatch.sh` feature folder (no `run.sh`), published as a standard
+  `vps-setup` feature folder (no `run.sh`), published as a standard
   Helm repo and installed through Rancher's UI instead - see
   [Rancher Marketplace](#rancher-marketplace).
 
@@ -508,7 +506,7 @@ below lists them as optional for adopting the convention elsewhere.
 
 Folder names carry no ordering (`vps-rancher/`, not
 `05-vps-rancher/`) - install order is a plain integer,
-`package.json`'s `vps.order`, and `dispatch.sh` sorts by that instead of
+`package.json`'s `vps.order`, and `vps-setup` sorts by that instead of
 by folder name. Everything that used to live in `setup.sh`'s
 hand-maintained bash tables (label, install order, default on/off, what
 depends on what) now lives in each feature's own `package.json` instead:
@@ -535,14 +533,14 @@ aren't all prefixed the same way. `"bin"` follows the usual
 `zz_use perspikapps/vps/vps-rancher` resolvable (see
 [Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
 below) - and what every internal identity (the folder itself, `"bin"`,
-`dispatch.sh`'s own flags/state tracking, e.g. `--only-vps-rancher`) is
+`vps-setup`'s own flags/state tracking, e.g. `--only-vps-rancher`) is
 built from: the package `"name"` with only the npm scope (`@tomgrv/`)
 stripped, never the `vps-` prefix too. `"dependencies"` always includes
 `@tomgrv/vps-common` (every feature sources it - see [Layout](#layout)),
 plus any other feature folder it needs, keyed by that folder's own scoped
-name; `dispatch.sh`'s own dependency reading (auto-enable, `--down-<step>`
+name; `vps-setup`'s own dependency reading (auto-enable, `--down-<step>`
 refusal) strips the npm scope the same way and explicitly excludes
-`vps-common`/`vps-summary` from the result, since neither is an
+`vps-common`/`vps-setup` from the result, since neither is an
 installable step, and only counts a key that actually names a real
 `<folder>/{package.json,run.sh}` - so an ordinary (non-feature) npm
 dependency, if this repo ever adds one, won't be mistaken for a step to
@@ -563,7 +561,7 @@ Adding a new feature is: create `vps-whatever/` with a
 where you want in the install sequence), a `run.sh` (`up()`/`down()` +
 `dispatch_action "$@"` at the end, same as any other feature - see
 `vps-common/`), a `test.bats` (see any existing feature's for the shape to
-copy), and a `README.md`. `dispatch.sh` picks it up automatically; add it
+copy), and a `README.md`. `vps-setup` picks it up automatically; add it
 to root `package.json`'s `"workspaces"` array too. Removing a feature is deleting
 its folder (and that array entry).
 
@@ -572,13 +570,12 @@ feature as an npm workspace member, so standard npm tooling (`npm ls`,
 `npm install`, the repo's existing lint-staged/commitlint config, which
 already referenced `@commitlint/config-workspace-scopes`) understands the
 dependency graph too - `package-lock.json` resolves `vps-rancher`'s
-`vps-k3s` dependency like any other workspace package. `dispatch.sh`
-itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
-[Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
-fields directly with `sed`/`awk`, precisely because those fields are
-simple, single-key-per-line JSON it controls the format of. If you hand-edit
-a feature's `package.json`, keep that one-key-per-line shape or
-`dispatch.sh`'s parser won't find it.
+`vps-k3s` dependency like any other workspace package. `vps-setup`
+itself never needs npm installed, though: it reads each `package.json`'s
+`dependencies`/`vps` fields directly with `jq` (installed on demand via
+`ensure_jq` in `vps-setup/run.sh` if missing, since this can run before
+`vps-system` - the step that would otherwise install it - on a totally
+fresh box).
 
 ### Running a single feature via `zz_use`, without this repo at all
 
@@ -586,7 +583,7 @@ Because every feature is a top-level `<name>/run.sh` folder - the same
 layout [`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its
 own scripts - `zz_use` (from that repo) can fetch and install any one of
 them directly, from any machine, without cloning this repo or running
-`dispatch.sh`:
+`vps-setup`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
@@ -602,7 +599,7 @@ locally after the first call, per-origin/ref - see
 and symlinks `vps-rancher/run.sh` onto `PATH` as `vps-rancher`. Since every
 feature's own `run.sh` in turn fetches `vps-common/run.sh` from this same
 repo the same way, a feature installed this way works exactly like it
-would through `dispatch.sh` - it just skips discovery, ordering,
+would through `vps-setup` - it just skips discovery, ordering,
 dependency auto-enable, and the interactive menu, so you're responsible
 for running any features it depends on yourself first (see
 [Dependencies between steps](#dependencies-between-steps)).
@@ -636,7 +633,7 @@ finds - there's no per-service ufw logic in that script at all, just a
 loop over that combined list. Every feature that binds a port itself
 (Cockpit, Rancher, Traefik's dashboard) reads its own default via
 `vps-common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
-automatically - see the function's comment for how `vps-summary/run.sh`, which
+automatically - see the function's comment for how `vps-setup/run.sh`, which
 isn't any one feature, asks for another feature's port explicitly), so the
 port ufw opens and the port the app actually listens on can't drift apart.
 
@@ -667,12 +664,12 @@ VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
 reachable from the internet to issue certs at all - a Tailscale-only
 ingress would defeat the point of having one.
 
-Because of this, **`dispatch.sh` refuses to run at all if the Tailscale step
+Because of this, **`vps-setup` refuses to run at all if the Tailscale step
 is enabled but `TAILSCALE_AUTHKEY` is unset** - proceeding anyway would
 lock down ufw and leave every Tailscale-only service unreachable by
 anything. Pass `--skip-vps-tailscale` if you genuinely want to run without
 Tailscale (you can join manually later with `tailscale up`, then `sudo
-sh dispatch.sh --only-vps-tailscale`).
+vps-setup --only-vps-tailscale`).
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
@@ -739,7 +736,7 @@ under [`charts/`](charts/).
 
 "Extra", non-essential apps - things that run _on_ the k3s cluster
 rather than being part of the host-level bootstrap - aren't installed by
-`dispatch.sh` any more. Instead, this repo publishes them as a standard
+`vps-setup` any more. Instead, this repo publishes them as a standard
 Helm chart repo from [`charts/`](charts/), and the `vps-marketplace` step
 (on by default) registers that repo as a Rancher `ClusterRepo` so it
 shows up under **Apps & Marketplace → Repositories** as
@@ -749,11 +746,11 @@ From there, installing (or removing) ArgoCD, Epinio, or anything else
 this repo publishes is just using Rancher's own **Apps & Marketplace →
 Charts** UI like any other catalog app - fill in that chart's values
 (see its `README.md` under `charts/<name>/` for what's required) and
-install. `dispatch.sh` itself no longer knows how to install/uninstall
+install. `vps-setup` itself no longer knows how to install/uninstall
 these apps directly; `vps-marketplace/run.sh down` only removes the catalog
 registration; uninstall an already-installed app from Rancher's UI.
 
-**Why this split**: `vps-cockpit/` and `vps-dockermanager/` stay as `dispatch.sh`
+**Why this split**: `vps-cockpit/` and `vps-dockermanager/` stay as `vps-setup`
 steps because they configure the host itself (apt packages, systemd
 services) - a Helm chart doesn't fit them. ArgoCD and Epinio, by
 contrast, are ordinary Kubernetes workloads with nothing VPS-specific
@@ -776,7 +773,7 @@ serves. Adding a new app to the catalog is: add
 any required values), push to `main`, and it's live in the catalog
 within a few minutes.
 
-Cockpit/Rancher's own credentials are still printed by `vps-summary/run.sh`
+Cockpit/Rancher's own credentials are still printed by `vps-setup/run.sh`
 at the end of an install; anything installed through the Marketplace
 prints its own credentials/URLs the way that chart's own notes (or its
 `README.md` under `charts/`) describe.
@@ -819,7 +816,7 @@ Ingresses via that chart's own values, outside this table.
 Each feature's `run.sh` can also be run standalone, from within a
 checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
 `setup.sh`'s job, run once - see [Layout](#layout)); it just fetches
-`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/common` if
+`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/vps-common` if
 `zz_use` is already on `PATH`, and fails fast with a one-line message
 pointing at `setup.sh` if it isn't:
 
@@ -828,10 +825,9 @@ curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
 sudo RANCHER_HOSTNAME=new.example.com bash vps-rancher/run.sh
 ```
 
-This is what `dispatch.sh --only-<step>`, described in
+This is what `vps-setup --only-<step>`, described in
 [Running a single step (or a subset)](#running-a-single-step-or-a-subset)
-above, does for you (and bootstraps `zz_use` for, once, up front, for
-every step - not per-feature).
+above, does for you.
 
 Every `run.sh` also takes an explicit `up` or `down` action as its first
 argument (`up` is the default, so the invocation above is really `...
@@ -851,16 +847,16 @@ example:
 [vps-setup] ERROR: command failed (exit 1) at /opt/vps-setup/vps-rancher/run.sh line 52: helm upgrade --install rancher ...
 ```
 
-When a step fails during a full `dispatch.sh` run, it also prints which
+When a step fails during a full `vps-setup` run, it also prints which
 numbered step failed and how to re-run just that one after fixing the
 issue:
 
 ```
-[vps-setup] Step 'Rancher install' (vps-rancher/run.sh up) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo sh dispatch.sh --only-vps-rancher
+[vps-setup] Step 'Rancher install' (vps-rancher/run.sh up) failed (exit 1) - see the error above. Fix it and re-run just this step with: sudo vps-setup --only-vps-rancher
 ```
 
 If you ever see a step stop with truly no output at all (not even its own
-first `log` line), that most often means a _prerequisite_ step was
+first log line), that most often means a _prerequisite_ step was
 skipped - e.g. running `--only-vps-rancher` on a box where `--only-vps-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
 `vps-rancher/run.sh` and `vps-marketplace/run.sh`
@@ -886,7 +882,7 @@ convention, every feature folder carries its own `<name>/test.bats`
 pure logic (`net_port`, `net_access`, `all_network_ports`,
 `feature_package_json`, `dispatch_action`) against a small fixture tree.
 [`tests/`](tests/) holds only what doesn't belong to any single folder:
-`dispatch.sh`/`setup.sh` themselves, and invariants spanning every
+`setup.sh` itself, and invariants spanning every
 folder's `run.sh`/`package.json` (e.g. no leftover `log`/`warn`/`die`
 wrappers - see [`tests/test-syntax.bats`](tests/test-syntax.bats)). The
 features themselves (apt/Helm/k3s installs) need a live root Ubuntu box
@@ -909,24 +905,22 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    folder name requested, never reads `"bin"` - see
    [One folder per feature](#one-folder-per-feature) above for why that
    distinction matters, e.g. `vps-tailscale/`).
-2. **A root `setup.sh`** that installs `zz_use` (from
-   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
-   execs your `package.json`'s `"main"` field (falling back to a root
-   `main.sh`, or just stopping if neither exists) - copy this repo's
-   `setup.sh` verbatim; it doesn't hardcode `perspikapps/vps` anywhere, it
-   only needs the `tomgrv/scripts` URL and a `"main"`/`main.sh` next to
-   itself. Your dispatcher (this repo's `dispatch.sh`, or whatever entry
-   point runs every script in sequence) is that `"main"` target, and runs
-   `setup.sh` **once**, up front, forwarding its own args back into itself
-   on the way out:
-    ```sh
-    command -v zz_use > /dev/null 2>&1 || exec sh "$REPO_ROOT/setup.sh" "$@"
-    ```
-    Individual scripts don't bootstrap `zz_use` themselves - that would
-    mean one `curl` per script instead of one total, exactly the
-    duplication a root `setup.sh` exists to avoid. They just fail fast if
-    it's somehow still missing (e.g. run standalone, outside the
-    dispatcher):
+2. **A root `setup.sh`** that installs `zz_use` (and the core `zz_*`
+   bundle, from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto
+   `PATH`, then stops - a bulk copy of `tomgrv/scripts`'s own `setup.sh`
+   (see [Layout](#layout)), kept in your repo only so the one-liner's URL
+   lives under it instead of pointing straight at `tomgrv/scripts`. It
+   doesn't hardcode `perspikapps/vps` anywhere (or anything else about
+   this repo) - copy it verbatim, unmodified. If you need something that
+   runs every script in sequence (this repo's `vps-setup`, described
+   throughout this README), that's its own ordinary
+   `<name>/{package.json,run.sh}` folder like any other - fetched and run
+   as its own explicit step (`zz_use <org>/<repo>/<name>`, then run
+   `<name>`), never auto-exec'd by `setup.sh` itself. Individual scripts
+   don't bootstrap `zz_use` themselves - that would mean one `curl` per
+   script instead of one total, exactly the duplication a root `setup.sh`
+   exists to avoid. They just fail fast if it's somehow still missing
+   (e.g. run standalone, before `setup.sh`):
     ```sh
     command -v zz_use > /dev/null 2>&1 || {
         echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh | sh" >&2
@@ -941,10 +935,10 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    `source ../lib/common.sh`, so it resolves the same way whether a
    script runs from a local checkout, standalone, or `zz_use`-installed
    from anywhere. Exclude it (and anything else that's shared logic
-   rather than an installable unit, like this repo's `summary/`) from
-   whatever discovers your installable units by convention - see
-   `dispatch.sh`'s `list_feature_dirs()`/`feature_deps()` here for how
-   this repo does it.
+   rather than an installable unit, like this repo's orchestrator,
+   `vps-setup/`) from whatever discovers your installable units by
+   convention - see `vps-setup/run.sh`'s own `list_feature_dirs()`/
+   `feature_deps()` here for how this repo does it.
 4. **Root `package.json`**: an npm workspaces root listing every folder
    explicitly (not a glob - see [tomgrv/scripts](https://github.com/tomgrv/scripts)'s
    own `package.json` for the same convention), so `npm install`/`npm ls`
