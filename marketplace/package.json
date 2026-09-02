@@ -1,0 +1,20 @@
+{
+    "name": "@tomgrv/vps-marketplace",
+    "version": "1.0.0",
+    "description": "Rancher Apps & Marketplace catalog registration",
+    "bin": {
+        "marketplace": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-common": "*",
+        "@tomgrv/vps-rancher": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": true,
+        "order": 7
+    },
+    "scripts": {
+        "test": "bats test.bats"
+    }
+}

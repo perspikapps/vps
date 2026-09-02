@@ -4,14 +4,14 @@
 
 One-line bootstrapper that turns a fresh Ubuntu VPS into a secured
 management box running Cockpit and a single-node k3s/Rancher cluster,
-with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, ArgoCD,
-and the Traefik dashboard are Tailscale-only; the ingress itself (80/443)
-is public on purpose - see [Security model](#security-model). ArgoCD and
-[Epinio](#epinio-deploy-apps-from-source), and
-[GitHub ARC](#github-actions-runner-controller-arc) are optional, opt-in steps (see
-[Running a single step](#running-a-single-step-or-a-subset)) - everything
-else runs by default. Every step can also be turned back off later without
-reinstalling anything else - see [Removing a feature](#removing-a-feature-updown-per-step).
+with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, and the
+Traefik dashboard are Tailscale-only; the ingress itself (80/443) is
+public on purpose - see [Security model](#security-model). This repo
+also publishes a Helm chart catalog (ArgoCD, Epinio, and anything else
+added under `charts/`) that the `marketplace` step registers in Rancher
+automatically - see [Rancher Marketplace](#rancher-marketplace). Every
+step can be turned back off later without reinstalling anything else -
+see [Removing a feature](#removing-a-feature-updown-per-step).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | sudo sh
@@ -32,22 +32,18 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 
 ## Running a single step (or a subset)
 
-`dispatch.sh` runs ten feature folders, in the order each one's
+`dispatch.sh` runs eight feature folders, in the order each one's
 `package.json` declares (`vps.order` - see
 [One folder per feature](#one-folder-per-feature)): `system`, `security`,
 `tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
-`dockermanager`, `argocd`, `epinio`, and `github-arc`. All of them run by
-default **except `argocd`, `epinio`, and `github-arc`, which are opt-in**
-(all three are heavy
-
-- see their own sections below - Epinio specifically is of little use
-  without a real domain, and `github-arc` needs a GitHub App already set
-  up). Three flag families control which of them run:
+`dockermanager`, and `marketplace`. All of them run by default. Three
+flag families control which of them run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
-- **`--with-<step>`** - turn on an opt-in step (currently `argocd`,
-  `epinio`, or `github-arc`) that's off by default; harmless (a no-op) on
-  a step that's already on by default.
+- **`--with-<step>`** - turn on an opt-in step that's off by default;
+  harmless (a no-op) on a step that's already on by default. (Every
+  step currently defaults to on - this flag exists for whatever future
+  step doesn't.)
 - **`--only-<step>`** - run _only_ the named step(s), regardless of its
   default; pass it more than once to run a few together. Any `--only-*`
   flag overrides every `--skip-*`/`--with-*` flag on the command line.
@@ -66,8 +62,8 @@ sudo sh /tmp/dispatch.sh --only-cockpit --only-dockermanager
 # Full run except Rancher (e.g. you're not using Kubernetes on this box):
 sudo sh /tmp/dispatch.sh --skip-rancher --skip-k3s
 
-# Full default run, plus the opt-in ArgoCD step:
-sudo sh /tmp/dispatch.sh --with-argocd
+# Re-run just the marketplace catalog registration:
+sudo sh /tmp/dispatch.sh --only-marketplace
 ```
 
 > [!WARNING]
@@ -109,8 +105,7 @@ is idempotent, re-running a single step to pick up a changed env var
 Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
 source of truth for what it needs - `rancher/package.json`
-declares `"@tomgrv/vps-k3s": "*"`, as do `argocd`'s, `epinio`'s, and
-`github-arc`'s. `dispatch.sh`
+declares `"@tomgrv/vps-k3s": "*"`, so does `marketplace`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
 explicitly:
@@ -123,7 +118,7 @@ sudo sh dispatch.sh --only-rancher
 
 The same `dependencies` field is read in reverse for
 [`--down-<step>`](#removing-a-feature-updown-per-step): bringing `k3s`
-down while `rancher`/`argocd`/`epinio` are still enabled is refused, since
+down while `rancher`/`marketplace` are still enabled is refused, since
 it would leave them broken. Adding a new dependency for a feature is a
 one-line edit to its `package.json` - see
 [One folder per feature](#one-folder-per-feature) below.
@@ -148,9 +143,7 @@ sudo sh /tmp/dispatch.sh
    5) * k3s              [up  ] k3s / kubectl / helm install (includes Traefik configuration)
    6) * rancher          [up  ] Rancher install
    7) * dockermanager    [up  ] cockpit-packagekit/files/dockermanager install
-   8)   argocd           [skip] ArgoCD install
-   9)   epinio           [skip] Epinio install
-  10)   github-arc       [skip] GitHub Actions Runner Controller (ARC) install
+   8) * marketplace      [up  ] Rancher Apps & Marketplace catalog registration
   (* = installed by default) Enter a number to cycle
   skip -> up -> down -> skip for that step.
   <enter> to proceed, 'q' to quit without changing anything.
@@ -172,14 +165,13 @@ without touching anything else already on the box - pass `--down-<step>`
 instead of installing it:
 
 ```bash
-# Remove ArgoCD only (Rancher, k3s, Cockpit, etc. are untouched):
-sudo sh /tmp/dispatch.sh --down-argocd
+# Remove the marketplace catalog registration only (Rancher, k3s,
+# Cockpit, etc. are untouched - apps already installed from the
+# catalog via Rancher's UI are untouched too):
+sudo sh /tmp/dispatch.sh --down-marketplace
 
 # Remove more than one step in the same run:
-sudo sh /tmp/dispatch.sh --down-argocd --down-epinio --down-github-arc
-
-# Add ArgoCD and remove Epinio in the same run:
-sudo sh /tmp/dispatch.sh --with-argocd --down-epinio
+sudo sh /tmp/dispatch.sh --down-marketplace --down-dockermanager
 ```
 
 A step whose dependency is still enabled refuses to come down, so you
@@ -192,32 +184,30 @@ sudo sh /tmp/dispatch.sh --down-k3s
 ```
 
 Either bring the dependent step down in the same run (`--down-k3s
---down-rancher --down-argocd --down-epinio --down-github-arc`, to remove
-the whole cluster cleanly), or pass `--force-down` if you really want to
-pull `k3s` out from under something still enabled.
+--down-rancher --down-marketplace`, to remove the whole cluster
+cleanly), or pass `--force-down` if you really want to pull `k3s` out from
+under something still enabled.
 
 What each step's `down` action actually does - and doesn't - undo:
 
-| Step            | `down` removes                                                                                 | Left in place                                                            |
-| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `system`        | _(no down action - a base package upgrade, nothing to undo)_                                   | everything                                                               |
-| `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                               | the admin user/password `up` created, if any                             |
-| `tailscale`     | logs out of the tailnet, disables `tailscaled`                                                 | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
-| `cockpit`       | the Cockpit packages and socket config                                                         | nothing else depends on it                                               |
-| `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher/ArgoCD/Epinio/GitHub ARC down with it** | -                                                                        |
-| `rancher`       | the Helm release and its namespace                                                             | cert-manager (shared with Epinio)                                        |
-| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                       | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
-| `argocd`        | the Helm release and its namespace                                                             | k3s, cert-manager                                                        |
-| `epinio`        | the Helm release, its namespace, and the `epinio` CLI                                          | k3s, cert-manager, Traefik                                               |
-| `github-arc`    | both Helm releases (controller and runner scale set), the GitHub App secret, and the namespace | k3s                                                                      |
+| Step            | `down` removes                                                                                                   | Left in place                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
+| `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
+| `tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `cockpit`       | the Cockpit packages and socket config                                                                           | nothing else depends on it                                               |
+| `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher and anything installed via the Marketplace down with it** | -                                                                        |
+| `rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
+| `dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
+| `marketplace`   | the `ClusterRepo` catalog registration only                                                                      | any apps already installed from it (uninstall those from Rancher's UI)   |
 
 Each feature's `run.sh` also accepts the action directly if you'd rather
 run it without going through `dispatch.sh` (e.g. from an existing
 `/opt/vps-setup` checkout):
 
 ```bash
-sudo bash argocd/run.sh down
-sudo bash argocd/run.sh up # same as calling it with no argument
+sudo bash marketplace/run.sh down
+sudo bash marketplace/run.sh up # same as calling it with no argument
 ```
 
 ## Full copy-paste example
@@ -322,12 +312,6 @@ re-download `dispatch.sh` itself unless you're switching branches/forks.
 
 ## Getting the keys you'll need
 
-Every variable below can be set as an env var up front, but on an
-interactive run (an actual terminal, not `curl | sudo sh`) you don't have
-to: `dispatch.sh` prompts for whatever's still unset right before running
-the enabled steps - see
-[Interactive input prompts](#interactive-input-prompts-each-features-own-packagejson).
-
 **SSH key pair** (for `VPS_ADMIN_SSH_KEY`) - generate one on your own
 machine, never on the VPS:
 
@@ -366,21 +350,6 @@ openssl rand -base64 24
 If you don't set it, `rancher/run.sh` generates and saves one for
 you automatically.
 
-**GitHub App credentials** (for `GITHUB_ARC_APP_ID`,
-`GITHUB_ARC_APP_INSTALLATION_ID`, `GITHUB_ARC_APP_PRIVATE_KEY_FILE`) -
-create a GitHub App and install it on the org/repo you want runners for,
-following
-[the ARC quickstart](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started#configuring-arc-with-a-github-app):
-
-1. Create the App under your org/user settings, with the permissions the
-   quickstart lists, then generate a private key for it (downloads a
-   `.pem` file) and install it on the target org/repo.
-2. Note the App ID (from the App's settings page) and the installation ID
-   (from the URL after installing it: `.../installations/<ID>`).
-3. Copy the downloaded `.pem` onto the VPS (e.g. `scp`) and point
-   `GITHUB_ARC_APP_PRIVATE_KEY_FILE` at it - the key content itself is
-   never passed as an env var.
-
 ## Provisioning via cloud-init / Kairos
 
 [`cloud-init/kairos-vps-setup.yaml`](cloud-init/kairos-vps-setup.yaml) is a
@@ -414,22 +383,12 @@ entirely - there's no `sudo` involved.
 
 - `dispatch.sh` - leading script, deliberately **plain POSIX `/bin/sh`**
   (see [One folder per feature](#one-folder-per-feature) for why): clones/
-  updates this repo, ensures `jq` is installed on demand, discovers every
-  `*/package.json`, resolves which steps run (flags, the
-  [interactive menu](#interactive-menu), and
+  updates this repo, discovers every `*/package.json`, resolves
+  which steps run (flags, the [interactive menu](#interactive-menu), and
   [dependencies read straight from each package.json](#dependencies-between-steps)),
   bootstraps `zz_use` once via `setup.sh` (not per-feature - see below),
   and runs each feature's `run.sh` in order, idempotent and re-runnable,
   either `up` or [`down`](#removing-a-feature-updown-per-step).
-- `summary/dispatch-steps.sh` - also plain POSIX `/bin/sh`, sourced by
-  `dispatch.sh` once it knows its own repo root: the three per-step
-  operations `dispatch.sh` drives on each feature - `state_get`/`state_set`
-  (up/skip/down, per [Removing a feature](#removing-a-feature-updown-per-step)),
-  `ask_missing_inputs` (see
-  [Interactive input prompts](#interactive-input-prompts-each-features-own-packagejson)),
-  and `run_step` (invokes `<name>/run.sh up|down` as a `bash`
-  subprocess). Split out so the root script stays focused on flag parsing,
-  the menu, and dependency resolution.
 - `setup.sh` - installs `zz_use` (from
   [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`, then
   execs this repo's `"main"` entrypoint from `package.json` (`dispatch.sh`)
@@ -481,8 +440,8 @@ entirely - there's no `sudo` involved.
   though - `dispatch.sh`'s feature discovery skips it (and `summary/`)
   explicitly.
 - `summary/` - prints connection info, the Tailscale URL, and the
-  Cockpit/Rancher/ArgoCD/Epinio credentials at the end of a run. Also its
-  own top-level `zz_use`-installable folder, also excluded from feature
+  Cockpit/Rancher credentials at the end of a run. Also its own
+  top-level `zz_use`-installable folder, also excluded from feature
   discovery.
 - `system/` - apt update/upgrade, base tooling, unattended
   security upgrades.
@@ -506,19 +465,15 @@ entirely - there's no `sudo` involved.
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
   plugin for managing Docker containers/images from Cockpit.
-- `argocd/` - installs ArgoCD via Helm for GitOps-managed
-  deployments onto the k3s cluster, exposed on ports 7090/7093 through
-  k3s's built-in ServiceLB. Opt-in; depends on `k3s`.
-- `epinio/` - installs [Epinio](https://epinio.io) via Helm
-  for deploying apps straight from source, routed through Traefik's
-  existing ingress rather than a dedicated port - see
-  [Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
-  Opt-in; depends on `k3s`.
-- `github-arc/` - installs GitHub Actions Runner Controller
-  (ARC) via Helm, registering self-hosted runners against a GitHub org
-  or repo - see
-  [GitHub Actions Runner Controller (ARC)](#github-actions-runner-controller-arc).
-  Opt-in; depends on `k3s`.
+- `marketplace/` - registers this repo's Helm chart catalog
+  (`charts/`, published to GitHub Pages) as a Rancher `ClusterRepo`, so
+  it shows up under Apps & Marketplace → Repositories - see
+  [Rancher Marketplace](#rancher-marketplace). Depends on `k3s`/`rancher`.
+- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio) that
+  install onto the k3s cluster rather than the host itself - not a
+  `dispatch.sh` feature folder (no `run.sh`), published as a standard
+  Helm repo and installed through Rancher's UI instead - see
+  [Rancher Marketplace](#rancher-marketplace).
 
 ## One folder per feature
 
@@ -544,8 +499,7 @@ Folder names carry no ordering (`rancher/`, not
 `package.json`'s `vps.order`, and `dispatch.sh` sorts by that instead of
 by folder name. Everything that used to live in `setup.sh`'s
 hand-maintained bash tables (label, install order, default on/off, what
-depends on what) now lives in each feature's own `package.json`, under
-`vps`:
+depends on what) now lives in each feature's own `package.json` instead:
 
 ```json
 {
@@ -597,9 +551,10 @@ dependency graph too - `package-lock.json` resolves `@tomgrv/vps-rancher`'s
 `@tomgrv/vps-k3s` dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
 [Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
-fields with `jq` - installed on demand (`ensure_jq`) if missing, since
-this runs before `system` (the step that would otherwise install
-it) on a totally fresh box.
+fields directly with `sed`/`awk`, precisely because those fields are
+simple, single-key-per-line JSON it controls the format of. If you hand-edit
+a feature's `package.json`, keep that one-key-per-line shape or
+`dispatch.sh`'s parser won't find it.
 
 ### Running a single feature via `zz_use`, without this repo at all
 
@@ -611,7 +566,7 @@ them directly, from any machine, without cloning this repo or running
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq  # common/run.sh needs it
+command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # common/run.sh needs it
 zz_use perspikapps/vps/rancher
 sudo rancher up
 ```
@@ -655,7 +610,7 @@ itself: it calls `common/run.sh`'s `all_network_ports()`, which scans
 every `*/package.json` and builds ufw's rules from whatever it
 finds - there's no per-service ufw logic in that script at all, just a
 loop over that combined list. Every feature that binds a port itself
-(Cockpit, Rancher, Traefik's dashboard, ArgoCD) reads its own default via
+(Cockpit, Rancher, Traefik's dashboard) reads its own default via
 `common/run.sh`'s `net_port()` helper (resolving its _own_ package.json
 automatically - see the function's comment for how `summary/run.sh`, which
 isn't any one feature, asks for another feature's port explicitly), so the
@@ -668,74 +623,20 @@ editing anything, use its env var - the name is always the entry's `name`,
 upper-cased, with `_PORT` appended: `rancher_http` -> `RANCHER_HTTP_PORT`,
 `ssh` -> `SSH_PORT`, and so on.
 
-Lookups are done with `jq` (see [Layout](#layout)'s `ensure_jq`) - no
-separate YAML tooling needed now that this lives in `package.json`
-alongside everything else npm already parses.
-
-## Interactive input prompts (each feature's own `package.json`)
-
-Every feature's `package.json` also declares `vps.inputs` and
-`vps.outputs`, in the same shape as a
-[GitHub composite action's `inputs:`/`outputs:`](https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#inputs)
-
-- except each input's key IS the env var its own `run.sh` reads (no
-  separate id-to-env-var mapping to keep in sync):
-
-```json
-"vps": {
-    "inputs": {
-        "TAILSCALE_AUTHKEY": {
-            "description": "Auth key to auto-join a tailnet",
-            "required": true,
-            "default": ""
-        }
-    },
-    "outputs": {
-        "TAILSCALE_IP": {
-            "description": "Tailnet IPv4 address once joined"
-        }
-    }
-}
-```
-
-Before running any enabled step, `dispatch.sh` walks every "up" step's
-`vps.inputs` and, for each one not already set in the environment, prompts
-for it on stdin - showing its `description` and `default` (empty **Enter**
-accepts the default, or leaves an optional var unset). This only happens
-on an actual terminal (`[ -t 0 ]`): the piped one-liner
-(`curl ... | sudo sh`) has nothing to read prompts from, so there env
-vars (or `--skip-<step>`) remain the only way to supply them, exactly as
-before this existed. A var already set beforehand (env var, or exported
-by an earlier prompt) is never re-asked.
-
-```
-==== Feature inputs ====
-  TAILSCALE_AUTHKEY (Auth key to auto-join a tailnet) (required): tskey-...
-  TAILSCALE_EXTRA_ARGS (Extra flags appended to tailscale up) [optional, enter to skip]:
-  RANCHER_HTTP_PORT (Rancher HTTP port) [7080]:
-```
-
-This runs early enough that answering the prompt for a required var (like
-`TAILSCALE_AUTHKEY` above) also satisfies the dedicated
-[tailscale guard](#security-model) further down - you're not asked twice.
-`vps.outputs` is documentation only (what a feature produces and, where
-meaningful, where it's saved - e.g. `/root/.rancher-bootstrap-password`);
-nothing currently reads it back programmatically.
-
-Adding a new input to a feature is a `package.json` edit plus reading the
-matching env var in that feature's `run.sh` - no change to `dispatch.sh`
-itself (its `pkg_input_*` helpers read `vps.inputs` generically via
-`jq`).
+Lookups are done with `jq` (already a base dependency installed by
+`system`) - no separate YAML tooling needed now that this
+lives in `package.json` alongside everything else npm already parses.
 
 ## Security model
 
 SSH and HTTP/HTTPS (Traefik's ingress) are the only things reachable from
 the public internet. Everything else - Cockpit, Rancher, the Traefik
-dashboard, ArgoCD, the k3s API - is bound by `ufw` to the `tailscale0`
-interface only, so you must join the same tailnet to reach them. Epinio
-is the one exception: it isn't bound to a port `ufw` can gate, since it's
-ingress-routed on the same public 80/443 as Traefik itself - see
-[Epinio (deploy apps from source)](#epinio-deploy-apps-from-source).
+dashboard, the k3s API - is bound by `ufw` to the `tailscale0`
+interface only, so you must join the same tailnet to reach them. Apps
+you install through Rancher's Apps & Marketplace (ArgoCD, Epinio, or
+anything else) manage their own exposure - see each chart's `README.md`
+under [`charts/`](charts/) and [Rancher Marketplace](#rancher-marketplace)
+for what to check before installing one.
 
 HTTP/HTTPS are public unconditionally, not behind a flag: Traefik is this
 VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
@@ -764,8 +665,9 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   routes by the incoming request's `Host` header, not a fixed hostname
   list: any FQDN or subdomain you point at this VPS's public IP is routed
   by whichever `Ingress` declares that host, with no changes needed here
-    - that's how Epinio's per-app subdomains work too (see
-      [Epinio](#epinio-deploy-apps-from-source)).
+    - that's how a Marketplace-installed app's per-app subdomains would
+      work too, if it uses one (e.g. Epinio - see
+      [Rancher Marketplace](#rancher-marketplace)).
 - **Let's Encrypt**: a certResolver named `letsencrypt` is configured
   (email from `TRAEFIK_ACME_EMAIL`, HTTP-01 challenge on the `web`
   entrypoint, state persisted to a PVC so certs survive pod restarts).
@@ -792,7 +694,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   given it's already gated to the tailnet, same threat model as the rest
   of this repo's admin surfaces, but don't put it on a public port.
 
-## Cockpit, Rancher, and ArgoCD logins
+## Cockpit and Rancher logins
 
 - **Cockpit** authenticates via PAM against a real Linux account and
   password - separate from SSH, which stays key-only. `security/run.sh`
@@ -803,146 +705,57 @@ continuously so it's safe to re-apply any time (e.g. via `--only-k3s`).
   `RANCHER_BOOTSTRAP_PASSWORD` if set, otherwise a random one saved to
   `/root/.rancher-bootstrap-password`. Rancher prompts you to change it on
   first login.
-- **ArgoCD** username is always `admin`; the auto-generated initial
-  password is saved to `/root/.argocd-admin-password`. It's deleted from
-  the cluster (the `argocd-initial-admin-secret`) the first time you
-  change it in the UI/CLI, but the file this repo saved keeps working as
-  a record of what it originally was.
 
-## ArgoCD (GitOps deployments)
+Anything you install afterwards through Apps & Marketplace (ArgoCD,
+Epinio, etc.) sets up its own login the way its own chart does - see
+[Rancher Marketplace](#rancher-marketplace) and that chart's `README.md`
+under [`charts/`](charts/).
 
-Opt-in - pass `--with-argocd` (or `--only-argocd`) to install it; it
-doesn't run on a plain `dispatch.sh` with no flags.
+## Rancher Marketplace
 
-`argocd/run.sh` installs [ArgoCD](https://argo-cd.readthedocs.io/)
-via the `argo/argo-cd` Helm chart onto the k3s cluster from `k3s`,
-a natural pairing with Rancher for cluster management (see
-[this write-up](https://oneuptime.com/blog/post/2026-03-20-rancher-argocd/view)
-on running the two together). It's exposed on `ARGOCD_HTTP_PORT`/
-`ARGOCD_HTTPS_PORT` (default `7090`/`7093`) through k3s's built-in
-ServiceLB, Tailscale-only like Cockpit and Rancher. The server runs with
-TLS termination left to you (`server.insecure=true` in the chart, i.e.
-ArgoCD serves plain HTTP on its own port rather than trying to manage
-its own cert) since it isn't sitting behind the Traefik ingress.
+"Extra", non-essential apps - things that run _on_ the k3s cluster
+rather than being part of the host-level bootstrap - aren't installed by
+`dispatch.sh` any more. Instead, this repo publishes them as a standard
+Helm chart repo from [`charts/`](charts/), and the `marketplace` step
+(on by default) registers that repo as a Rancher `ClusterRepo` so it
+shows up under **Apps & Marketplace → Repositories** as
+`perspikapps-vps`, pointed at `https://perspikapps.github.io/vps/`.
 
-The `dex` (SSO) and notifications controller components are disabled
-(`dex.enabled=false`, `notifications.enabled=false`) since this repo only
-uses ArgoCD's built-in admin login - fewer pods means less to pull images
-for and wait on, which matters on a small single-node VPS. If a first
-install still doesn't finish within the default 15 minutes (a slow first
-image pull is the usual cause - check `kubectl -n argocd get pods` for
-`Pending`/`ImagePullBackOff`), either just re-run `sudo sh dispatch.sh
---only-argocd` (helm resumes the same release without re-pulling cached
-images), or set `ARGOCD_INSTALL_TIMEOUT` to a larger value first.
+From there, installing (or removing) ArgoCD, Epinio, or anything else
+this repo publishes is just using Rancher's own **Apps & Marketplace →
+Charts** UI like any other catalog app - fill in that chart's values
+(see its `README.md` under `charts/<name>/` for what's required) and
+install. `dispatch.sh` itself no longer knows how to install/uninstall
+these apps directly; `marketplace/run.sh down` only removes the catalog
+registration; uninstall an already-installed app from Rancher's UI.
 
-Point ArgoCD at your Git repos and `Application` manifests the usual way
-(`argocd repo add`, `argocd app create`, or the UI) once you've logged in
+**Why this split**: `cockpit/` and `dockermanager/` stay as `dispatch.sh`
+steps because they configure the host itself (apt packages, systemd
+services) - a Helm chart doesn't fit them. ArgoCD and Epinio, by
+contrast, are ordinary Kubernetes workloads with nothing VPS-specific
+about them once installed, so a Rancher-native catalog is a better fit
+than a bash script re-running `helm upgrade --install` - it gets you
+Rancher's own install/upgrade/values UI, version pinning, and easy
+removal for free.
 
-- see the [ArgoCD docs](https://argo-cd.readthedocs.io/en/stable/getting_started/)
-  for that workflow; this repo only handles getting ArgoCD itself installed
-  and reachable.
+**Publishing**: `charts/<name>/` are thin umbrella charts (a `Chart.yaml`
+dependency pointing at the real upstream chart, plus a `values.yaml`
+with sane defaults) - see [`charts/argocd`](charts/argocd) and
+[`charts/epinio`](charts/epinio). `.github/workflows/publish-charts.yml`
+packages every chart under `charts/*` and publishes them (via
+[`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action))
+as GitHub Releases plus an `index.yaml` on the `gh-pages` branch,
+whenever `charts/**` changes on `main` - that `gh-pages` branch, served
+via GitHub Pages, is what `https://perspikapps.github.io/vps/` actually
+serves. Adding a new app to the catalog is: add
+`charts/<name>/Chart.yaml` + `values.yaml` (+ `README.md` documenting
+any required values), push to `main`, and it's live in the catalog
+within a few minutes.
 
-Both credentials, along with the Tailscale IP/URL to reach them on, are
-printed by `summary/run.sh` at the end of the install (and any time
-you re-run it: `sudo bash /opt/vps-setup/summary/run.sh`).
-
-## Epinio (deploy apps from source)
-
-Opt-in - pass `--with-epinio` (or `--only-epinio`) to install it; it
-doesn't run on a plain `dispatch.sh` with no flags.
-
-`epinio/run.sh` installs [Epinio](https://epinio.io) - "from app to
-URL in one command" - via the official `epinio/epinio` Helm chart, per
-[the getting-started guide](https://docs.epinio.io/getting-started/install-epinio)
-(mirrored here from [the chart repo's own README](https://github.com/epinio/helm-charts),
-since `docs.epinio.io` wasn't reachable while writing this script - if
-anything here drifts from the live docs, that's the site to check). It
-reuses this VPS's existing infrastructure rather than installing its own
-copies: k3s's bundled Traefik as its ingress controller, explicitly
-pinned via `EPINIO_INGRESS_CLASS` (default `traefik`) on all three of the
-chart's ingress-class settings (its own server, deployed apps, and its
-internal container registry) rather than relying on Traefik just
-happening to be k3s's default IngressClass; and cert-manager, installed
-only if not already present - the same idempotent check
-`rancher/run.sh` uses, so it reuses Rancher's cert-manager if that
-step ran, or installs its own if you skipped Rancher.
-
-Unlike Cockpit/Rancher/ArgoCD, Epinio doesn't get a dedicated port: it
-creates its own Ingresses (`epinio.<domain>`, `auth.<domain>`, and one per
-app you deploy) on Traefik's existing public 80/443, the same way any
-app you `epinio push` will be. That means Epinio's dashboard is reachable
-from the public internet once its domain resolves - gated by its own
-login, not by `ufw` (see [Security model](#security-model)).
-
-- **Domain**: Epinio requires a wildcard DNS domain pointed at this VPS's
-  public IP (`EPINIO_DOMAIN`). Without one, it defaults to
-  [sslip.io](https://sslip.io) magic DNS (`<node-ip>.sslip.io`, which
-  resolves any subdomain back to that IP) - fine for trying Epinio out,
-  not something to depend on. Set `EPINIO_DOMAIN` to a real domain you
-  control before deploying anything you care about.
-- **TLS**: certs come from cert-manager via `EPINIO_TLS_ISSUER` (default
-  `epinio-ca`, a self-signed CA Epinio creates itself - browsers will
-  warn). Epinio also ships `letsencrypt-staging`/`letsencrypt-production`
-  ClusterIssuers if you'd rather use those once `EPINIO_DOMAIN` is real.
-- **Login**: username `admin`, password `EPINIO_ADMIN_PASSWORD` if set,
-  otherwise a random one saved to `/root/.epinio-admin-password`.
-- **CLI**: the `epinio` binary is installed to `/usr/local/bin/epinio`.
-  Log in with `epinio login -u admin -p '<password>' https://epinio.<domain>`,
-  then deploy an app from a source directory with `epinio push`.
-- This chart also deploys SeaweedFS (S3-compatible storage for source
-  blobs), its own container registry, and Dex, on top of Epinio itself -
-  more images to pull than Rancher or ArgoCD, so a slow first install is
-  normal. If it doesn't finish within the default `EPINIO_INSTALL_TIMEOUT`
-  (15 minutes), check `kubectl -n epinio get pods` for
-  `Pending`/`ImagePullBackOff`, then just re-run `sudo sh dispatch.sh
---only-epinio` (helm resumes the same release without re-pulling cached
-  images), or set `EPINIO_INSTALL_TIMEOUT` higher first.
-
-The login and dashboard URL are printed by `summary/run.sh` like
-every other step's credentials.
-
-## GitHub Actions Runner Controller (ARC)
-
-Opt-in - pass `--with-github-arc` (or `--only-github-arc`) to install it;
-it doesn't run on a plain `dispatch.sh` with no flags.
-
-`github-arc/run.sh` installs
-[GitHub Actions Runner Controller](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started)
-(ARC) via its two official Helm charts - the controller
-(`gha-runner-scale-set-controller`) and a runner scale set
-(`gha-runner-scale-set`) - both into a single `github` namespace on the
-k3s cluster, so self-hosted GitHub Actions runners can be dispatched
-straight onto this VPS.
-
-Authentication is via a GitHub App, the method the docs recommend over a
-personal access token - you create the App yourself (following the
-quickstart above) and give this script its credentials; it doesn't create
-the App for you.
-
-- **Required**: `GITHUB_ARC_CONFIG_URL` (the org or repo the runners
-  register against, e.g. `https://github.com/perspikapps` or
-  `https://github.com/perspikapps/vps`), `GITHUB_ARC_APP_ID`,
-  `GITHUB_ARC_APP_INSTALLATION_ID`, and
-  `GITHUB_ARC_APP_PRIVATE_KEY_FILE` (a path to the App's private key PEM
-    - not the key content itself, so it's never passed on the command line
-      or logged).
-- **Scaling**: `GITHUB_ARC_MIN_RUNNERS`/`GITHUB_ARC_MAX_RUNNERS` (default
-  `0`/`5`) control the runner scale set's autoscaling range.
-- Neither chart binds a port `ufw` needs to know about: runners connect
-  outbound to GitHub, nothing needs to be reachable from outside the
-  cluster.
-
-```bash
-sudo GITHUB_ARC_CONFIG_URL=https://github.com/perspikapps/vps \
-    GITHUB_ARC_APP_ID=123456 \
-    GITHUB_ARC_APP_INSTALLATION_ID=78901234 \
-    GITHUB_ARC_APP_PRIVATE_KEY_FILE=/root/github-arc-app.private-key.pem \
-    sh dispatch.sh --only-github-arc
-```
-
-Check on it with `kubectl -n github get autoscalingrunnersets` and
-`kubectl -n github get pods`; `summary/run.sh` reports whether it's
-installed like every other step.
+Cockpit/Rancher's own credentials are still printed by `summary/run.sh`
+at the end of an install; anything installed through the Marketplace
+prints its own credentials/URLs the way that chart's own notes (or its
+`README.md` under `charts/`) describe.
 
 ## Key environment variables
 
@@ -951,47 +764,33 @@ actually lives in the owning feature's own `package.json` - see
 [Network config](#network-config-each-features-own-packagejson) - edit
 that file to change a default for good, or set the env var for one run.
 
-| Variable                                            | Default              | Purpose                                                                                                          |
-| --------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `VPS_ADMIN_USER`                                    | unset                | Create this sudo user                                                                                            |
-| `VPS_ADMIN_SSH_KEY`                                 | unset                | Authorized key for the admin user and root                                                                       |
-| `VPS_ADMIN_PASSWORD`                                | random               | Cockpit/console login password (separate from SSH)                                                               |
-| `SSH_PORT`                                          | `22`                 | SSH port kept open publicly                                                                                      |
-| `TAILSCALE_AUTHKEY`                                 | unset                | Auto-join a tailnet (**required** unless `--skip-tailscale`)                                                     |
-| `TAILSCALE_EXTRA_ARGS`                              | unset                | Extra flags appended to `tailscale up`                                                                           |
-| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT`          | `9080` / `9083`      | Cockpit ports (`9xxx`)                                                                                           |
-| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT`          | `7080` / `7083`      | Rancher ports (`7xxx`)                                                                                           |
-| `RANCHER_HOSTNAME`                                  | node IP              | Hostname used in Rancher's cert                                                                                  |
-| `RANCHER_BOOTSTRAP_PASSWORD`                        | random               | Rancher initial admin password                                                                                   |
-| `INSTALL_DOCKER`                                    | `true`               | Install `docker.io` for cockpit-dockermanager to manage                                                          |
-| `COCKPIT_DOCKERMANAGER_VERSION`                     | `latest`             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install            |
-| `TRAEFIK_ACME_EMAIL`                                | placeholder          | Let's Encrypt contact email - set this to a real address                                                         |
-| `TRAEFIK_ACME_STAGING`                              | `true`               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                                      |
-| `TRAEFIK_DASHBOARD_PORT`                            | `8088`               | Traefik dashboard port (Tailscale-only)                                                                          |
-| `ARGOCD_HTTP_PORT` / `ARGOCD_HTTPS_PORT`            | `7090` / `7093`      | ArgoCD ports (`7xxx`, alongside Rancher)                                                                         |
-| `ARGOCD_CHART_VERSION`                              | latest               | Pin the `argo/argo-cd` Helm chart version                                                                        |
-| `ARGOCD_INSTALL_TIMEOUT`                            | `15m`                | How long to wait for ArgoCD's pods to come up                                                                    |
-| `EPINIO_DOMAIN`                                     | `<node-ip>.sslip.io` | Wildcard domain Epinio's Ingresses use - set to a real domain                                                    |
-| `EPINIO_INGRESS_CLASS`                              | `traefik`            | IngressClass Epinio's Ingresses are pinned to (reuses k3s's bundled Traefik)                                     |
-| `EPINIO_TLS_ISSUER`                                 | `epinio-ca`          | cert-manager ClusterIssuer: `epinio-ca`, `selfsigned-issuer`, `letsencrypt-staging`, or `letsencrypt-production` |
-| `EPINIO_ADMIN_PASSWORD`                             | random               | Epinio admin login password                                                                                      |
-| `EPINIO_CHART_VERSION`                              | latest               | Pin the `epinio/epinio` Helm chart version                                                                       |
-| `EPINIO_INSTALL_TIMEOUT`                            | `15m`                | How long to wait for Epinio's pods to come up                                                                    |
-| `CERT_MANAGER_VERSION`                              | latest               | Pin cert-manager's chart version (shared by Rancher and Epinio)                                                  |
-| `GITHUB_ARC_CONFIG_URL`                             | unset                | Org or repo URL runners register against (**required**)                                                          |
-| `GITHUB_ARC_APP_ID`                                 | unset                | GitHub App ID (**required**)                                                                                     |
-| `GITHUB_ARC_APP_INSTALLATION_ID`                    | unset                | GitHub App installation ID (**required**)                                                                        |
-| `GITHUB_ARC_APP_PRIVATE_KEY_FILE`                   | unset                | Path to the GitHub App's private key PEM (**required**)                                                          |
-| `GITHUB_ARC_RUNNER_SCALE_SET_NAME`                  | `arc-runner-set`     | Name of the runner scale set                                                                                     |
-| `GITHUB_ARC_MIN_RUNNERS` / `GITHUB_ARC_MAX_RUNNERS` | `0` / `5`            | Runner scale set autoscaling range                                                                               |
-| `GITHUB_ARC_CONTROLLER_CHART_VERSION`               | latest               | Pin the `gha-runner-scale-set-controller` chart version                                                          |
-| `GITHUB_ARC_RUNNER_SET_CHART_VERSION`               | latest               | Pin the `gha-runner-scale-set` chart version                                                                     |
-| `GITHUB_ARC_INSTALL_TIMEOUT`                        | `10m`                | How long to wait for each Helm install                                                                           |
+| Variable                                   | Default                              | Purpose                                                                                               |
+| ------------------------------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `VPS_ADMIN_USER`                           | unset                                | Create this sudo user                                                                                 |
+| `VPS_ADMIN_SSH_KEY`                        | unset                                | Authorized key for the admin user and root                                                            |
+| `VPS_ADMIN_PASSWORD`                       | random                               | Cockpit/console login password (separate from SSH)                                                    |
+| `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                           |
+| `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-tailscale`)                                          |
+| `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                |
+| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports (`9xxx`)                                                                                |
+| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports (`7xxx`)                                                                                |
+| `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                       |
+| `RANCHER_BOOTSTRAP_PASSWORD`               | random                               | Rancher initial admin password                                                                        |
+| `INSTALL_DOCKER`                           | `true`                               | Install `docker.io` for cockpit-dockermanager to manage                                               |
+| `COCKPIT_DOCKERMANAGER_VERSION`            | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
+| `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set this to a real address                                              |
+| `TRAEFIK_ACME_STAGING`                     | `true`                               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                           |
+| `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (Tailscale-only)                                                               |
+| `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `marketplace` step registers                                    |
+| `MARKETPLACE_REPO_URL`                     | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
+| `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `rancher`)                                             |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
-Cockpit `9xxx`, Rancher and ArgoCD `7xxx`, Traefik dashboard `8xxx` - the
+Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the
 ingress itself is always 80/443, per HTTP/HTTPS convention, not part of
-this scheme.
+this scheme. Apps installed through the Rancher Marketplace (see
+[Rancher Marketplace](#rancher-marketplace)) configure their own ports/
+Ingresses via that chart's own values, outside this table.
 
 Each feature's `run.sh` can also be run standalone, from within a
 checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
@@ -1040,16 +839,16 @@ If you ever see a step stop with truly no output at all (not even its own
 first `log` line), that most often means a _prerequisite_ step was
 skipped - e.g. running `--only-rancher` on a box where `--only-k3s` (or a
 full run) was never done first, so `kubectl`/`helm` don't exist yet.
-`rancher/run.sh`, `argocd/run.sh`, and `epinio/run.sh`
-all check for `kubectl`/`helm` explicitly and `die` with a clear message
-in that case; if you hit a silent stop anywhere else, please open an
-issue with the exact command you ran and the last few lines of output.
+`rancher/run.sh` and `marketplace/run.sh`
+both check for `kubectl` (and `rancher/run.sh` for `helm`) explicitly and
+`die` with a clear message in that case; if you hit a silent stop
+anywhere else, please open an issue with the exact command you ran and
+the last few lines of output.
 
 ## Tests
 
 ```sh
 npm install --global bats # or: apt-get install bats
-curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 npm test # or: bats --recursive .
 ```
 

@@ -48,7 +48,7 @@ down() {
     zz_log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
     apt-get purge -y tailscale 2>/dev/null || true
   fi
-  zz_log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, ArgoCD, the Traefik" \
+  zz_log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
        "dashboard, and the k3s API (all Tailscale-only) are now unreachable" \
        "until you re-run this step's 'up' action."
   ok "Tailscale brought down."

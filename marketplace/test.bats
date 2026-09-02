@@ -1,10 +1,11 @@
 #!/usr/bin/env bats
-# Static checks for epinio/run.sh and package.json - a live install
-# needs a real root Ubuntu box, so this stops at syntax + shape (see
-# this folder's README's "Tests" section, and ../tests/ for repo-wide checks).
+# Static checks for marketplace/run.sh and package.json - a live install
+# needs a real root Ubuntu box with Rancher already up, so this stops at
+# syntax + shape (see this folder's README's "Tests" section, and
+# ../tests/ for repo-wide checks).
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-DIR="$REPO_ROOT/epinio"
+DIR="$REPO_ROOT/marketplace"
 
 @test "run.sh parses as bash" {
     run bash -n "$DIR/run.sh"
@@ -31,7 +32,7 @@ DIR="$REPO_ROOT/epinio"
 }
 
 @test "package.json bin entry matches the folder name" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['epinio'] === 'run.sh' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['marketplace'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -45,8 +46,7 @@ DIR="$REPO_ROOT/epinio"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-k3s" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-k3s'] === '*' ? 0 : 1)"
+@test "package.json depends on @tomgrv/vps-rancher" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-rancher'] === '*' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
-
