@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# Moved from ../tests/ to live alongside common/run.sh, matching every
+# other folder's <name>/test.bats convention (see README's "Tests" section).
 # Covers common/run.sh's pure logic (net_port/net_access/all_network_ports/
 # feature_package_json/dispatch_action) against a small fixture tree, since
 # the rest of common/run.sh (apt helpers, cert-manager, Helm teardown) needs
@@ -88,4 +90,14 @@ EOF
         dispatch_action down
     "
     [ "$status" -ne 0 ]
+}
+
+@test "run.sh parses as bash" {
+    run bash -n "$REPO_ROOT/common/run.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "package.json bin entry matches the folder name" {
+    run node -e "const p = require('$REPO_ROOT/common/package.json'); process.exit(p.bin['common'] === 'run.sh' ? 0 : 1)"
+    [ "$status" -eq 0 ]
 }

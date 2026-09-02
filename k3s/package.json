@@ -64,5 +64,8 @@
                 "access": "tailscale"
             }
         ]
+    },
+    "scripts": {
+        "test": "bats test.bats"
     }
 }

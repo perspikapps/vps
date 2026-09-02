@@ -56,5 +56,8 @@
                 "value": "/root/.epinio-admin-password"
             }
         }
+    },
+    "scripts": {
+        "test": "bats test.bats"
     }
 }

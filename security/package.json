@@ -48,5 +48,8 @@
                 "note": "SSH"
             }
         ]
+    },
+    "scripts": {
+        "test": "bats test.bats"
     }
 }

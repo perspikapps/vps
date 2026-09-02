@@ -30,5 +30,8 @@
         },
         "order": 6,
         "outputs": {}
+    },
+    "scripts": {
+        "test": "bats test.bats"
     }
 }

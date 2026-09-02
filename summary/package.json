@@ -8,5 +8,8 @@
     "dependencies": {
         "@tomgrv/vps-common": "*"
     },
-    "private": true
+    "private": true,
+    "scripts": {
+        "test": "bats test.bats"
+    }
 }

@@ -12,5 +12,8 @@
             "zz_colors",
             "zz_log"
         ]
+    },
+    "scripts": {
+        "test": "bats test.bats"
     }
 }

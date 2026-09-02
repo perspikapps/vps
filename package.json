@@ -4,6 +4,7 @@
     "main": "dispatch.sh",
     "scripts": {
         "lint": "npx --yes lint-staged -p false",
+        "test": "bats --recursive .",
         "update": "npm-check-updates -i -u",
         "update-all": "npm run update -w --root"
     },

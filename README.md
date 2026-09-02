@@ -527,10 +527,17 @@ Each feature is a small, self-contained npm workspace package:
 ```
 rancher/
   package.json   # name, description, "bin": { "rancher": "run.sh" },
-                 # "vps": { "default": true|false }, and
-                 # "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
+                 # "vps": { "default": true|false }, "scripts": { "test": "bats test.bats" },
+                 # and "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
+  test.bats      # syntax + shape checks - see Tests, below
+  README.md      # this feature's env vars, up/down usage, and dependencies
 ```
+
+Every feature folder in this repo follows this shape exactly - `README.md`
+and `test.bats` aren't optional here, even though
+[Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo)
+below lists them as optional for adopting the convention elsewhere.
 
 Folder names carry no ordering (`rancher/`, not
 `05-rancher/`) - install order is a plain integer,
@@ -575,10 +582,11 @@ identity) differs from every other feature's own name.
 
 Adding a new feature is: create `whatever/` with a
 `package.json` (following the shape above, with an `order` that places it
-where you want in the install sequence) and a `run.sh` (`up()`/`down()` +
+where you want in the install sequence), a `run.sh` (`up()`/`down()` +
 `dispatch_action "$@"` at the end, same as any other feature - see
-`common/`). `dispatch.sh` picks it up automatically; add it to root
-`package.json`'s `"workspaces"` array too. Removing a feature is deleting
+`common/`), a `test.bats` (see any existing feature's for the shape to
+copy), and a `README.md`. `dispatch.sh` picks it up automatically; add it
+to root `package.json`'s `"workspaces"` array too. Removing a feature is deleting
 its folder (and that array entry).
 
 The root `package.json`'s `"workspaces"` array registers every
@@ -1042,16 +1050,24 @@ issue with the exact command you ran and the last few lines of output.
 ```sh
 npm install --global bats # or: apt-get install bats
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-bats tests/
+npm test # or: bats --recursive .
 ```
 
-Covers script syntax (`sh -n`/`bash -n` on every `run.sh`/`dispatch.sh`),
-the `zz_use`/`common` wiring every `run.sh` is expected to have, and
-`common/run.sh`'s pure logic (`net_port`, `net_access`,
-`all_network_ports`, `feature_package_json`, `dispatch_action`) against a
-small fixture tree. The features themselves (apt/Helm/k3s installs) need
-a live root Ubuntu box to actually test, so that part of this repo has no
-automated coverage.
+Following [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s own
+convention, every feature folder carries its own `<name>/test.bats`
+(runnable on its own with `bats <name>/test.bats`, or via that folder's
+`npm test`), covering that folder's `run.sh` syntax (`bash -n`), its
+`zz_use`/`common` wiring, `up()`/(where applicable) `down()`, and its
+`package.json`'s `bin`/`vps.order`/`dependencies` shape.
+[`common/test.bats`](common/test.bats) additionally covers `common/run.sh`'s
+pure logic (`net_port`, `net_access`, `all_network_ports`,
+`feature_package_json`, `dispatch_action`) against a small fixture tree.
+[`tests/`](tests/) holds only what doesn't belong to any single folder:
+`dispatch.sh`/`setup.sh` themselves, and invariants spanning every
+folder's `run.sh`/`package.json` (e.g. no leftover `log`/`warn`/`die`
+wrappers - see [`tests/test-syntax.bats`](tests/test-syntax.bats)). The
+features themselves (apt/Helm/k3s installs) need a live root Ubuntu box
+to actually test, so that part of this repo has no automated coverage.
 
 ## Replicating this pattern in another repo
 
