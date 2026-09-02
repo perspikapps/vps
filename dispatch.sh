@@ -102,10 +102,18 @@ list_feature_dirs() {
   done | sort -n -k1,1 | cut -f2-
 }
 
-feature_name() { jq -r '.name | sub("^@tomgrv/vps-"; "")' "$1/package.json"; }
+feature_name() { jq -r '.name' "$1/package.json"; }
 feature_desc() { jq -r '.description' "$1/package.json"; }
 feature_default() { jq -r '.vps.default' "$1/package.json"; }
-feature_deps() { jq -r '(.dependencies // {}) | keys[] | select(startswith("@tomgrv/vps-")) | sub("^@tomgrv/vps-"; "")' "$1/package.json" | grep -vxE 'common|summary'; }
+# A dependency key is only a feature dependency (as opposed to some future
+# ordinary npm dependency) if it names another folder in this repo with its
+# own package.json + run.sh - package.json "name" fields are bare folder
+# names (see README's "One folder per feature"), so no prefix to match on.
+feature_deps() {
+  jq -r '(.dependencies // {}) | keys[]' "$1/package.json" | grep -vxE 'common|summary' | while IFS= read -r dep; do
+    [ -f "$FEATURES_DIR/$dep/package.json" ] && [ -f "$FEATURES_DIR/$dep/run.sh" ] && printf '%s\n' "$dep"
+  done
+}
 feature_inputs() { pkg_input_names "$1/package.json"; }
 
 feature_dir_for_name() {
@@ -343,16 +351,16 @@ ask_missing_inputs
 # the install without Tailscale authenticated would leave all of them
 # unreachable. Refuse to proceed rather than silently produce a VPS
 # nothing can be managed on.
-if [ "$(state_get tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
-  warn "TAILSCALE_AUTHKEY is not set, but the tailscale step is enabled." \
+if [ "$(state_get vps-tailscale)" = "up" ] && [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
+  warn "TAILSCALE_AUTHKEY is not set, but the vps-tailscale step is enabled." \
     "Cockpit, Rancher, the Traefik dashboard, and the k3s API" \
     "are reachable ONLY over Tailscale (see README's Security model) -" \
     "continuing without it would leave all of them unreachable once ufw" \
     "locks the box down. Either:" \
     "  - set TAILSCALE_AUTHKEY (see README's 'Getting the keys you'll need'), or" \
-    "  - pass --skip-tailscale to proceed anyway (you can run 'tailscale up'" \
-    "    manually later, then: sudo sh dispatch.sh --only-tailscale)."
-  die "Refusing to run with tailscale enabled and TAILSCALE_AUTHKEY unset."
+    "  - pass --skip-vps-tailscale to proceed anyway (you can run 'tailscale up'" \
+    "    manually later, then: sudo sh dispatch.sh --only-vps-tailscale)."
+  die "Refusing to run with vps-tailscale enabled and TAILSCALE_AUTHKEY unset."
 fi
 
 # Tear down requested steps first (in reverse order, so dependents come

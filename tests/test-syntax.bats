@@ -39,17 +39,18 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 @test "dispatch.sh never treats common/summary as auto-enable dependency targets" {
     # dispatch.sh isn't designed to be sourced (it runs to completion as a
     # script), so this reproduces feature_deps()'s own filtering logic
-    # rather than sourcing the real function.
+    # rather than sourcing the real function: a dependency key only counts
+    # if it excludes common/summary AND names a real <folder>/{package.json,run.sh}
+    # - package.json "name" fields are bare folder names (see README's "One
+    # folder per feature"), so there's no "@tomgrv/vps-" prefix to match on.
     run bash -c "
         set -eu
-        pkg_deps() {
-            awk '
-                /\"dependencies\"[[:space:]]*:[[:space:]]*\{/ { infields = 1; next }
-                infields && /\}/ { infields = 0 }
-                infields { print }
-            ' \"\$1\" | sed -n 's/^[[:space:]]*\"@tomgrv\\/vps-\\([a-zA-Z0-9_-]*\\)\".*/\\1/p'
+        FEATURES_DIR='$REPO_ROOT'
+        feature_deps() {
+            jq -r '(.dependencies // {}) | keys[]' \"\$1/package.json\" | grep -vxE 'common|summary' | while IFS= read -r dep; do
+                [ -f \"\$FEATURES_DIR/\$dep/package.json\" ] && [ -f \"\$FEATURES_DIR/\$dep/run.sh\" ] && printf '%s\n' \"\$dep\"
+            done
         }
-        feature_deps() { pkg_deps \"\$1/package.json\" | grep -vxE 'common|summary'; }
         feature_deps '$REPO_ROOT/rancher' | grep -qx common && exit 1
         feature_deps '$REPO_ROOT/rancher' | grep -qx k3s || exit 1
         exit 0

@@ -1,12 +1,12 @@
 {
-    "name": "@tomgrv/vps-system",
+    "name": "system",
     "version": "1.0.0",
     "description": "Base system update & essentials",
     "bin": {
         "system": "run.sh"
     },
     "dependencies": {
-        "@tomgrv/vps-common": "*"
+        "common": "*"
     },
     "private": true,
     "vps": {

@@ -1,13 +1,13 @@
 {
-    "name": "@tomgrv/vps-rancher",
+    "name": "rancher",
     "version": "1.0.0",
     "description": "Rancher install",
     "bin": {
         "rancher": "run.sh"
     },
     "dependencies": {
-        "@tomgrv/vps-k3s": "*",
-        "@tomgrv/vps-common": "*"
+        "k3s": "*",
+        "common": "*"
     },
     "private": true,
     "vps": {

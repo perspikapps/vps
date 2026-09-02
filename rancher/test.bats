@@ -40,13 +40,13 @@ DIR="$REPO_ROOT/rancher"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
+@test "package.json depends on common" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['common'] === '*' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-k3s" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-k3s'] === '*' ? 0 : 1)"
+@test "package.json depends on k3s" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['k3s'] === '*' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

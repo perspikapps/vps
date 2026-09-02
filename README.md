@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/dispatch.sh | 
 Run it with no arguments on an actual terminal (not piped from `curl`) and
 you get an interactive menu instead of having to remember flag names - see
 [Interactive menu](#interactive-menu). Run with `-h` for the full flag
-list (`--skip-tailscale`, `--skip-rancher`, etc.), or set env vars
+list (`--skip-vps-tailscale`, `--skip-rancher`, etc.), or set env vars
 beforehand, e.g.:
 
 ```bash
@@ -35,7 +35,7 @@ sudo TAILSCALE_AUTHKEY=tskey-... \
 `dispatch.sh` runs eight feature folders, in the order each one's
 `package.json` declares (`vps.order` - see
 [One folder per feature](#one-folder-per-feature)): `system`, `security`,
-`tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
+`vps-tailscale`, `cockpit`, `k3s` (includes Traefik configuration), `rancher`,
 `dockermanager`, and `marketplace`. All of them run by default. Three
 flag families control which of them run:
 
@@ -105,7 +105,7 @@ is idempotent, re-running a single step to pick up a changed env var
 Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
 source of truth for what it needs - `rancher/package.json`
-declares `"@tomgrv/vps-k3s": "*"`, so does `marketplace`'s. `dispatch.sh`
+declares `"k3s": "*"`, so does `marketplace`'s. `dispatch.sh`
 reads that field directly (no separate config to keep in sync): enabling
 any of them auto-enables `k3s` too, even if you didn't ask for it
 explicitly:
@@ -138,7 +138,7 @@ sudo sh /tmp/dispatch.sh
 ==== VPS setup menu ====
    1) * system         [up  ] Base system update & essentials
    2) * security        [up  ] Firewall / SSH / fail2ban hardening
-   3) * tailscale        [up  ] Tailscale install
+   3) * vps-tailscale    [up  ] Tailscale install
    4) * cockpit          [up  ] Cockpit install
    5) * k3s              [up  ] k3s / kubectl / helm install (includes Traefik configuration)
    6) * rancher          [up  ] Rancher install
@@ -194,7 +194,7 @@ What each step's `down` action actually does - and doesn't - undo:
 | --------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | `system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
 | `security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
-| `tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `vps-tailscale` | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
 | `cockpit`       | the Cockpit packages and socket config                                                                           | nothing else depends on it                                               |
 | `k3s`           | k3s itself (via its own uninstaller) - **takes Rancher and anything installed via the Marketplace down with it** | -                                                                        |
 | `rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
@@ -481,9 +481,10 @@ Each feature is a small, self-contained npm workspace package:
 
 ```
 rancher/
-  package.json   # name, description, "bin": { "rancher": "run.sh" },
+  package.json   # "name": "rancher" (matches the folder - see below),
+                 # description, "bin": { "rancher": "run.sh" },
                  # "vps": { "default": true|false }, "scripts": { "test": "bats test.bats" },
-                 # and "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
+                 # and "dependencies": { "<other-feature-folder>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
   test.bats      # syntax + shape checks - see Tests, below
   README.md      # this feature's env vars, up/down usage, and dependencies
@@ -503,36 +504,41 @@ depends on what) now lives in each feature's own `package.json` instead:
 
 ```json
 {
-    "name": "@tomgrv/vps-rancher",
+    "name": "rancher",
     "version": "1.0.0",
     "private": true,
     "description": "Rancher install",
     "bin": { "rancher": "run.sh" },
     "vps": { "order": 5, "default": true },
-    "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
+    "dependencies": { "k3s": "*", "common": "*" }
 }
 ```
 
-`"bin"` follows the same `{"<name>": "run.sh"}` convention
+`"name"` is always the bare folder name - the same convention
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts) uses for its own
-scripts - what makes `zz_use perspikapps/vps/rancher` resolvable (see
+scripts (no npm scope, no `vps-` prefix) - and `"bin"` follows the same
+`{"<name>": "run.sh"}` shape, what makes `zz_use perspikapps/vps/rancher`
+resolvable (see
 [Running a single feature via `zz_use`](#running-a-single-feature-via-zz_use-without-this-repo-at-all)
-below). `"dependencies"` always includes `@tomgrv/vps-common` (every feature
-sources it - see [Layout](#layout)), plus any other `@tomgrv/vps-<feature>` it
-needs; `dispatch.sh`'s own dependency reading (auto-enable,
-`--down-<step>` refusal) explicitly excludes `common`/`summary` from this
-field, since neither is an installable step.
+below). `"dependencies"` always includes `common` (every feature sources
+it - see [Layout](#layout)), plus any other feature folder it needs, keyed
+by that folder's own bare name; `dispatch.sh`'s own dependency reading
+(auto-enable, `--down-<step>` refusal) explicitly excludes `common`/`summary`
+from this field, since neither is an installable step, and only counts a
+key that actually names a real `<folder>/{package.json,run.sh}` - so an
+ordinary (non-feature) npm dependency, if this repo ever adds one, won't
+be mistaken for a step to auto-enable.
 
-One folder is named differently from its own feature for exactly this
-reason: `vps-tailscale/`, not `tailscale/` - its `run.sh` calls the real
-`tailscale` CLI internally, and `zz_use` has no notion of `"bin"` at all
-(it always installs `<name>/run.sh` under the literal folder name `<name>`
-it was asked for) - `zz_use perspikapps/vps/tailscale` would install this
-feature's own script as `tailscale`, shadowing the actual binary it
-depends on. Its `package.json`'s `"name"` field is still `"@tomgrv/vps-tailscale"`
-though (that's what `dispatch.sh` reads - CLI flags like `--only-tailscale`
-are unaffected), so only the folder (and therefore the `zz_use`/`"bin"`
-identity) differs from every other feature's own name.
+This folder is named `vps-tailscale/`, not `tailscale/`, for exactly this
+reason: its `run.sh` calls the real `tailscale` CLI internally, and
+`zz_use` has no notion of `"bin"` at all (it always installs
+`<name>/run.sh` under the literal folder name `<name>` it was asked for)
+- `zz_use perspikapps/vps/tailscale` would install this feature's own
+script as `tailscale`, shadowing the actual binary it depends on. Its
+`package.json`'s `"name"` field is `"vps-tailscale"` too (folder names
+match workspace names - see above), so `dispatch.sh`'s own flags/state
+tracking use the full `vps-tailscale` identity as well: `--only-vps-tailscale`,
+`--skip-vps-tailscale`, not the shorter `--only-tailscale`.
 
 Adding a new feature is: create `whatever/` with a
 `package.json` (following the shape above, with an `order` that places it
@@ -547,8 +553,8 @@ The root `package.json`'s `"workspaces"` array registers every
 feature as an npm workspace member, so standard npm tooling (`npm ls`,
 `npm install`, the repo's existing lint-staged/commitlint config, which
 already referenced `@commitlint/config-workspace-scopes`) understands the
-dependency graph too - `package-lock.json` resolves `@tomgrv/vps-rancher`'s
-`@tomgrv/vps-k3s` dependency like any other workspace package. `dispatch.sh`
+dependency graph too - `package-lock.json` resolves `rancher`'s `k3s`
+dependency like any other workspace package. `dispatch.sh`
 itself never needs npm installed, though: it's plain POSIX `/bin/sh` (see
 [Layout](#layout)) and reads each `package.json`'s `dependencies`/`vps`
 fields directly with `sed`/`awk`, precisely because those fields are
@@ -646,9 +652,9 @@ ingress would defeat the point of having one.
 Because of this, **`dispatch.sh` refuses to run at all if the Tailscale step
 is enabled but `TAILSCALE_AUTHKEY` is unset** - proceeding anyway would
 lock down ufw and leave every Tailscale-only service unreachable by
-anything. Pass `--skip-tailscale` if you genuinely want to run without
+anything. Pass `--skip-vps-tailscale` if you genuinely want to run without
 Tailscale (you can join manually later with `tailscale up`, then `sudo
-sh dispatch.sh --only-tailscale`).
+sh dispatch.sh --only-vps-tailscale`).
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
@@ -770,7 +776,7 @@ that file to change a default for good, or set the env var for one run.
 | `VPS_ADMIN_SSH_KEY`                        | unset                                | Authorized key for the admin user and root                                                            |
 | `VPS_ADMIN_PASSWORD`                       | random                               | Cockpit/console login password (separate from SSH)                                                    |
 | `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                           |
-| `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-tailscale`)                                          |
+| `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                      |
 | `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports (`9xxx`)                                                                                |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports (`7xxx`)                                                                                |

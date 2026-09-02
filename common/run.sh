@@ -78,12 +78,12 @@ feature_package_json() {
     # run.sh alongside package.json is what marks a real feature folder -
     # skips node_modules/* (and any other non-feature directory) instead of
     # jq-parsing every package.json under the checkout.
-    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/vps-${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
+    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]] && jq -e --arg n "${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
       printf '%s' "${d}package.json"
       return 0
     fi
   done
-  zz_log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name @tomgrv/vps-${feature})."
+  zz_log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name ${feature})."
   exit 1
 }
 

@@ -1,12 +1,12 @@
 {
-    "name": "@tomgrv/vps-security",
+    "name": "security",
     "version": "1.0.0",
     "description": "Firewall / SSH / fail2ban hardening",
     "bin": {
         "security": "run.sh"
     },
     "dependencies": {
-        "@tomgrv/vps-common": "*"
+        "common": "*"
     },
     "private": true,
     "vps": {

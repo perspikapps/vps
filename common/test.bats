@@ -18,13 +18,13 @@ setup() {
     : >"$work/beta/run.sh"
     cat >"$work/alpha/package.json" <<'EOF'
 {
-    "name": "@tomgrv/vps-alpha",
+    "name": "alpha",
     "vps": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] }
 }
 EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
-    "name": "@tomgrv/vps-beta",
+    "name": "beta",
     "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "tailscale" }] }
 }
 EOF
