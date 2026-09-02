@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# dockermanager
+# vps-dockermanager
 
 cockpit-packagekit/files/dockermanager install.
 
@@ -8,17 +8,17 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `d
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-dockermanager
+sudo sh dispatch.sh --only-vps-dockermanager
 ```
 
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash dockermanager/run.sh up
-sudo bash dockermanager/run.sh down
+sudo bash vps-dockermanager/run.sh up
+sudo bash vps-dockermanager/run.sh down
 ```
 
 ## Removing (`down`)
@@ -26,7 +26,7 @@ sudo bash dockermanager/run.sh down
 `down` removes cockpit-dockermanager, cockpit-packagekit, and cockpit-files. Leaves Docker itself installed unless `REMOVE_DOCKER=true`.
 
 ```bash
-sudo sh dispatch.sh --down-dockermanager
+sudo sh dispatch.sh --down-vps-dockermanager
 ```
 
 ## Environment variables
@@ -39,7 +39,7 @@ sudo sh dispatch.sh --down-dockermanager
 
 ## Dependencies
 
-`common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers), plus `vps-cockpit` (see this folder's `package.json` `dependencies`). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 
@@ -47,4 +47,4 @@ sudo sh dispatch.sh --down-dockermanager
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz_use`/`common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.
+Covers `run.sh`'s syntax and static shape (the `zz_use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.

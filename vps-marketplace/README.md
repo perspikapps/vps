@@ -1,57 +1,37 @@
 <!-- @format -->
 
-# marketplace
+# vps-marketplace
 
 Rancher Apps & Marketplace catalog registration.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one
-step in `dispatch.sh`'s install sequence (order `7`,
-enabled by default). See the root
-README's [One folder per feature](../README.md#one-folder-per-feature)
-for the full convention this folder follows.
+Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `dispatch.sh`'s install sequence (order `7`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
 ## Usage
 
-Registers this repo's Helm chart catalog (`charts/`, published via
-GitHub Pages - see [`.github/workflows/publish-charts.yml`](../.github/workflows/publish-charts.yml))
-as a Rancher Apps \& Marketplace repository, so ArgoCD, Epinio, and any
-other chart this repo publishes can be installed from Rancher's UI
-instead of a dedicated per-app feature folder.
+Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-marketplace
+sudo sh dispatch.sh --only-vps-marketplace
 ```
 
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash marketplace/run.sh up
-sudo bash marketplace/run.sh down
+sudo bash vps-marketplace/run.sh up
+sudo bash vps-marketplace/run.sh down
 ```
 
 ## Removing (`down`)
 
-`down` removes the registered `ClusterRepo` from Rancher. Apps already
-installed from that catalog (e.g. ArgoCD, Epinio) are left untouched.
+`down` removes the `ClusterRepo` catalog registration only. Leaves any apps already installed from it (uninstall those from Rancher's UI).
 
 ```bash
-sudo sh dispatch.sh --down-marketplace
+sudo sh dispatch.sh --down-vps-marketplace
 ```
-
-## Environment variables
-
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `MARKETPLACE_REPO_NAME` | no | `perspikapps-vps` | Name the catalog is registered under in Rancher |
-| `MARKETPLACE_REPO_URL` | no | `https://perspikapps.github.io/vps/` | URL of the published Helm chart catalog |
 
 ## Dependencies
 
-`common` (shared helpers), plus `rancher` (see this folder's `package.json`
-`dependencies`) - the catalog is registered as a Rancher `ClusterRepo`
-custom resource, so Rancher itself must already be installed.
-`dispatch.sh` auto-enables these when this step is enabled - see the root
-README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers), plus `vps-rancher` (see this folder's `package.json` `dependencies`). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 
@@ -59,8 +39,4 @@ README's [Dependencies between steps](../README.md#dependencies-between-steps).
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz_use`/`common` wiring,
-`up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps`
-fields. Actually registering the catalog needs a live k3s/Rancher cluster
-to test - see the root README's [Tests](../README.md#tests) section for
-the full picture.
+Covers `run.sh`'s syntax and static shape (the `zz_use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.

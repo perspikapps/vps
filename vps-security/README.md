@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# security
+# vps-security
 
 Firewall / SSH / fail2ban hardening.
 
@@ -8,17 +8,17 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `d
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-security
+sudo sh dispatch.sh --only-vps-security
 ```
 
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash security/run.sh up
-sudo bash security/run.sh down
+sudo bash vps-security/run.sh up
+sudo bash vps-security/run.sh down
 ```
 
 ## Removing (`down`)
@@ -26,7 +26,7 @@ sudo bash security/run.sh down
 `down` removes ufw rules (disables ufw entirely), sshd hardening, and the fail2ban jail. Leaves the admin user/password `up` created (if any) in place.
 
 ```bash
-sudo sh dispatch.sh --down-security
+sudo sh dispatch.sh --down-vps-security
 ```
 
 ## Environment variables
@@ -46,7 +46,7 @@ sudo sh dispatch.sh --down-security
 
 ## Dependencies
 
-`common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 
@@ -54,4 +54,4 @@ sudo sh dispatch.sh --down-security
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz_use`/`common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.
+Covers `run.sh`'s syntax and static shape (the `zz_use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.

@@ -6,7 +6,8 @@
         "vps-dockermanager": "run.sh"
     },
     "dependencies": {
-        "@tomgrv/vps-common": "*"
+        "@tomgrv/vps-common": "*",
+        "@tomgrv/vps-cockpit": "*"
     },
     "private": true,
     "vps": {

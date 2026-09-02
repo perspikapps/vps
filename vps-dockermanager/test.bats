@@ -45,3 +45,11 @@ DIR="$REPO_ROOT/vps-dockermanager"
     [ "$status" -eq 0 ]
 }
 
+@test "package.json depends on @tomgrv/vps-cockpit" {
+    # cockpit-packagekit/cockpit-files are Cockpit plugins, and this
+    # step's down() tries `systemctl try-restart cockpit.socket` - none of
+    # that means anything without Cockpit itself already installed.
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-cockpit'] === '*' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+

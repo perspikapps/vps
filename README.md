@@ -104,24 +104,32 @@ is idempotent, re-running a single step to pick up a changed env var
 
 Every feature is its own npm workspace package under `<name>/`,
 and its `package.json`'s standard `dependencies` field is the single
-source of truth for what it needs - `vps-rancher/package.json`
-declares `"@tomgrv/vps-k3s": "*"`, so does `vps-marketplace`'s. `dispatch.sh`
-reads that field directly (no separate config to keep in sync): enabling
-any of them auto-enables `vps-k3s` too, even if you didn't ask for it
-explicitly:
+source of truth for what it needs - `vps-rancher/package.json` declares
+`"@tomgrv/vps-k3s": "*"`, `vps-marketplace/package.json` declares
+`"@tomgrv/vps-rancher": "*"` (Rancher's `ClusterRepo` API needs Rancher,
+not k3s directly), and `vps-dockermanager/package.json` declares
+`"@tomgrv/vps-cockpit": "*"` (its plugins are meaningless without Cockpit
+itself). `dispatch.sh` reads that field directly (no separate config to
+keep in sync) and resolves it transitively: enabling `vps-marketplace`
+auto-enables `vps-rancher`, which in turn auto-enables `vps-k3s`, even
+though `vps-marketplace/package.json` never mentions `vps-k3s` at all:
 
 ```bash
-# vps-k3s isn't named here, but this still installs it - vps-rancher needs it:
-sudo sh dispatch.sh --only-vps-rancher
+# vps-k3s isn't named here, but this still installs it - vps-rancher needs it,
+# and vps-marketplace needs vps-rancher:
+sudo sh dispatch.sh --only-vps-marketplace
+# -> [vps-setup] Also enabling 'vps-rancher' (required by 'vps-marketplace').
 # -> [vps-setup] Also enabling 'vps-k3s' (required by 'vps-rancher').
 ```
 
 The same `dependencies` field is read in reverse for
 [`--down-<step>`](#removing-a-feature-updown-per-step): bringing `vps-k3s`
-down while `vps-rancher`/`vps-marketplace` are still enabled is refused, since
-it would leave them broken. Adding a new dependency for a feature is a
-one-line edit to its `package.json` - see
-[One folder per feature](#one-folder-per-feature) below.
+down while `vps-rancher`/`vps-marketplace` are still enabled is refused,
+and bringing `vps-cockpit` down while `vps-dockermanager` is still enabled
+is refused too, since either would leave the dependent step broken.
+Adding a new dependency for a feature is a one-line edit to its
+`package.json` - see [One folder per feature](#one-folder-per-feature)
+below.
 
 ## Interactive menu
 
@@ -195,7 +203,7 @@ What each step's `down` action actually does - and doesn't - undo:
 | `vps-system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
 | `vps-security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
 | `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
-| `vps-cockpit`       | the Cockpit packages and socket config                                                                           | nothing else depends on it                                               |
+| `vps-cockpit`       | the Cockpit packages and socket config - **refused while `vps-dockermanager` is still enabled**                 | -                                                                         |
 | `vps-k3s`           | k3s itself (via its own uninstaller) - **takes Rancher and anything installed via the Marketplace down with it** | -                                                                        |
 | `vps-rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
 | `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
@@ -464,7 +472,9 @@ entirely - there's no `sudo` involved.
 - `vps-dockermanager/` - installs `cockpit-packagekit`,
   `cockpit-files`, Docker (`docker.io`, as a dependency), and the
   third-party [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager)
-  plugin for managing Docker containers/images from Cockpit.
+  plugin for managing Docker containers/images from Cockpit. Depends on
+  `vps-cockpit` (see its `package.json`) - these are Cockpit plugins,
+  meaningless without Cockpit itself already installed.
 - `vps-marketplace/` - registers this repo's Helm chart catalog
   (`charts/`, published to GitHub Pages) as a Rancher `ClusterRepo`, so
   it shows up under Apps & Marketplace → Repositories - see

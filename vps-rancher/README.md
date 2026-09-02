@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# rancher
+# vps-rancher
 
 Rancher install.
 
@@ -8,25 +8,25 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `d
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
-sudo sh dispatch.sh --only-rancher
+sudo sh dispatch.sh --only-vps-rancher
 ```
 
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash rancher/run.sh up
-sudo bash rancher/run.sh down
+sudo bash vps-rancher/run.sh up
+sudo bash vps-rancher/run.sh down
 ```
 
 ## Removing (`down`)
 
-`down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with Epinio).
+`down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the Marketplace's cert-manager-dependent charts).
 
 ```bash
-sudo sh dispatch.sh --down-rancher
+sudo sh dispatch.sh --down-vps-rancher
 ```
 
 ## Environment variables
@@ -48,7 +48,7 @@ sudo sh dispatch.sh --down-rancher
 
 ## Dependencies
 
-`common` (shared helpers), plus `k3s` (see this folder's `package.json` `dependencies`). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers), plus `vps-k3s` (see this folder's `package.json` `dependencies`). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
 
 ## Tests
 
@@ -56,4 +56,4 @@ sudo sh dispatch.sh --down-rancher
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz_use`/`common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.
+Covers `run.sh`'s syntax and static shape (the `zz_use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.

@@ -8,7 +8,7 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `d
 
 ## Usage
 
-Runs as one step of a full `dispatch.sh` install/removal, or standalone once `common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `dispatch.sh` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
 
 ```bash
 sudo sh dispatch.sh --only-vps-tailscale
@@ -23,7 +23,7 @@ sudo bash vps-tailscale/run.sh down
 
 ## Removing (`down`)
 
-`down` removes logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `PURGE_TAILSCALE=true`.
+`down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `PURGE_TAILSCALE=true`.
 
 ```bash
 sudo sh dispatch.sh --down-vps-tailscale
@@ -39,7 +39,19 @@ sudo sh dispatch.sh --down-vps-tailscale
 
 ## Dependencies
 
-`common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+`vps-common` (shared helpers). `dispatch.sh` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+
+## Why `vps-tailscale`, not `tailscale`
+
+This folder's `run.sh` calls the real `tailscale` CLI internally, so a
+folder named plain `tailscale/` would make `zz_use perspikapps/vps/tailscale`
+install this feature's own script as `tailscale`, shadowing the actual
+binary it depends on (`zz_use` always installs `<name>/run.sh` under the
+literal folder name requested - it has no notion of `package.json`'s
+`"bin"` field at all). Prefixing every folder in this repo with `vps-`
+(see the root README's [One folder per feature](../README.md#one-folder-per-feature))
+sidesteps this collision uniformly instead of treating it as a special
+case for this one feature.
 
 ## Tests
 
@@ -47,4 +59,4 @@ sudo sh dispatch.sh --down-vps-tailscale
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz_use`/`common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.
+Covers `run.sh`'s syntax and static shape (the `zz_use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus `package.json`'s `bin`/`vps` fields. The step itself (a live apt/Helm/k3s install) needs a real root Ubuntu box to actually run - see the root README's [Tests](../README.md#tests) section for the full picture.
