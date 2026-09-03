@@ -15,13 +15,22 @@ permissions:
 
 jobs:
   release-main:
-    # TODO: pin to a released tag of tomgrv/actions once its
-    # multi-repo-consistency PR merges and tags (currently pointing at the
-    # working branch so this repo's own PR can be reviewed alongside it).
-    uses: tomgrv/actions/.github/workflows/release-promote.yml@claude/multi-repo-consistency-release-7se0jy
-    with:
-      # TODO: pin to a released tag of tomgrv/scripts once that repo's own
-      # PR merges and tags.
-      scripts_ref: claude/multi-repo-consistency-release-7se0jy
-      dry_run: ${{ inputs.dry_run == true }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Release promote
+        # TODO: pin to a released tag of tomgrv/actions once its
+        # multi-repo-consistency PR merges and tags (currently pointing at
+        # the working branch so this repo's own PR can be reviewed
+        # alongside it).
+        uses: tomgrv/actions/release-promote@claude/multi-repo-consistency-release-7se0jy
+        with:
+          # TODO: pin to a released tag of tomgrv/scripts once that repo's
+          # own PR merges and tags.
+          scripts-ref: claude/multi-repo-consistency-release-7se0jy
+          dry-run: ${{ inputs.dry_run == true }}

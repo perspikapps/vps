@@ -1058,7 +1058,7 @@ automated coverage.
 GitHub → Actions → `release-main` → "Run workflow" — a `workflow_dispatch`
 button in the web UI, no `gh`/`git` CLI needed. It calls
 [`tomgrv/actions`](https://github.com/tomgrv/actions)'s shared
-`release-promote.yml` reusable workflow, which pulls
+`release-promote` composite action, which pulls
 `git-release-beta`/`git-release-prod` from
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts#git-utilities) and
 runs them non-interactively. The `.vscode/tasks.json` "🎈 Beta"/"🚀 Prod"
