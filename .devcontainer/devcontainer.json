@@ -2,10 +2,10 @@
     "image": "mcr.microsoft.com/devcontainers/base:noble",
     "name": "",
     "features": {
-        "ghcr.io/tomgrv/devcontainer-features/ai-coding:7": {},
-        "ghcr.io/tomgrv/devcontainer-features/githooks:7": {},
-        "ghcr.io/tomgrv/devcontainer-features/gitutils:7": {},
-        "ghcr.io/tomgrv/devcontainer-features/gitversion:7": {}
+        "ghcr.io/tomgrv/devcontainer-features/ai-coding:8": {},
+        "ghcr.io/tomgrv/devcontainer-features/githooks:8": {},
+        "ghcr.io/tomgrv/devcontainer-features/gitutils:8": {},
+        "ghcr.io/tomgrv/devcontainer-features/gitversion:8": {}
     },
     "remoteEnv": {},
     "postCreateCommand": {},
