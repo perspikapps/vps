@@ -24,13 +24,7 @@ jobs:
           ref: develop
 
       - name: Release promote
-        # TODO: pin to a released tag of tomgrv/actions once its
-        # multi-repo-consistency PR merges and tags (currently pointing at
-        # the working branch so this repo's own PR can be reviewed
-        # alongside it).
-        uses: tomgrv/actions/release-promote@claude/multi-repo-consistency-release-7se0jy
+        uses: tomgrv/actions/release-promote@v2.22.0
         with:
-          # TODO: pin to a released tag of tomgrv/scripts once that repo's
-          # own PR merges and tags.
-          scripts-ref: claude/multi-repo-consistency-release-7se0jy
+          scripts-ref: v0.3.0
           dry-run: ${{ inputs.dry_run == true }}
