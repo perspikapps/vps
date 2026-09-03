@@ -603,7 +603,7 @@ them directly, from any machine, without cloning this repo or running
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq  # common/run.sh needs it
+command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # common/run.sh needs it
 zz_use perspikapps/vps/rancher
 sudo rancher up
 ```
@@ -1052,6 +1052,23 @@ the `zz_use`/`common` wiring every `run.sh` is expected to have, and
 small fixture tree. The features themselves (apt/Helm/k3s installs) need
 a live root Ubuntu box to actually test, so that part of this repo has no
 automated coverage.
+
+## Releasing
+
+GitHub → Actions → `release-main` → "Run workflow" — a `workflow_dispatch`
+button in the web UI, no `gh`/`git` CLI needed. It calls
+[`tomgrv/actions`](https://github.com/tomgrv/actions)'s shared
+`release-promote` composite action, which pulls
+`git-release-beta`/`git-release-prod` from
+[`tomgrv/scripts`](https://github.com/tomgrv/scripts#git-utilities) and
+runs them non-interactively. The `.vscode/tasks.json` "🎈 Beta"/"🚀 Prod"
+tasks that used to run the same commands locally have been retired in
+favor of this — `git-flow`/`gitutils` still need to be installed locally
+for the "🚑 Hotfix" task and everyday `git align`/`git amend`/etc.
+shortcuts, just not for cutting a release anymore. See
+[`tomgrv/actions`'s release-process doc](https://github.com/tomgrv/actions/blob/main/docs/release-process.md)
+for the tag/branch-protection bypass this repo's `main` needs for the
+workflow's final push to succeed.
 
 ## Replicating this pattern in another repo
 
