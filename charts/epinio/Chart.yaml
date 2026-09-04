@@ -1,0 +1,19 @@
+# @format
+apiVersion: v2
+name: epinio
+description: Epinio - deploy apps straight from source - wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: '1.x'
+icon: https://epinio.io/images/epinio-social.png
+keywords:
+    - paas
+    - deploy-from-source
+    - kubernetes
+home: https://epinio.io
+sources:
+    - https://github.com/epinio/helm-charts
+dependencies:
+    - name: epinio
+      version: '>=1.0.0'
+      repository: https://epinio.github.io/helm-charts/

@@ -1,0 +1,15 @@
+{
+    "name": "@tomgrv/vps-setup",
+    "version": "1.0.0",
+    "description": "Interactive/flag-driven orchestrator: runs every step, then prints the final connection summary",
+    "bin": {
+        "vps-setup": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-common": "*"
+    },
+    "private": true,
+    "scripts": {
+        "test": "bats test.bats"
+    }
+}

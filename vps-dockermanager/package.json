@@ -1,0 +1,38 @@
+{
+    "name": "@tomgrv/vps-dockermanager",
+    "version": "1.0.0",
+    "description": "cockpit-packagekit/files/dockermanager install",
+    "bin": {
+        "vps-dockermanager": "run.sh"
+    },
+    "dependencies": {
+        "@tomgrv/vps-common": "*",
+        "@tomgrv/vps-cockpit": "*"
+    },
+    "private": true,
+    "vps": {
+        "default": true,
+        "inputs": {
+            "COCKPIT_DOCKERMANAGER_VERSION": {
+                "description": "cockpit-dockermanager release tag to install",
+                "required": false,
+                "default": "latest"
+            },
+            "INSTALL_DOCKER": {
+                "description": "Install docker.io if no docker daemon is present already (true/false)",
+                "required": false,
+                "default": "true"
+            },
+            "REMOVE_DOCKER": {
+                "description": "Also remove Docker itself on down (true/false)",
+                "required": false,
+                "default": "false"
+            }
+        },
+        "order": 6,
+        "outputs": {}
+    },
+    "scripts": {
+        "test": "bats test.bats"
+    }
+}
