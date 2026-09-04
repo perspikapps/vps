@@ -3,9 +3,9 @@
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
-zz_use "perspikapps/vps/common@${VPS_SETUP_REPO_REF:-main}"
+zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
-. common
+. vps-common
 
 up() {
 require_root
@@ -25,7 +25,7 @@ systemctl is-active --quiet tailscaled || { zz_log e "[vps-setup] tailscaled is 
 ok "tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
 if [[ -z "${TAILSCALE_AUTHKEY:-}" ]]; then
-  zz_log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo sh dispatch.sh --only-tailscale"
+  zz_log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
   exit 0
 fi
 
@@ -48,7 +48,7 @@ down() {
     zz_log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
     apt-get purge -y tailscale 2>/dev/null || true
   fi
-  zz_log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, ArgoCD, the Traefik" \
+  zz_log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
        "dashboard, and the k3s API (all Tailscale-only) are now unreachable" \
        "until you re-run this step's 'up' action."
   ok "Tailscale brought down."

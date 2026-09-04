@@ -1,0 +1,43 @@
+# @format
+# Values here are passed straight through to the upstream `epinio`
+# chart under the `epinio:` key (Helm's standard subchart-values
+# convention). Defaults below mirror what this repo's old
+# `epinio/run.sh` used to `--set` on a plain VPS install - unlike that
+# script, there's no bash generating a random admin password or
+# defaulting the domain to this node's IP anymore, so fill in
+# `global.domain` and `api.adminPassword` yourself (see README.md in
+# this folder) before installing.
+#
+# Upstream chart's values reference:
+# https://github.com/epinio/helm-charts/blob/main/chart/epinio/values.yaml
+
+epinio:
+    global:
+        # REQUIRED: a wildcard DNS domain pointed at your cluster's
+        # ingress IP. Epinio creates epinio.<domain>, auth.<domain>, and
+        # one hostname per app you `epinio push`. Leaving this unset (or
+        # as the placeholder below) will fail the install - the upstream
+        # chart requires it.
+        domain: epinio.example.com
+
+        # cert-manager ClusterIssuer used for the Ingresses above.
+        # epinio-ca is a self-signed CA the chart creates itself (browsers
+        # will warn); switch to letsencrypt-staging/letsencrypt-production
+        # once `domain` is real and cert-manager has those issuers.
+        tlsIssuer: epinio-ca
+
+    api:
+        # REQUIRED: set a real admin password before installing - there's
+        # no script here to generate and print a random one for you the
+        # way the old VPS bootstrapper did.
+        adminPassword: CHANGE-ME
+
+    # IngressClass Epinio's own server/app/registry Ingresses are
+    # pinned to. "traefik" matches k3s's bundled ingress controller;
+    # change it if your cluster uses a different one (e.g. "nginx").
+    ingress:
+        ingressClassName: traefik
+    server:
+        ingressClassName: traefik
+    containerregistry:
+        ingressClassName: traefik
