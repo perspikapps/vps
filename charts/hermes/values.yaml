@@ -1,0 +1,56 @@
+# @format
+# Hermes Agent (https://github.com/NousResearch/hermes-agent) ships no
+# official Helm chart or published Docker image - just a Dockerfile and
+# a host-networked docker-compose.yml. This chart is a from-scratch
+# Deployment/Service/Ingress wrapper (not an umbrella chart like
+# charts/argocd or charts/epinio) around an image you build and push
+# yourself:
+#
+#   git clone https://github.com/NousResearch/hermes-agent
+#   docker build -t <your-registry>/hermes-agent:<tag> hermes-agent/
+#   docker push <your-registry>/hermes-agent:<tag>
+#
+# See README.md in this folder for required values before installing.
+
+image:
+    repository: CHANGE-ME/hermes-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# UID/GID the gateway and dashboard processes run as inside the
+# container (upstream's HERMES_UID/HERMES_GID) - matched against
+# persistence's securityContext below so the mounted volume is writable.
+hermesUid: 10000
+hermesGid: 10000
+
+# Name of a Secret (created separately - not templated here, since the
+# set of keys varies per install) whose keys are injected as env vars
+# into both containers via envFrom. Put your LLM provider credentials
+# (e.g. OPENROUTER_API_KEY, OPENAI_API_KEY) and any messaging-platform
+# tokens (Telegram, Discord, Slack, ...) here - see upstream's
+# environment-variables reference for the full list.
+envFromSecretName: ''
+
+# Gateway's optional OpenAI-compatible API server.
+apiServer:
+    enabled: false
+    port: 8080
+
+# Dashboard (upstream defaults to 127.0.0.1:9119; here bound to all
+# interfaces inside the pod and reached via the Service/Ingress below).
+dashboard:
+    port: 9119
+    ingress:
+        enabled: false
+        className: traefik
+        host: hermes.example.com
+        tlsIssuer: ''
+
+# Persists ~/.hermes (upstream's /opt/data) - conversation history,
+# learned skills, and scheduler state.
+persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: ''
+
+resources: {}

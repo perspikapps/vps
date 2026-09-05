@@ -1,0 +1,16 @@
+# @format
+apiVersion: v2
+name: hermes
+description: Hermes Agent - self-improving AI agent harness, wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: 'latest'
+icon: https://hermes-agent.nousresearch.com/favicon.ico
+keywords:
+    - ai
+    - agent
+    - llm
+    - automation
+home: https://github.com/NousResearch/hermes-agent
+sources:
+    - https://github.com/NousResearch/hermes-agent
