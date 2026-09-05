@@ -227,17 +227,17 @@ under something still enabled.
 
 What each step's `down` action actually does - and doesn't - undo:
 
-| Step                | `down` removes                                                                                                   | Left in place                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `vps-system`        | _(no down action - a base package upgrade, nothing to undo)_                                                     | everything                                                               |
-| `vps-security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                             |
-| `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                   | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
-| `vps-cockpit`       | the Cockpit packages and socket config - **refused while `vps-dockermanager` is still enabled**                 | -                                                                         |
-| `vps-k3s`           | k3s itself (via its own uninstaller) - **takes Rancher, GitHub ARC, and anything installed via the Marketplace down with it** | -                                                             |
-| `vps-rancher`       | the Helm release and its namespace                                                                               | cert-manager, apps installed via Apps & Marketplace                      |
-| `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                         | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
-| `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                                      | any apps already installed from it (uninstall those from Rancher's UI)   |
-| `vps-github-arc`    | both Helm releases (controller and runner scale set), the GitHub App secret, and the `github` namespace          | -                                                                         |
+| Step                | `down` removes                                                                                                                | Left in place                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `vps-system`        | _(no down action - a base package upgrade, nothing to undo)_                                                                  | everything                                                               |
+| `vps-security`      | ufw rules (disables ufw entirely), sshd hardening, fail2ban jail                                                              | the admin user/password `up` created, if any                             |
+| `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                                                | the `tailscale` package itself (`PURGE_TAILSCALE=true` to remove it too) |
+| `vps-cockpit`       | the Cockpit packages and socket config - **refused while `vps-dockermanager` is still enabled**                               | -                                                                        |
+| `vps-k3s`           | k3s itself (via its own uninstaller) - **takes Rancher, GitHub ARC, and anything installed via the Marketplace down with it** | -                                                                        |
+| `vps-rancher`       | the Helm release and its namespace                                                                                            | cert-manager, apps installed via Apps & Marketplace                      |
+| `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                                      | Docker itself (`REMOVE_DOCKER=true` to also remove it)                   |
+| `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                                                   | any apps already installed from it (uninstall those from Rancher's UI)   |
+| `vps-github-arc`    | both Helm releases (controller and runner scale set), the GitHub App secret, and the `github` namespace                       | -                                                                        |
 
 Each feature's `run.sh` also accepts the action directly if you'd rather
 run it without going through `vps-setup` (e.g. from an existing
@@ -302,7 +302,7 @@ sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
 >
 > ```bash
 > export VPS_SETUP_REPO_REF=my-branch # WRONG on its own: lost by sudo
-> sudo vps-setup # falls back to main - use sudo -E vps-setup instead
+> sudo vps-setup                      # falls back to main - use sudo -E vps-setup instead
 > ```
 
 Env vars for the internal clone:
@@ -318,9 +318,9 @@ itself from the fork's ref too):
 
 ```bash
 zz_use "perspikapps/vps/vps-setup@my-feature"
-sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
+sudo VPS_SETUP_REPO_URL=https://github.com/ \
     VPS_SETUP_REPO_REF=my-feature \
-    vps-setup
+    vps-setup < you > /vps.git
 ```
 
 `vps-setup` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
@@ -483,8 +483,8 @@ Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
   Helm, registering self-hosted runners against a GitHub org/repo - see
   [GitHub Actions Runner Controller](#github-actions-runner-controller-arc).
   Opt-in (off by default). Depends on `vps-k3s`.
-- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio) that
-  install onto the k3s cluster rather than the host itself - not a
+- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Hermes Agent)
+  that install onto the k3s cluster rather than the host itself - not a
   `vps-setup` feature folder (no `run.sh`), published as a standard
   Helm repo and installed through Rancher's UI instead - see
   [Rancher Marketplace](#rancher-marketplace).
@@ -807,8 +807,8 @@ the App for you.
   `https://github.com/perspikapps/vps`), `GITHUB_ARC_APP_ID`,
   `GITHUB_ARC_APP_INSTALLATION_ID`, and
   `GITHUB_ARC_APP_PRIVATE_KEY_FILE` (a path to the App's private key PEM
-  - not the key content itself, so it's never passed on the command line
-    or logged).
+    - not the key content itself, so it's never passed on the command line
+      or logged).
 - **Scaling**: `GITHUB_ARC_MIN_RUNNERS`/`GITHUB_ARC_MAX_RUNNERS` (default
   `0`/`5`) control the runner scale set's autoscaling range.
 - Neither chart binds a port `ufw` needs to know about: runners connect
@@ -834,31 +834,31 @@ actually lives in the owning feature's own `package.json` - see
 [Network config](#network-config-each-features-own-packagejson) - edit
 that file to change a default for good, or set the env var for one run.
 
-| Variable                                   | Default                              | Purpose                                                                                               |
-| ------------------------------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `VPS_ADMIN_USER`                           | unset                                | Create this sudo user                                                                                 |
-| `VPS_ADMIN_SSH_KEY`                        | unset                                | Authorized key for the admin user and root                                                            |
-| `VPS_ADMIN_PASSWORD`                       | random                               | Cockpit/console login password (separate from SSH)                                                    |
-| `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                           |
-| `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                      |
-| `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                |
-| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports (`9xxx`)                                                                                |
-| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports (`7xxx`)                                                                                |
-| `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                       |
-| `RANCHER_BOOTSTRAP_PASSWORD`               | random                               | Rancher initial admin password                                                                        |
-| `INSTALL_DOCKER`                           | `true`                               | Install `docker.io` for cockpit-dockermanager to manage                                               |
-| `COCKPIT_DOCKERMANAGER_VERSION`            | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
-| `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set this to a real address                                              |
-| `TRAEFIK_ACME_STAGING`                     | `true`                               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                           |
-| `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (Tailscale-only)                                                               |
-| `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `vps-marketplace` step registers                                |
-| `GITHUB_ARC_CONFIG_URL`                    | unset                                | Org/repo URL runners register against (**required** to run `vps-github-arc`)                          |
-| `GITHUB_ARC_APP_ID`                        | unset                                | GitHub App ID (**required** to run `vps-github-arc`)                                                  |
-| `GITHUB_ARC_APP_INSTALLATION_ID`           | unset                                | GitHub App installation ID (**required** to run `vps-github-arc`)                                     |
-| `GITHUB_ARC_APP_PRIVATE_KEY_FILE`          | unset                                | Path to the GitHub App's private key PEM (**required** to run `vps-github-arc`)                       |
-| `GITHUB_ARC_MIN_RUNNERS` / `GITHUB_ARC_MAX_RUNNERS` | `0` / `5`                    | Runner scale set autoscaling range                                                                    |
-| `MARKETPLACE_REPO_URL`                     | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
-| `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                         |
+| Variable                                            | Default                              | Purpose                                                                                               |
+| --------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `VPS_ADMIN_USER`                                    | unset                                | Create this sudo user                                                                                 |
+| `VPS_ADMIN_SSH_KEY`                                 | unset                                | Authorized key for the admin user and root                                                            |
+| `VPS_ADMIN_PASSWORD`                                | random                               | Cockpit/console login password (separate from SSH)                                                    |
+| `SSH_PORT`                                          | `22`                                 | SSH port kept open publicly                                                                           |
+| `TAILSCALE_AUTHKEY`                                 | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                      |
+| `TAILSCALE_EXTRA_ARGS`                              | unset                                | Extra flags appended to `tailscale up`                                                                |
+| `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT`          | `9080` / `9083`                      | Cockpit ports (`9xxx`)                                                                                |
+| `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT`          | `7080` / `7083`                      | Rancher ports (`7xxx`)                                                                                |
+| `RANCHER_HOSTNAME`                                  | node IP                              | Hostname used in Rancher's cert                                                                       |
+| `RANCHER_BOOTSTRAP_PASSWORD`                        | random                               | Rancher initial admin password                                                                        |
+| `INSTALL_DOCKER`                                    | `true`                               | Install `docker.io` for cockpit-dockermanager to manage                                               |
+| `COCKPIT_DOCKERMANAGER_VERSION`                     | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
+| `TRAEFIK_ACME_EMAIL`                                | placeholder                          | Let's Encrypt contact email - set this to a real address                                              |
+| `TRAEFIK_ACME_STAGING`                              | `true`                               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                           |
+| `TRAEFIK_DASHBOARD_PORT`                            | `8088`                               | Traefik dashboard port (Tailscale-only)                                                               |
+| `MARKETPLACE_REPO_NAME`                             | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `vps-marketplace` step registers                                |
+| `GITHUB_ARC_CONFIG_URL`                             | unset                                | Org/repo URL runners register against (**required** to run `vps-github-arc`)                          |
+| `GITHUB_ARC_APP_ID`                                 | unset                                | GitHub App ID (**required** to run `vps-github-arc`)                                                  |
+| `GITHUB_ARC_APP_INSTALLATION_ID`                    | unset                                | GitHub App installation ID (**required** to run `vps-github-arc`)                                     |
+| `GITHUB_ARC_APP_PRIVATE_KEY_FILE`                   | unset                                | Path to the GitHub App's private key PEM (**required** to run `vps-github-arc`)                       |
+| `GITHUB_ARC_MIN_RUNNERS` / `GITHUB_ARC_MAX_RUNNERS` | `0` / `5`                            | Runner scale set autoscaling range                                                                    |
+| `MARKETPLACE_REPO_URL`                              | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
+| `CERT_MANAGER_VERSION`                              | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                         |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the
@@ -923,7 +923,7 @@ the last few lines of output.
 
 ```sh
 npm install --global bats # or: apt-get install bats
-npm test # or: bats --recursive .
+npm test                  # or: bats --recursive .
 ```
 
 Following [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s own
