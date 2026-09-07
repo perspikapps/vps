@@ -483,8 +483,8 @@ Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
   Helm, registering self-hosted runners against a GitHub org/repo - see
   [GitHub Actions Runner Controller](#github-actions-runner-controller-arc).
   Opt-in (off by default). Depends on `vps-k3s`.
-- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Hermes Agent)
-  that install onto the k3s cluster rather than the host itself - not a
+- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Coder, Hermes
+  Agent) that install onto the k3s cluster rather than the host itself - not a
   `vps-setup` feature folder (no `run.sh`), published as a standard
   Helm repo and installed through Rancher's UI instead - see
   [Rancher Marketplace](#rancher-marketplace).
@@ -767,8 +767,9 @@ removal for free.
 
 **Publishing**: `charts/<name>/` are thin umbrella charts (a `Chart.yaml`
 dependency pointing at the real upstream chart, plus a `values.yaml`
-with sane defaults) - see [`charts/argocd`](charts/argocd) and
-[`charts/epinio`](charts/epinio). `.github/workflows/publish-charts.yml`
+with sane defaults) - see [`charts/argocd`](charts/argocd),
+[`charts/epinio`](charts/epinio), and [`charts/coder`](charts/coder).
+`.github/workflows/publish-charts.yml`
 packages every chart under `charts/*` and publishes them (via
 [`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action))
 as GitHub Releases plus an `index.yaml` on the `gh-pages` branch,

@@ -1,0 +1,38 @@
+# @format
+# Values here are passed straight through to the upstream `coder` chart
+# under the `coder:` key (Helm's standard subchart-values convention).
+#
+# Upstream chart's full value reference:
+# https://github.com/coder/coder/blob/main/helm/coder/values.yaml
+
+coder:
+    env:
+        # Required: Coder needs a Postgres database to store its state.
+        # Point this at a database you've already provisioned (this
+        # chart does not bundle one) - e.g. a `postgresql://` URL, ideally
+        # sourced from a Secret rather than inlined here:
+        # https://coder.com/docs/admin/setup#postgresql-database
+        - name: CODER_PG_CONNECTION_URL
+          valueFrom:
+              secretKeyRef:
+                  name: coder-db-url
+                  key: url
+
+        # Required: the externally-reachable URL users/agents will hit.
+        # Uncomment and edit for your cluster/ingress once one is set up:
+        # - name: CODER_ACCESS_URL
+        #   value: "https://coder.example.com"
+
+    service:
+        # The VPS bootstrapper exposes other apps in this catalog via
+        # k3s's built-in ServiceLB (LoadBalancer). On a normal cluster,
+        # ClusterIP + your own Ingress is usually the better choice -
+        # change this to fit how you expose apps here.
+        type: LoadBalancer
+
+    # Uncomment and set a host to get an Ingress instead of a bare
+    # LoadBalancer/ClusterIP service:
+    # ingress:
+    #   enable: true
+    #   className: traefik
+    #   host: coder.example.com

@@ -33,6 +33,7 @@ jobs:
         run: |
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo add epinio https://epinio.github.io/helm-charts/
+          helm repo add coder-v2 https://helm.coder.com/v2
           helm repo update
 
       - name: Build chart dependencies
