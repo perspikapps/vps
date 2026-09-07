@@ -1,0 +1,19 @@
+# @format
+apiVersion: v2
+name: coder
+description: Coder, a self-hosted platform for provisioning remote development environments, wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: '2.x'
+icon: https://coder.com/coder-logo-black.png
+keywords:
+    - development-environments
+    - remote-development
+    - kubernetes
+home: https://coder.com/
+sources:
+    - https://github.com/coder/coder
+dependencies:
+    - name: coder
+      version: '>=2.0.0'
+      repository: https://helm.coder.com/v2
