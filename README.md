@@ -318,9 +318,9 @@ itself from the fork's ref too):
 
 ```bash
 zz_use "perspikapps/vps/vps-setup@my-feature"
-sudo VPS_SETUP_REPO_URL=https://github.com/ \
+sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
     VPS_SETUP_REPO_REF=my-feature \
-    vps-setup < you > /vps.git
+    vps-setup
 ```
 
 `vps-setup` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
