@@ -1,0 +1,43 @@
+# @format
+# Values here are passed straight through to the two upstream charts
+# under their own keys (Helm's standard subchart-values convention) -
+# `gha-runner-scale-set-controller:` and `gha-runner-scale-set:`.
+# Defaults below mirror what this repo's old `vps-github-arc/run.sh`
+# used to `--set` on a plain VPS install; unlike that script, there's
+# no bash generating the GitHub App secret for you any more, so fill
+# in `gha-runner-scale-set.githubConfigUrl` and the three
+# `githubConfigSecret` fields yourself (see README.md in this folder)
+# before installing.
+#
+# Upstream charts' full value references:
+# https://github.com/actions/actions-runner-controller/blob/master/charts/gha-runner-scale-set-controller/values.yaml
+# https://github.com/actions/actions-runner-controller/blob/master/charts/gha-runner-scale-set/values.yaml
+
+gha-runner-scale-set-controller: {}
+
+gha-runner-scale-set:
+    # REQUIRED: the org or repo URL runners should register against,
+    # e.g. https://github.com/perspikapps or
+    # https://github.com/perspikapps/vps
+    githubConfigUrl: https://github.com/perspikapps/vps
+
+    # REQUIRED: a GitHub App's credentials (create the App yourself
+    # first, following the ARC quickstart linked in this chart's
+    # Chart.yaml `home`) - the method the docs recommend over a
+    # personal access token. github_app_private_key is the App's
+    # private key PEM's full contents, not a path to it (there's no
+    # host filesystem to read a path from once this installs through
+    # Rancher's UI).
+    githubConfigSecret:
+        github_app_id: 'CHANGE-ME'
+        github_app_installation_id: 'CHANGE-ME'
+        github_app_private_key: |
+            CHANGE-ME
+
+    # Name of the runner scale set GitHub Actions workflows target via
+    # `runs-on: [self-hosted, <this-name>]`.
+    runnerScaleSetName: arc-runner-set
+
+    # Autoscaling range.
+    minRunners: 0
+    maxRunners: 5
