@@ -318,9 +318,9 @@ itself from the fork's ref too):
 
 ```bash
 zz_use "perspikapps/vps/vps-setup@my-feature"
-sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
+sudo VPS_SETUP_REPO_URL=https://github.com/ \
     VPS_SETUP_REPO_REF=my-feature \
-    vps-setup
+    vps-setup < you > /vps.git
 ```
 
 `vps-setup` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
@@ -483,8 +483,8 @@ Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
   Helm, registering self-hosted runners against a GitHub org/repo - see
   [GitHub Actions Runner Controller](#github-actions-runner-controller-arc).
   Opt-in (off by default). Depends on `vps-k3s`.
-- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Coder) that
-  install onto the k3s cluster rather than the host itself - not a
+- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Coder, Hermes
+  Agent) that install onto the k3s cluster rather than the host itself - not a
   `vps-setup` feature folder (no `run.sh`), published as a standard
   Helm repo and installed through Rancher's UI instead - see
   [Rancher Marketplace](#rancher-marketplace).
