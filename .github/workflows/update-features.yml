@@ -22,9 +22,7 @@ jobs:
         uses: tomgrv/actions/setup-node@v2
 
       - name: Configure git identity
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        uses: tomgrv/actions/config-bot@v2
 
       - name: Update features
         run: npm exec --yes -- tomgrv/devcontainer-features update -a
