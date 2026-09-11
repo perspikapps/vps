@@ -1,0 +1,19 @@
+# @format
+apiVersion: v2
+name: infisical
+description: Infisical, an open-source secrets management platform, wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: '1.0.1'
+icon: https://infisical.com/_next/static/media/logo-black.d3c236c0.png
+keywords:
+    - secrets-management
+    - security
+    - kubernetes
+home: https://infisical.com
+sources:
+    - https://github.com/Infisical/infisical
+dependencies:
+    - name: infisical-standalone
+      version: '>=1.10.0'
+      repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
