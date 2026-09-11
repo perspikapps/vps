@@ -50,13 +50,13 @@
                 "name": "http",
                 "port": 80,
                 "access": "public",
-                "note": "HTTP (Traefik ingress; also required for the Let's Encrypt HTTP-01 challenge)"
+                "note": "HTTP Traefik ingress, also required for the Lets Encrypt HTTP-01 challenge"
             },
             {
                 "name": "https",
                 "port": 443,
                 "access": "public",
-                "note": "HTTPS (Traefik ingress)"
+                "note": "HTTPS Traefik ingress"
             },
             {
                 "name": "traefik_dashboard",
