@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ .Release.Name }}-cognee
+    labels:
+        app: {{ .Release.Name }}-cognee
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: {{ .Release.Name }}-cognee
+    template:
+        metadata:
+            labels:
+                app: {{ .Release.Name }}-cognee
+        spec:
+            containers:
+                - name: cognee
+                  image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  ports:
+                      - containerPort: 8000
+                  env:
+                      - name: LLM_API_KEY
+                        valueFrom:
+                            secretKeyRef:
+                                name: {{ .Release.Name }}-cognee
+                                key: LLM_API_KEY
+                      - name: ENABLE_BACKEND_ACCESS_CONTROL
+                        value: {{ .Values.enableBackendAccessControl | quote }}
+                      {{- with .Values.extraEnv }}
+                      {{- toYaml . | nindent 22 }}
+                      {{- end }}
+                  resources:
+                      {{- toYaml .Values.resources | nindent 22 }}
+                  {{- if .Values.persistence.enabled }}
+                  volumeMounts:
+                      - name: data
+                        mountPath: /app/.cognee_system
+                        subPath: system
+                      - name: data
+                        mountPath: /app/.data_storage
+                        subPath: data
+                  {{- end }}
+            {{- if .Values.persistence.enabled }}
+            volumes:
+                - name: data
+                  persistentVolumeClaim:
+                      claimName: {{ .Release.Name }}-cognee
+            {{- end }}

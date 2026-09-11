@@ -1,0 +1,58 @@
+# @format
+# Unlike charts/argocd and charts/epinio, cognee has no official upstream
+# Helm chart to wrap - topoteretes/cognee only documents a Docker Compose
+# deploy (see https://github.com/topoteretes/cognee#deploy-cognee and
+# https://github.com/topoteretes/cognee/blob/main/docs/minimal-docker-compose.md).
+# This chart is a small self-contained wrapper around that same
+# single-container "minimal" setup (the `cognee/cognee:main` prebuilt image,
+# single-user mode) rather than a dependency pin - see this folder's
+# README.md.
+
+image:
+    repository: cognee/cognee
+    tag: main
+    pullPolicy: IfNotPresent
+
+service:
+    type: ClusterIP
+    port: 8000
+
+# REQUIRED: your LLM provider API key (OpenAI by default) - the container
+# fails to start without it. Set via --set or a values override; do not
+# commit a real key here.
+llmApiKey: CHANGE-ME
+
+# Single-user mode (no auth/multi-tenant backend access control) - matches
+# the upstream minimal Docker Compose guide's default. Flip to "true" only
+# if you also configure the backend's user/auth setup yourself.
+enableBackendAccessControl: 'false'
+
+# Extra environment variables passed straight to the container, e.g. to
+# switch DB_PROVIDER/VECTOR_DB_PROVIDER away from cognee's built-in
+# SQLite/LanceDB defaults. See cognee's `.env.template` for the full list:
+# https://github.com/topoteretes/cognee/blob/main/.env.template
+extraEnv: []
+# - name: DB_PROVIDER
+#   value: postgres
+
+persistence:
+    # Persists cognee's system + data directories (SYSTEM_ROOT_DIRECTORY /
+    # DATA_ROOT_DIRECTORY) across pod restarts. Disable for a throwaway demo.
+    enabled: true
+    size: 5Gi
+    storageClassName: ''
+
+resources:
+    requests:
+        cpu: 250m
+        memory: 512Mi
+    limits:
+        cpu: '2'
+        memory: 4Gi
+
+ingress:
+    enabled: false
+    ingressClassName: traefik
+    hostname: cognee.example.com
+    annotations: {}
+    tls: false

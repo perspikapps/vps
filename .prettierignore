@@ -2,7 +2,7 @@
 # This is the canonical source for AI tooling; symlinked copies format via their own rules
 .agents/
 
-# Helm templates are Go-templated YAML, not plain YAML - prettier's YAML
-# parser can't handle the {{ }} syntax
+# Helm Go-template YAML isn't valid YAML - prettier's yaml parser chokes on
+# the {{ }} directives (e.g. a bare `{{- if ... }}` before the first key).
 charts/*/templates/
 
