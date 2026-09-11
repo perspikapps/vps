@@ -14,7 +14,7 @@ step can be turned back off later without reinstalling anything else -
 see [Removing a feature](#removing-a-feature-updown-per-step).
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz_use perspikapps/vps/vps-setup
 sudo vps-setup
 ```
@@ -51,17 +51,16 @@ package is: `zz_use <origin>/<name>` then run `<name>`. Bootstrapping is
 always the same two steps:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz_use perspikapps/vps/vps-setup
 ```
 
-`setup.sh` only installs `zz_use` (and the rest of the core `zz_*`
-bundle) onto `PATH` - it's a bulk copy of
-[`tomgrv/scripts`'s own `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh),
-byte-for-byte, kept here only so the one-liner's URL lives under this
-repo instead of pointing straight at `tomgrv/scripts`. It never runs
-anything from this repo itself. `zz_use perspikapps/vps/vps-setup` is the
-separate step that actually fetches `vps-setup`.
+`setup.sh` is
+[`tomgrv/scripts`'s own bootstrapper](https://github.com/tomgrv/scripts/blob/main/setup.sh):
+it installs `zz_use` (and the rest of the core `zz_*` bundle) onto `PATH`
+and never runs anything from this repo itself. `zz_use
+perspikapps/vps/vps-setup` is the separate step that actually fetches
+`vps-setup`.
 
 From there, `sudo vps-setup [flags]` is what installs (or removes)
 anything - see [Running a single step](#running-a-single-step-or-a-subset)
@@ -256,7 +255,7 @@ first boot. Replace the SSH key and auth key with your own (see
 [Getting the keys you'll need](#getting-the-keys-youll-need) below):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz_use perspikapps/vps/vps-setup
 
 VPS_ADMIN_USER=ops \
@@ -286,7 +285,7 @@ feature folder too - see [Running vps-setup](#running-vps-setup)):
 ```bash
 BRANCH=claude/vps-setup-ubuntu-scripts-br4ddo
 
-curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${BRANCH}/setup.sh" | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz_use "perspikapps/vps/vps-setup@${BRANCH}"
 
 sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
@@ -402,14 +401,14 @@ Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
 
 ## Layout
 
-- `setup.sh` - installs `zz_use` (and the rest of the core `zz_*` bundle,
-  from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto `PATH`,
-  then stops - a bulk copy of `tomgrv/scripts`'s own `setup.sh`, kept
-  here only so the one-liner's URL lives under this repo. It never runs
-  anything from this repo itself; `zz_use perspikapps/vps/vps-setup` is
-  the separate next step - see [Running vps-setup](#running-vps-setup).
-  Pin the `tomgrv/scripts` ref with `ZZ_ORIGIN_REF` (default `main`), or
-  bootstrap from a fork entirely with `ZZ_ORIGIN`. See
+- No root `setup.sh` here - the one-liner bootstraps
+  [`tomgrv/scripts`'s own `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh)
+  directly, which installs `zz_use` (and the rest of the core `zz_*`
+  bundle) onto `PATH`, then stops; it never runs anything from this repo.
+  `zz_use perspikapps/vps/vps-setup` is the separate next step - see
+  [Running vps-setup](#running-vps-setup). Pin the `tomgrv/scripts` ref
+  with `ZZ_ORIGIN_REF` (default `main`), or bootstrap from a fork entirely
+  with `ZZ_ORIGIN`. See
   [Replicating this pattern in another repo](#replicating-this-pattern-in-another-repo).
 - `vps-setup/` - the interactive/flag-driven orchestrator (see
   [Running vps-setup](#running-vps-setup)): resolves which steps run
@@ -480,11 +479,12 @@ Because `runcmd` already executes as root, `zz_use`/`vps-setup` need no
   (`charts/`, published to GitHub Pages) as a Rancher `ClusterRepo`, so
   it shows up under Apps & Marketplace → Repositories - see
   [Rancher Marketplace](#rancher-marketplace). Depends on `vps-k3s`/`vps-rancher`.
-- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Cognee,
-  GitHub Actions Runner Controller) that install onto the k3s cluster
-  rather than the host itself - not a `vps-setup` feature folder (no
-  `run.sh`), published as a standard Helm repo and installed through
-  Rancher's UI instead - see [Rancher Marketplace](#rancher-marketplace).
+- `charts/` - Helm charts for "extra" apps (ArgoCD, Epinio, Cognee, Coder,
+  Hermes Agent, GitHub Actions Runner Controller) that install onto the
+  k3s cluster rather than the host itself - not a `vps-setup` feature
+  folder (no `run.sh`), published as a standard Helm repo and installed
+  through Rancher's UI instead - see
+  [Rancher Marketplace](#rancher-marketplace).
 
 ## One folder per feature
 
@@ -824,13 +824,13 @@ Ingresses via that chart's own values, outside this table.
 
 Each feature's `run.sh` can also be run standalone, from within a
 checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
-`setup.sh`'s job, run once - see [Layout](#layout)); it just fetches
-`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/vps-common` if
-`zz_use` is already on `PATH`, and fails fast with a one-line message
-pointing at `setup.sh` if it isn't:
+[`tomgrv/scripts`'s `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh)'s
+job, run once beforehand - see [Layout](#layout)); it just fetches
+`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/vps-common`,
+assuming `zz_use` is already on `PATH`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 sudo RANCHER_HOSTNAME=new.example.com bash vps-rancher/run.sh
 ```
 
@@ -891,9 +891,9 @@ convention, every feature folder carries its own `<name>/test.bats`
 pure logic (`net_port`, `net_access`, `all_network_ports`,
 `feature_package_json`, `dispatch_action`) against a small fixture tree.
 [`tests/`](tests/) holds only what doesn't belong to any single folder:
-`setup.sh` itself, and invariants spanning every
-folder's `run.sh`/`package.json` (e.g. no leftover `log`/`warn`/`die`
-wrappers - see [`tests/test-syntax.bats`](tests/test-syntax.bats)). The
+invariants spanning every folder's `run.sh`/`package.json` (e.g. no
+leftover `log`/`warn`/`die` wrappers - see
+[`tests/test-syntax.bats`](tests/test-syntax.bats)). The
 features themselves (apt/Helm/k3s installs) need a live root Ubuntu box
 to actually test, so that part of this repo has no automated coverage.
 
@@ -914,29 +914,23 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    folder name requested, never reads `"bin"` - see
    [One folder per feature](#one-folder-per-feature) above for why that
    distinction matters, e.g. `vps-tailscale/`).
-2. **A root `setup.sh`** that installs `zz_use` (and the core `zz_*`
-   bundle, from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)) onto
-   `PATH`, then stops - a bulk copy of `tomgrv/scripts`'s own `setup.sh`
-   (see [Layout](#layout)), kept in your repo only so the one-liner's URL
-   lives under it instead of pointing straight at `tomgrv/scripts`. It
-   doesn't hardcode `perspikapps/vps` anywhere (or anything else about
-   this repo) - copy it verbatim, unmodified. If you need something that
-   runs every script in sequence (this repo's `vps-setup`, described
-   throughout this README), that's its own ordinary
-   `<name>/{package.json,run.sh}` folder like any other - fetched and run
-   as its own explicit step (`zz_use <org>/<repo>/<name>`, then run
-   `<name>`), never auto-exec'd by `setup.sh` itself. Individual scripts
+2. **No root `setup.sh` of your own** - bootstrap `zz_use` (and the core
+   `zz_*` bundle) straight from
+   [`tomgrv/scripts`'s own `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh)
+   (see [Layout](#layout)) rather than keeping a copy in your repo: it's
+   generic, doesn't hardcode `perspikapps/vps` (or anything else about
+   this repo), and a copy is just one more place to keep in sync for no
+   benefit. If you need something that runs every script in sequence
+   (this repo's `vps-setup`, described throughout this README), that's its
+   own ordinary `<name>/{package.json,run.sh}` folder like any other -
+   fetched and run as its own explicit step (`zz_use <org>/<repo>/<name>`,
+   then run `<name>`), never auto-exec'd by `setup.sh`. Individual scripts
    don't bootstrap `zz_use` themselves - that would mean one `curl` per
-   script instead of one total, exactly the duplication a root `setup.sh`
-   exists to avoid. They just fail fast if it's somehow still missing
-   (e.g. run standalone, before `setup.sh`):
-    ```sh
-    command -v zz_use > /dev/null 2>&1 || {
-        echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/<org>/<repo>/main/setup.sh | sh" >&2
-        exit 1
-    }
-    ```
-    Never embed the `tomgrv/scripts` URL directly in more than one place.
+   script instead of one total, exactly the duplication routing everyone
+   through `tomgrv/scripts`'s `setup.sh` avoids: each one assumes `zz_use`
+   is already on `PATH` (bootstrapped by `setup.sh`, run once beforehand -
+   e.g. via `tomgrv/actions/setup-scripts` in CI) and calls straight into
+   it, with no existence check of its own.
 3. **A shared `common/` folder** (or whatever you'd call it) for logic
    more than one script needs - not a "core" script itself, just another
    `<name>/run.sh` folder, sourced via

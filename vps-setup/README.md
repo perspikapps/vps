@@ -19,7 +19,7 @@ reference.
 ## Usage
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz_use perspikapps/vps/vps-setup
 sudo vps-setup
 ```

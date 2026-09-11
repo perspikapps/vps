@@ -24,15 +24,18 @@ state_set() { eval "STATE_$(state_var "$1")=\$2"; }
 # --- ask: prompt for any input an enabled ("up") step declares in its own
 # package.json ("vps.inputs" - see pkg_input_names) that isn't already
 # set in the environment, so a plain interactive run doesn't need every
-# env var pre-set on the command line. Only runs on an actual terminal:
-# curl | sudo sh pipes the script itself into stdin, so there's nothing to
-# read prompts from there - env vars (or --skip-*) are the only way to
-# supply them in that mode.
+# env var pre-set on the command line. The actual prompting (and
+# persisting the answer to VPS_SETUP_ENV_FILE, so a later re-run shows it
+# for reference instead of asking again) is delegated to zz_persist -i;
+# only runs on an actual terminal: curl | sudo sh pipes the script itself
+# into stdin, so there's nothing to read prompts from there - env vars (or
+# --skip-*) are the only way to supply them in that mode.
 
 ask_missing_inputs() {
   [ -t 0 ] || return 0
   echo
   echo "==== Feature inputs ===="
+  envfile="${VPS_SETUP_ENV_FILE:-/etc/vps-setup.env}"
   for name in $ALL_NAMES; do
     [ "$(state_get "$name")" = "up" ] || continue
     d=$(feature_dir_for_name "$name")
@@ -44,20 +47,19 @@ ask_missing_inputs() {
       desc=$(pkg_input_description "$pkg" "$input")
       required=$(pkg_input_required "$pkg" "$input")
       default=$(pkg_input_default "$pkg" "$input")
+      secret=$(pkg_input_secret "$pkg" "$input")
 
-      prompt="  ${input}"
+      prompt="${input}"
       [ -n "$desc" ] && prompt="${prompt} (${desc})"
-      if [ -n "$default" ]; then
-        prompt="${prompt} [${default}]: "
-      elif [ "$required" = "true" ]; then
-        prompt="${prompt} (required): "
-      else
-        prompt="${prompt} [optional, enter to skip]: "
-      fi
-      printf '%s' "$prompt"
-      read -r answer
-      [ -z "$answer" ] && answer="$default"
+      [ "$required" = "true" ] && [ -z "$default" ] && prompt="${prompt} (required)"
 
+      if [ "$secret" = "true" ]; then
+        zz_persist -f "$envfile" -i "$prompt" -s "$default" "$input"
+      else
+        zz_persist -f "$envfile" -i "$prompt" -v "$default" "$input"
+      fi
+
+      answer=$(sed -n "s/^${input}=//p" "$envfile" | tail -n1)
       if [ -n "$answer" ]; then
         eval "${input}=\"\${answer}\""
         eval "export ${input}"

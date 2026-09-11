@@ -12,7 +12,6 @@
 # see the REPO_ROOT resolution below.
 
 set -euo pipefail
-command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
 zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
@@ -92,6 +91,7 @@ pkg_input_names() {
 pkg_input_description() { jq -r --arg n "$2" '.vps.inputs[$n].description // empty' "$1"; }
 pkg_input_required() { jq -r --arg n "$2" '.vps.inputs[$n].required // false' "$1"; }
 pkg_input_default() { jq -r --arg n "$2" '.vps.inputs[$n].default // empty' "$1"; }
+pkg_input_secret() { jq -r --arg n "$2" '.vps.inputs[$n].secret // false' "$1"; }
 
 # --- feature discovery: <name>/{package.json,run.sh}, in install
 # order - each package.json's "vps.order" (a plain integer) says where it

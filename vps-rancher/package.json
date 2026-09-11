@@ -21,7 +21,8 @@
             "RANCHER_BOOTSTRAP_PASSWORD": {
                 "description": "Initial admin password",
                 "required": false,
-                "default": ""
+                "default": "",
+                "secret": true
             },
             "RANCHER_CHART_VERSION": {
                 "description": "Pin a chart version",
