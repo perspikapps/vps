@@ -1,0 +1,50 @@
+# @format
+# Values here are passed straight through to the upstream
+# `infisical-standalone` chart under the `infisical-standalone:` key
+# (Helm's standard subchart-values convention). It bundles its own
+# Postgres, Redis, and an nginx Ingress controller (own IngressClass,
+# `infisical-nginx`, so it won't collide with a cluster-wide nginx) -
+# install-and-go like `charts/epinio`, once the one required Secret
+# below exists.
+#
+# Upstream chart's values reference:
+# https://github.com/Infisical/infisical/blob/main/helm-charts/infisical-standalone/README.md
+
+infisical-standalone:
+    infisical:
+        # REQUIRED: name of a Secret (in this release's namespace, not
+        # templated here) holding Infisical's root credentials - create
+        # it before installing:
+        #
+        #   kubectl create secret generic infisical-secrets \
+        #     --namespace infisical \
+        #     --from-literal=ENCRYPTION_KEY="$(openssl rand -hex 16)" \
+        #     --from-literal=AUTH_SECRET="$(openssl rand -base64 32)" \
+        #     --from-literal=SITE_URL=https://infisical.example.com
+        #
+        # See https://infisical.com/docs/self-hosting/configuration/envars
+        # for the full list of backend env vars this Secret can carry
+        # (SMTP_*, OAuth client IDs/secrets, etc. are optional).
+        kubeSecretRef: infisical-secrets
+
+        service:
+            # The VPS bootstrapper exposes other apps in this catalog via
+            # k3s's built-in ServiceLB (LoadBalancer). On a normal cluster,
+            # ClusterIP + your own Ingress is usually the better choice -
+            # change this to fit how you expose apps here.
+            type: ClusterIP
+
+    ingress:
+        enabled: true
+        # REQUIRED: externally-reachable hostname for the bundled Ingress
+        # (must match the SITE_URL host set in infisical-secrets above).
+        hostName: infisical.example.com
+
+    # Bundled Postgres/Redis are fine for trying Infisical out; swap in
+    # your own managed instances for a production install by disabling
+    # these and pointing infisical-standalone.postgresql.useExistingPostgresSecret
+    # / infisical-standalone.redis at your own connection details instead.
+    postgresql:
+        enabled: true
+    redis:
+        enabled: true
