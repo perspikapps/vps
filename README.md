@@ -870,10 +870,9 @@ Ingresses via that chart's own values, outside this table.
 Each feature's `run.sh` can also be run standalone, from within a
 checkout or on its own - but it doesn't bootstrap `zz_use` itself (that's
 [`tomgrv/scripts`'s `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh)'s
-job, run once - see [Layout](#layout)); it just fetches
-`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/vps-common` if
-`zz_use` is already on `PATH`, and fails fast with a one-line message
-pointing at it if it isn't:
+job, run once beforehand - see [Layout](#layout)); it just fetches
+`vps-common/run.sh` from this repo via `zz_use perspikapps/vps/vps-common`,
+assuming `zz_use` is already on `PATH`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
@@ -973,14 +972,10 @@ and a `zz_use`-installable source of scripts. Adopting it elsewhere:
    then run `<name>`), never auto-exec'd by `setup.sh`. Individual scripts
    don't bootstrap `zz_use` themselves - that would mean one `curl` per
    script instead of one total, exactly the duplication routing everyone
-   through `tomgrv/scripts`'s `setup.sh` avoids. They just fail fast if
-   it's somehow still missing (e.g. run standalone, before `setup.sh`):
-    ```sh
-    command -v zz_use > /dev/null 2>&1 || {
-        echo "zz_use not found on PATH - run tomgrv/scripts' setup.sh first: curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh" >&2
-        exit 1
-    }
-    ```
+   through `tomgrv/scripts`'s `setup.sh` avoids: each one assumes `zz_use`
+   is already on `PATH` (bootstrapped by `setup.sh`, run once beforehand -
+   e.g. via `tomgrv/actions/setup-scripts` in CI) and calls straight into
+   it, with no existence check of its own.
 3. **A shared `common/` folder** (or whatever you'd call it) for logic
    more than one script needs - not a "core" script itself, just another
    `<name>/run.sh` folder, sourced via
