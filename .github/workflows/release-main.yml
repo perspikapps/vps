@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: develop
 
       - name: Release promote
-        uses: tomgrv/actions/release-promote@v2.22.0
+        uses: tomgrv/actions/release-promote@v2
         with:
           scripts-ref: v0.3.0
           dry-run: ${{ inputs.dry_run == true }}
