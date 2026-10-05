@@ -22,6 +22,27 @@ DIR="$REPO_ROOT/vps-setup"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
+@test "run.sh builds its interactive menu with zz_menu in cycle mode" {
+    grep -q 'zz_use .*zz_menu' "$DIR/run.sh"
+    grep -q 'zz_menu -t "VPS setup menu" -c "skip,up,down"' "$DIR/run.sh"
+}
+
+@test "steps.sh lists feature inputs in a zz_menu and asks values with zz_prompt" {
+    grep -q 'zz_use .*zz_prompt' "$DIR/run.sh"
+    grep -q 'zz_menu -t "Feature inputs"' "$DIR/steps.sh"
+    grep -q 'zz_prompt' "$DIR/steps.sh"
+}
+
+@test "steps.sh never prints an input's current value in the inputs menu" {
+    ! grep -q '\[\$current\]' "$DIR/steps.sh"
+}
+
+@test "steps.sh persists each answered input via zz_persist and loads them back" {
+    grep -q 'zz_use .*zz_persist' "$DIR/run.sh"
+    grep -q '\. "\$envfile"' "$DIR/steps.sh"
+    grep -q 'zz_persist -f "\$envfile" "\$choice" "\$answer"' "$DIR/steps.sh"
+}
+
 @test "run.sh sources steps.sh from its own folder" {
     grep -q '"\$REPO_ROOT/vps-setup/steps.sh"' "$DIR/run.sh"
 }

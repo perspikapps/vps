@@ -12,7 +12,7 @@
 # see the REPO_ROOT resolution below.
 
 set -euo pipefail
-zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz_menu zz_prompt zz_persist
 # shellcheck disable=SC1091
 . vps-common
 
@@ -218,48 +218,28 @@ EOF
 }
 
 run_menu() {
-  while true; do
-    echo
-    echo "==== VPS setup menu ===="
-    i=1
-    MENU_NAMES=""
-    for name in $ALL_NAMES; do
-      d=$(feature_dir_for_name "$name")
-      marker="   "
-      [[ "$(feature_default "$d")" == "true" ]] && marker=" * "
-      printf '  %2d)%s%-14s [%-4s] %s\n' "$i" "$marker" "$name" "$(state_get "$name")" "$(feature_desc "$d")"
-      MENU_NAMES="$MENU_NAMES $name"
-      i=$((i + 1))
-    done
-    echo "  (* = installed by default) Enter a number to cycle"
-    echo "  skip -> up -> down -> skip for that step."
-    echo "  <enter> to proceed, 'q' to quit without changing anything."
-    printf '> '
-    read -r choice
-
-    case "$choice" in
-      "") break ;;
-      q | Q)
-        echo "Aborted, nothing changed."
-        exit 0
-        ;;
-      *[!0-9]*)
-        echo "Invalid input: '$choice' (enter a number, or press enter/q)."
-        continue
-        ;;
-    esac
-
-    name=$(echo "$MENU_NAMES" | tr ' ' '\n' | sed -n "$((choice + 1))p")
-    if [[ -z "$name" ]]; then
-      echo "No such step: $choice"
-      continue
-    fi
-    case "$(state_get "$name")" in
-      skip) state_set "$name" up ;;
-      up) state_set "$name" down ;;
-      down) state_set "$name" skip ;;
-    esac
+  local items=() name d marker out rc=0 state
+  for name in $ALL_NAMES; do
+    d=$(feature_dir_for_name "$name")
+    marker=" "
+    [[ "$(feature_default "$d")" == "true" ]] && marker="*"
+    items+=("$name:$(state_get "$name")=$marker $(printf '%-17s' "$name") $(feature_desc "$d")")
   done
+
+  # zz_menu -c cycles each step's state itself; on enter it prints one
+  # "<step>=<state>" line per step (exit 0), on q / end of input it exits 1.
+  out=$(zz_menu -t "VPS setup menu" -c "skip,up,down" \
+    -f "  (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits." \
+    "${items[@]}") || rc=$?
+
+  if [[ "$rc" -ne 0 ]]; then
+    echo "Aborted, nothing changed."
+    exit 0
+  fi
+
+  while IFS== read -r name state; do
+    [[ -n "$name" ]] && state_set "$name" "$state"
+  done <<<"$out"
 }
 
 ONLY_LIST=""

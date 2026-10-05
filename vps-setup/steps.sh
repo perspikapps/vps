@@ -21,51 +21,106 @@ state_var() { printf '%s' "$1" | tr '-' '_'; }
 state_get() { eval "printf '%s' \"\${STATE_$(state_var "$1"):-skip}\""; }
 state_set() { eval "STATE_$(state_var "$1")=\$2"; }
 
-# --- ask: prompt for any input an enabled ("up") step declares in its own
-# package.json ("vps.inputs" - see pkg_input_names) that isn't already
-# set in the environment, so a plain interactive run doesn't need every
-# env var pre-set on the command line. The actual prompting (and
-# persisting the answer to VPS_SETUP_ENV_FILE, so a later re-run shows it
-# for reference instead of asking again) is delegated to zz_persist -i;
-# only runs on an actual terminal: curl | sudo sh pipes the script itself
-# into stdin, so there's nothing to read prompts from there - env vars (or
+# --- ask: let the user fill in any input an enabled ("up") step declares in
+# its own package.json ("vps.inputs" - see pkg_input_names) that isn't
+# already set in the environment, so a plain interactive run doesn't need
+# every env var pre-set on the command line. Every such input is listed in a
+# zz_menu (value never shown, only whether it is set); picking one asks for
+# its value with zz_prompt, <enter> proceeds, q aborts before anything has
+# been installed. Each answer is persisted to VPS_SETUP_ENV_FILE via
+# zz_persist, so a later re-run shows that input as already "set" (loaded
+# from the file below) instead of asking again - the file itself is never
+# echoed back into the menu, so a persisted secret still never prints. Only
+# runs on an actual terminal: curl | sudo sh pipes the script itself into
+# stdin, so there's nothing to read prompts from there - env vars (or
 # --skip-*) are the only way to supply them in that mode.
+
+# input_status <input> <package.json> -> "set", "required" or "optional"
+input_status() {
+  if [ -n "$(eval "printf '%s' \"\${${1}:-}\"")" ]; then
+    echo set
+  elif [ "$(pkg_input_required "$2" "$1")" = "true" ]; then
+    echo required
+  else
+    echo optional
+  fi
+}
 
 ask_missing_inputs() {
   [ -t 0 ] || return 0
-  echo
-  echo "==== Feature inputs ===="
+
   envfile="${VPS_SETUP_ENV_FILE:-/etc/vps-setup.env}"
+  if [ -f "$envfile" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$envfile"
+    set +a
+  fi
+
+  while :; do
+    set --
+    seen=" "
+    unset_count=0
+    for name in $ALL_NAMES; do
+      [ "$(state_get "$name")" = "up" ] || continue
+      d=$(feature_dir_for_name "$name")
+      pkg="${d}/package.json"
+      for input in $(feature_inputs "$d"); do
+        case "$seen" in *" $input "*) continue ;; esac
+        seen="$seen$input "
+        eval "_owner_${input}=\$name"
+
+        status=$(input_status "$input" "$pkg")
+        [ "$status" = "set" ] || unset_count=$((unset_count + 1))
+        desc=$(pkg_input_description "$pkg" "$input")
+        set -- "$@" "$input=$(printf '%-24s' "$input") [$(printf '%-8s' "$status")] ${name}${desc:+ - $desc}"
+      done
+    done
+
+    # Nothing left to fill in (or nothing declared at all): no menu.
+    [ "$unset_count" -gt 0 ] || return 0
+
+    rc=0
+    choice=$(zz_menu -t "Feature inputs" \
+      -f "  Number sets that input; <enter> proceeds with what's set, q quits." \
+      "$@") || rc=$?
+    case "$rc" in
+    0) ;;
+    1)
+      echo "Aborted, nothing changed."
+      exit 0
+      ;;
+    *) break ;;
+    esac
+
+    eval "owner=\$_owner_${choice}"
+    pkg="$(feature_dir_for_name "$owner")/package.json"
+    desc=$(pkg_input_description "$pkg" "$choice")
+    default=$(pkg_input_default "$pkg" "$choice")
+    current=$(eval "printf '%s' \"\${${choice}:-}\"")
+
+    # A value already set is never echoed back as a default (it may be a
+    # secret); an empty answer then simply keeps it.
+    if [ -n "$current" ]; then
+      answer=$(zz_prompt "${choice}${desc:+ ($desc)} - enter to keep the current value:")
+    else
+      answer=$(zz_prompt "${choice}${desc:+ ($desc)}:" "$default")
+    fi
+
+    if [ -n "$answer" ]; then
+      eval "${choice}=\"\${answer}\""
+      eval "export ${choice}"
+      zz_persist -f "$envfile" "$choice" "$answer"
+    fi
+  done
+
+  # Whatever is still empty and required is only a warning, as before.
   for name in $ALL_NAMES; do
     [ "$(state_get "$name")" = "up" ] || continue
     d=$(feature_dir_for_name "$name")
-    pkg="${d}/package.json"
     for input in $(feature_inputs "$d"); do
-      current=$(eval "printf '%s' \"\${${input}:-}\"")
-      [ -n "$current" ] && continue
-
-      desc=$(pkg_input_description "$pkg" "$input")
-      required=$(pkg_input_required "$pkg" "$input")
-      default=$(pkg_input_default "$pkg" "$input")
-      secret=$(pkg_input_secret "$pkg" "$input")
-
-      prompt="${input}"
-      [ -n "$desc" ] && prompt="${prompt} (${desc})"
-      [ "$required" = "true" ] && [ -z "$default" ] && prompt="${prompt} (required)"
-
-      if [ "$secret" = "true" ]; then
-        zz_persist -f "$envfile" -i "$prompt" -s "$default" "$input"
-      else
-        zz_persist -f "$envfile" -i "$prompt" -v "$default" "$input"
-      fi
-
-      answer=$(sed -n "s/^${input}=//p" "$envfile" | tail -n1)
-      if [ -n "$answer" ]; then
-        eval "${input}=\"\${answer}\""
-        eval "export ${input}"
-      elif [ "$required" = "true" ]; then
-        zz_log w "[vps-setup] ${input} is required by '${name}' but was left empty; that step will likely fail without it."
-      fi
+      [ "$(input_status "$input" "${d}/package.json")" = "required" ] || continue
+      zz_log w "[vps-setup] ${input} is required by '${name}' but was left empty; that step will likely fail without it."
     done
   done
 }

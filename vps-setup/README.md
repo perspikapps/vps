@@ -53,7 +53,7 @@ for pinning a fork/branch.
 
 ## Dependencies
 
-`vps-common` (shared helpers). Not itself a dependency target for any
+`vps-common` (shared helpers), `zz_menu` and `zz_prompt` (draw the interactive step and input menus), and `zz_persist` (saves each answered input to `VPS_SETUP_ENV_FILE`, default `/etc/vps-setup.env`, so a later run loads it back instead of asking again). Not itself a dependency target for any
 other step (it isn't a "step" - see above), so the auto-enable logic it
 runs for other steps doesn't apply to it.
 
