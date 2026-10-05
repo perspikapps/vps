@@ -53,7 +53,7 @@ for pinning a fork/branch.
 
 ## Dependencies
 
-`vps-common` (shared helpers). Not itself a dependency target for any
+`vps-common` (shared helpers) and `zz_menu` and `zz_prompt` (draw the interactive step and input menus). Not itself a dependency target for any
 other step (it isn't a "step" - see above), so the auto-enable logic it
 runs for other steps doesn't apply to it.
 
