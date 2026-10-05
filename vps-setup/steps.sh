@@ -110,7 +110,13 @@ ask_missing_inputs() {
     if [ -n "$answer" ]; then
       eval "${choice}=\"\${answer}\""
       eval "export ${choice}"
-      zz_persist -f "$envfile" "$choice" "$answer"
+      # Single-quote the value (escaping any embedded "'") before handing it
+      # to zz_persist: it writes KEY=<value> verbatim, and an unquoted value
+      # containing spaces or shell metacharacters (e.g. an SSH public key,
+      # "ssh-ed25519 AAAA... user@host") would corrupt the sourced env file
+      # on the next run.
+      answer_quoted=$(printf '%s' "$answer" | sed "s/'/'\\\\''/g")
+      zz_persist -f "$envfile" "$choice" "'$answer_quoted'"
     fi
   done
 

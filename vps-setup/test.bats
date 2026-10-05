@@ -40,7 +40,15 @@ DIR="$REPO_ROOT/vps-setup"
 @test "steps.sh persists each answered input via zz_persist and loads them back" {
     grep -q 'zz_use .*zz_persist' "$DIR/run.sh"
     grep -q '\. "\$envfile"' "$DIR/steps.sh"
-    grep -q 'zz_persist -f "\$envfile" "\$choice" "\$answer"' "$DIR/steps.sh"
+    grep -F -q "zz_persist -f \"\$envfile\" \"\$choice\" \"'\$answer_quoted'\"" "$DIR/steps.sh"
+}
+
+@test "steps.sh single-quotes a persisted answer so spaces/metacharacters survive sourcing" {
+    # An SSH key or similar value with embedded spaces, written unquoted by
+    # zz_persist, would corrupt the env file on the next ". \$envfile" - see
+    # the comment right above the zz_persist call.
+    grep -F -q 'answer_quoted=' "$DIR/steps.sh"
+    grep -F -q "sed \"s/'/'" "$DIR/steps.sh"
 }
 
 @test "run.sh sources steps.sh from its own folder" {
