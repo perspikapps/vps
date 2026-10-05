@@ -20,7 +20,8 @@
             "VPS_ADMIN_PASSWORD": {
                 "description": "Cockpit/console login password for VPS_ADMIN_USER (or root if unset)",
                 "required": false,
-                "default": ""
+                "default": "",
+                "secret": true
             },
             "VPS_ADMIN_SSH_KEY": {
                 "description": "Public key to authorize for VPS_ADMIN_USER and root",

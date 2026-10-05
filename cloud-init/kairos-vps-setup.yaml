@@ -22,9 +22,9 @@
 #      creating the VPS (Kairos: `kairos-agent install --config
 #      kairos-vps-setup.yaml`, or pass it as the ISO/PXE config; most
 #      cloud VPS providers have a "User data" field at creation time).
-#   3. On first boot the VPS bootstraps zz_use via setup.sh, then fetches
-#      and runs vps-setup unattended - no manual SSH session needed to
-#      kick it off.
+#   3. On first boot the VPS bootstraps zz_use via tomgrv/scripts' setup.sh,
+#      then fetches and runs vps-setup unattended - no manual SSH session
+#      needed to kick it off.
 
 hostname: vps
 
@@ -53,18 +53,19 @@ write_files:
           # VPS_SETUP_REPO_REF=my-branch
 
 runcmd:
-    # Sourcing the env file first (rather than hardcoding "main" in the curl
-    # URL) keeps this in sync if VPS_SETUP_REPO_REF is uncommented above -
-    # both the initial fetch and vps-setup's own internal clone then target
-    # the same ref, per README.md's "Running from a non-standard branch"
-    # section. setup.sh only bootstraps zz_use (see README.md's "Running
-    # vps-setup" section) - it never runs vps-setup itself, so that's a
-    # separate zz_use + invocation step here.
+    # Sourcing the env file first (rather than hardcoding "main" in the
+    # zz_use call) keeps this in sync if VPS_SETUP_REPO_REF is uncommented
+    # above - vps-setup's own internal clone then targets that ref, per
+    # README.md's "Running from a non-standard branch" section.
+    # tomgrv/scripts' setup.sh only bootstraps zz_use (see README.md's
+    # "Running vps-setup" section) - it never runs vps-setup itself, so
+    # that's a separate zz_use + invocation step here, and it's unrelated
+    # to VPS_SETUP_REPO_REF (that only pins this repo, not tomgrv/scripts).
     - >-
         bash -c '
         set -a; source /etc/vps-setup.env; set +a;
         ref="${VPS_SETUP_REPO_REF:-main}";
-        curl -fsSL "https://raw.githubusercontent.com/perspikapps/vps/${ref}/setup.sh" | sh;
+        curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh;
         zz_use "perspikapps/vps/vps-setup@${ref}";
         vps-setup 2>&1 | tee /var/log/vps-setup.log
         '

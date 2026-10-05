@@ -16,8 +16,8 @@ DIR="$REPO_ROOT/vps-security"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
-@test "run.sh fails fast instead of curling setup.sh itself" {
-    grep -q 'command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo'"'"'s setup.sh first' "$DIR/run.sh"
+@test "run.sh does not bootstrap zz_use itself (assumes setup.sh already ran)" {
+    ! grep -q 'command -v zz_use' "$DIR/run.sh"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 

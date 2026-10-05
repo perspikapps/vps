@@ -27,9 +27,13 @@ state_set() { eval "STATE_$(state_var "$1")=\$2"; }
 # every env var pre-set on the command line. Every such input is listed in a
 # zz_menu (value never shown, only whether it is set); picking one asks for
 # its value with zz_prompt, <enter> proceeds, q aborts before anything has
-# been installed. Only runs on an actual terminal: curl | sudo sh pipes the
-# script itself into stdin, so there's nothing to read prompts from there -
-# env vars (or --skip-*) are the only way to supply them in that mode.
+# been installed. Each answer is persisted to VPS_SETUP_ENV_FILE via
+# zz_persist, so a later re-run shows that input as already "set" (loaded
+# from the file below) instead of asking again - the file itself is never
+# echoed back into the menu, so a persisted secret still never prints. Only
+# runs on an actual terminal: curl | sudo sh pipes the script itself into
+# stdin, so there's nothing to read prompts from there - env vars (or
+# --skip-*) are the only way to supply them in that mode.
 
 # input_status <input> <package.json> -> "set", "required" or "optional"
 input_status() {
@@ -44,6 +48,14 @@ input_status() {
 
 ask_missing_inputs() {
   [ -t 0 ] || return 0
+
+  envfile="${VPS_SETUP_ENV_FILE:-/etc/vps-setup.env}"
+  if [ -f "$envfile" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$envfile"
+    set +a
+  fi
 
   while :; do
     set --
@@ -98,6 +110,13 @@ ask_missing_inputs() {
     if [ -n "$answer" ]; then
       eval "${choice}=\"\${answer}\""
       eval "export ${choice}"
+      # Single-quote the value (escaping any embedded "'") before handing it
+      # to zz_persist: it writes KEY=<value> verbatim, and an unquoted value
+      # containing spaces or shell metacharacters (e.g. an SSH public key,
+      # "ssh-ed25519 AAAA... user@host") would corrupt the sourced env file
+      # on the next run.
+      answer_quoted=$(printf '%s' "$answer" | sed "s/'/'\\\\''/g")
+      zz_persist -f "$envfile" "$choice" "'$answer_quoted'"
     fi
   done
 

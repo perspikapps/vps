@@ -2,7 +2,6 @@
 # Base system update and common CLI utilities.
 
 set -euo pipefail
-command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
 zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common

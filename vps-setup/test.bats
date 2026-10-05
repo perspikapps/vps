@@ -17,6 +17,11 @@ DIR="$REPO_ROOT/vps-setup"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
+@test "run.sh does not bootstrap zz_use itself (assumes setup.sh already ran)" {
+    ! grep -q 'command -v zz_use' "$DIR/run.sh"
+    ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
+}
+
 @test "run.sh builds its interactive menu with zz_menu in cycle mode" {
     grep -q 'zz_use .*zz_menu' "$DIR/run.sh"
     grep -q 'zz_menu -t "VPS setup menu" -c "skip,up,down"' "$DIR/run.sh"
@@ -32,9 +37,18 @@ DIR="$REPO_ROOT/vps-setup"
     ! grep -q '\[\$current\]' "$DIR/steps.sh"
 }
 
-@test "run.sh fails fast instead of curling setup.sh itself" {
-    grep -q 'command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo'"'"'s setup.sh first' "$DIR/run.sh"
-    ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
+@test "steps.sh persists each answered input via zz_persist and loads them back" {
+    grep -q 'zz_use .*zz_persist' "$DIR/run.sh"
+    grep -q '\. "\$envfile"' "$DIR/steps.sh"
+    grep -F -q "zz_persist -f \"\$envfile\" \"\$choice\" \"'\$answer_quoted'\"" "$DIR/steps.sh"
+}
+
+@test "steps.sh single-quotes a persisted answer so spaces/metacharacters survive sourcing" {
+    # An SSH key or similar value with embedded spaces, written unquoted by
+    # zz_persist, would corrupt the env file on the next ". \$envfile" - see
+    # the comment right above the zz_persist call.
+    grep -F -q 'answer_quoted=' "$DIR/steps.sh"
+    grep -F -q "sed \"s/'/'" "$DIR/steps.sh"
 }
 
 @test "run.sh sources steps.sh from its own folder" {

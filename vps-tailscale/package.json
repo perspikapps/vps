@@ -21,7 +21,8 @@
             "TAILSCALE_AUTHKEY": {
                 "description": "Auth key to auto-join a tailnet",
                 "required": true,
-                "default": ""
+                "default": "",
+                "secret": true
             },
             "TAILSCALE_EXTRA_ARGS": {
                 "description": "Extra flags appended to tailscale up",
