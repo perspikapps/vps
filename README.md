@@ -175,19 +175,20 @@ sudo vps-setup
 
 ```
 ==== VPS setup menu ====
-   1) * vps-system       [up  ] Base system update & essentials
-   2) * vps-security     [up  ] Firewall / SSH / fail2ban hardening
-   3) * vps-tailscale    [up  ] Tailscale install
-   4) * vps-cockpit      [up  ] Cockpit install
-   5) * vps-k3s          [up  ] k3s / kubectl / helm install (includes Traefik configuration)
-   6) * vps-rancher      [up  ] Rancher install
+   1) * vps-system        [up  ] Base system update & essentials
+   2) * vps-security      [up  ] Firewall / SSH / fail2ban hardening
+   3) * vps-tailscale     [up  ] Tailscale install
+   4) * vps-cockpit       [up  ] Cockpit install
+   5) * vps-k3s           [up  ] k3s / kubectl / helm install (includes Traefik configuration)
+   6) * vps-rancher       [up  ] Rancher install
    7) * vps-dockermanager [up  ] cockpit-packagekit/files/dockermanager install
-   8) * vps-marketplace  [up  ] Rancher Apps & Marketplace catalog registration
-  (* = installed by default) Enter a number to cycle
-  skip -> up -> down -> skip for that step.
-  <enter> to proceed, 'q' to quit without changing anything.
+   8) * vps-marketplace   [up  ] Rancher Apps & Marketplace catalog registration
+  (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits.
 >
 ```
+
+The menu is drawn by [`zz_menu`](https://github.com/tomgrv/scripts/tree/main/zz_menu)
+(installed with the other `zz_*` helpers by `setup.sh`).
 
 Type a step's number to cycle it through `skip -> up -> down -> skip`
 (`down` means uninstall it - see the next section), press **enter** to

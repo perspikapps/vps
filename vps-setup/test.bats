@@ -17,6 +17,11 @@ DIR="$REPO_ROOT/vps-setup"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
+@test "run.sh builds its interactive menu with zz_menu" {
+    grep -q 'zz_use .*zz_menu' "$DIR/run.sh"
+    grep -q 'zz_menu -t' "$DIR/run.sh"
+}
+
 @test "run.sh fails fast instead of curling setup.sh itself" {
     grep -q 'command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo'"'"'s setup.sh first' "$DIR/run.sh"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
