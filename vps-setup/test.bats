@@ -17,9 +17,19 @@ DIR="$REPO_ROOT/vps-setup"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
-@test "run.sh builds its interactive menu with zz_menu" {
+@test "run.sh builds its interactive menu with zz_menu in cycle mode" {
     grep -q 'zz_use .*zz_menu' "$DIR/run.sh"
-    grep -q 'zz_menu -t' "$DIR/run.sh"
+    grep -q 'zz_menu -t "VPS setup menu" -c "skip,up,down"' "$DIR/run.sh"
+}
+
+@test "steps.sh lists feature inputs in a zz_menu and asks values with zz_prompt" {
+    grep -q 'zz_use .*zz_prompt' "$DIR/run.sh"
+    grep -q 'zz_menu -t "Feature inputs"' "$DIR/steps.sh"
+    grep -q 'zz_prompt' "$DIR/steps.sh"
+}
+
+@test "steps.sh never prints an input's current value in the inputs menu" {
+    ! grep -q '\[\$current\]' "$DIR/steps.sh"
 }
 
 @test "run.sh fails fast instead of curling setup.sh itself" {

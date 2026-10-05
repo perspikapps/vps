@@ -13,7 +13,7 @@
 
 set -euo pipefail
 command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
-zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz_menu
+zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz_menu zz_prompt
 # shellcheck disable=SC1091
 . vps-common
 
@@ -218,38 +218,28 @@ EOF
 }
 
 run_menu() {
-  local items name d marker rc choice
-  while true; do
-    items=()
-    for name in $ALL_NAMES; do
-      d=$(feature_dir_for_name "$name")
-      marker=" "
-      [[ "$(feature_default "$d")" == "true" ]] && marker="*"
-      items+=("$name=$(printf '%s %-17s [%-4s] %s' "$marker" "$name" "$(state_get "$name")" "$(feature_desc "$d")")")
-    done
-
-    # zz_menu: 0 = a step was picked (its name on stdout), 2 = bare enter
-    # (proceed), 1 = quit.
-    rc=0
-    choice=$(zz_menu -t "VPS setup menu" \
-      -f "  (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits." \
-      "${items[@]}") || rc=$?
-
-    case "$rc" in
-      0) ;;
-      1)
-        echo "Aborted, nothing changed."
-        exit 0
-        ;;
-      *) break ;;
-    esac
-
-    case "$(state_get "$choice")" in
-      skip) state_set "$choice" up ;;
-      up) state_set "$choice" down ;;
-      down) state_set "$choice" skip ;;
-    esac
+  local items=() name d marker out rc=0 state
+  for name in $ALL_NAMES; do
+    d=$(feature_dir_for_name "$name")
+    marker=" "
+    [[ "$(feature_default "$d")" == "true" ]] && marker="*"
+    items+=("$name:$(state_get "$name")=$marker $(printf '%-17s' "$name") $(feature_desc "$d")")
   done
+
+  # zz_menu -c cycles each step's state itself; on enter it prints one
+  # "<step>=<state>" line per step (exit 0), on q / end of input it exits 1.
+  out=$(zz_menu -t "VPS setup menu" -c "skip,up,down" \
+    -f "  (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits." \
+    "${items[@]}") || rc=$?
+
+  if [[ "$rc" -ne 0 ]]; then
+    echo "Aborted, nothing changed."
+    exit 0
+  fi
+
+  while IFS== read -r name state; do
+    [[ -n "$name" ]] && state_set "$name" "$state"
+  done <<<"$out"
 }
 
 ONLY_LIST=""

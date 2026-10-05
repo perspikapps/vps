@@ -188,7 +188,7 @@ sudo vps-setup
 ```
 
 The menu is drawn by [`zz_menu`](https://github.com/tomgrv/scripts/tree/main/zz_menu)
-(installed with the other `zz_*` helpers by `setup.sh`).
+in cycle mode (installed with the other `zz_*` helpers by `setup.sh`).
 
 Type a step's number to cycle it through `skip -> up -> down -> skip`
 (`down` means uninstall it - see the next section), press **enter** to
@@ -197,6 +197,25 @@ anything. This is purely a friendlier way to build the same `--skip-*`
 / `--with-*` / `--down-*` selection described above - everything below
 about flags, env vars, and dependencies applies whether you got there via
 the menu or the command line.
+
+After the steps are chosen, a second menu lists every input the enabled
+steps declare in their `package.json` (`vps.inputs`), with its status:
+
+```
+==== Feature inputs ====
+   7) TAILSCALE_AUTHKEY        [required] vps-tailscale - Auth key to auto-join a tailnet
+   8) TAILSCALE_EXTRA_ARGS     [optional] vps-tailscale - Extra flags appended to tailscale up
+  ...
+  Number sets that input; <enter> proceeds with what's set, q quits.
+>
+```
+
+Type an input's number to be asked for its value; it then shows as `[set]`
+(values are never echoed back, so secrets stay off the screen - answer empty
+to keep what is set). Inputs already present in the environment are listed as
+`[set]` and are not asked again unless you pick them. Press **enter** to
+proceed, or **`q`** to quit before anything is installed. The menu is skipped
+when every input is already set.
 
 ## Removing a feature (up/down per step)
 
