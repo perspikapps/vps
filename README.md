@@ -175,14 +175,14 @@ sudo vps-setup
 
 ```
 ==== VPS setup menu ====
-   1) * vps-system        [up  ] Base system update & essentials
-   2) * vps-security      [up  ] Firewall / SSH / fail2ban hardening
-   3) * vps-tailscale     [up  ] Tailscale install
-   4) * vps-cockpit       [up  ] Cockpit install
-   5) * vps-k3s           [up  ] k3s / kubectl / helm install (includes Traefik configuration)
-   6) * vps-rancher       [up  ] Rancher install
-   7) * vps-dockermanager [up  ] cockpit-packagekit/files/dockermanager install
-   8) * vps-marketplace   [up  ] Rancher Apps & Marketplace catalog registration
+   1) [up  ] * vps-system        Base system update & essentials
+   2) [up  ] * vps-security      Firewall / SSH / fail2ban hardening
+   3) [up  ] * vps-tailscale     Tailscale install
+   4) [up  ] * vps-cockpit       Cockpit install
+   5) [up  ] * vps-k3s           k3s / kubectl / helm install (includes Traefik configuration)
+   6) [up  ] * vps-rancher       Rancher install
+   7) [up  ] * vps-dockermanager cockpit-packagekit/files/dockermanager install
+   8) [up  ] * vps-marketplace   Rancher Apps & Marketplace catalog registration
   (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits.
 >
 ```
@@ -203,9 +203,12 @@ steps declare in their `package.json` (`vps.inputs`), with its status:
 
 ```
 ==== Feature inputs ====
+   1) TZ                       [optional] vps-system - Timezone to set on the VPS (e.g. Europe/Paris)
+   2) SSH_PORT                 [optional] vps-security - SSH port to keep open
+   ...
    7) TAILSCALE_AUTHKEY        [required] vps-tailscale - Auth key to auto-join a tailnet
    8) TAILSCALE_EXTRA_ARGS     [optional] vps-tailscale - Extra flags appended to tailscale up
-  ...
+   ...
   Number sets that input; <enter> proceeds with what's set, q quits.
 >
 ```
