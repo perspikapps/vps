@@ -978,3 +978,7 @@ and a `zz-use`-installable source of scripts. Adopting it elsewhere:
    that genuinely needs a live target system (this repo's own apt/Helm/k3s
    installs) won't have automated coverage from within the repo alone -
    say so rather than skipping the question.
+
+## Upgrading
+
+Breaking renames and major bumps: see [`UPGRADING.md`](UPGRADING.md) (order of operations across repos, pins, pitfalls, rollback).
