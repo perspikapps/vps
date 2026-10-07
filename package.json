@@ -1,6 +1,6 @@
 {
   "name": "vps-setup",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "lint": "npx --yes lint-staged -p false",
     "test": "bats --recursive .",

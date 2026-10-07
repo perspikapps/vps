@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 (2026-10-07)
+
+*Commits from: v1.0.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v1.0.0' into develop
+### 📦 vps-setup changes
+
+#### Other changes
+
+- 📝 add UPGRADING guide for breaking releases (#27)
+
 ## 1.0.0 (2026-10-07)
 
 *Commits from: v0.3.0..HEAD*
@@ -104,6 +119,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
