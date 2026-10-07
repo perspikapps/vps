@@ -11,13 +11,13 @@ DIR="$REPO_ROOT/vps-system"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz_use and sources common" {
-    grep -q 'zz_use "perspikapps/vps/vps-common' "$DIR/run.sh"
+@test "run.sh bootstraps zz-use and sources common" {
+    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
-@test "run.sh does not bootstrap zz_use itself (assumes setup.sh already ran)" {
-    ! grep -q 'command -v zz_use' "$DIR/run.sh"
+@test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
+    ! grep -q 'command -v zz-use' "$DIR/run.sh"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
