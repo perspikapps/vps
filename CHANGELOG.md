@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.0.0 (2026-10-07)
+
+*Commits from: v0.3.0..HEAD*
+
+### 💥 BREAKING CHANGES
+
+- requires the renamed tomgrv/scripts (v1); zz_* and <verb>-json commands no longer exist.
+### 📂 Unscoped changes
+
+#### Features
+
+- add Infisical to the Rancher Marketplace catalog
+
+#### Other changes
+
+- Merge tag 'v0.3.0' into develop
+- move GitHub Actions Runner Controller to the Rancher Marketplace catalog (#16)
+- 🔧 configure git identity in update-features workflow (#17)
+### 📦 vps-marketplace changes
+
+#### Features
+
+- add cognee to the Rancher Marketplace catalog (#14)
+
+### 📦 vps-setup changes
+
+#### Bug Fixes
+
+- 🔧 release with release-promote v3 and scripts v1 (#26)
+
+#### Features
+
+- ✨ build interactive menu with zz_menu (#22)
+
+#### Other changes
+
+- ♻️ use zz_persist for interactive inputs; drop root setup.sh (#20)
+
 ## 0.3.0 (2026-09-04)
 
 *Commits from: 7a3e269cab6a9aadfc75bf5aeb6773ade89fd9ac..HEAD*
@@ -68,5 +106,6 @@
 - add GitHub Actions Runner Controller via Helm (#3)
 
 
+
 ---
-*Generated on 2026-09-04 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-07 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
