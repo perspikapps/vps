@@ -1,0 +1,86 @@
+{{/* @format */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "hermes.fullname" . }}
+    labels:
+        {{- include "hermes.labels" . | nindent 8 }}
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            {{- include "hermes.labels" . | nindent 12 }}
+    template:
+        metadata:
+            labels:
+                {{- include "hermes.labels" . | nindent 16 }}
+        spec:
+            securityContext:
+                fsGroup: {{ .Values.hermesGid }}
+            containers:
+                - name: gateway
+                  image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  args: ['gateway', 'run']
+                  env:
+                      - name: HERMES_UID
+                        value: '{{ .Values.hermesUid }}'
+                      - name: HERMES_GID
+                        value: '{{ .Values.hermesGid }}'
+                      {{- if .Values.apiServer.enabled }}
+                      - name: API_SERVER_HOST
+                        value: '0.0.0.0:{{ .Values.apiServer.port }}'
+                      {{- end }}
+                  {{- if .Values.envFromSecretName }}
+                  envFrom:
+                      - secretRef:
+                            name: {{ .Values.envFromSecretName }}
+                  {{- end }}
+                  {{- if .Values.apiServer.enabled }}
+                  ports:
+                      - name: api
+                        containerPort: {{ .Values.apiServer.port }}
+                  {{- end }}
+                  volumeMounts:
+                      - name: data
+                        mountPath: /opt/data
+                  resources:
+                      {{- toYaml .Values.resources | nindent 22 }}
+                - name: dashboard
+                  image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  args:
+                      [
+                          'dashboard',
+                          '--host',
+                          '0.0.0.0',
+                          '--port',
+                          '{{ .Values.dashboard.port }}',
+                          '--no-open',
+                      ]
+                  env:
+                      - name: HERMES_UID
+                        value: '{{ .Values.hermesUid }}'
+                      - name: HERMES_GID
+                        value: '{{ .Values.hermesGid }}'
+                  {{- if .Values.envFromSecretName }}
+                  envFrom:
+                      - secretRef:
+                            name: {{ .Values.envFromSecretName }}
+                  {{- end }}
+                  ports:
+                      - name: dashboard
+                        containerPort: {{ .Values.dashboard.port }}
+                  volumeMounts:
+                      - name: data
+                        mountPath: /opt/data
+                  resources:
+                      {{- toYaml .Values.resources | nindent 22 }}
+            volumes:
+                - name: data
+                  {{- if .Values.persistence.enabled }}
+                  persistentVolumeClaim:
+                      claimName: {{ include "hermes.fullname" . }}-data
+                  {{- else }}
+                  emptyDir: {}
+                  {{- end }}

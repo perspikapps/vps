@@ -1,0 +1,17 @@
+# @format
+apiVersion: v2
+name: cognee
+description: Cognee - AI memory engine (semantic/graph knowledge layer for LLM apps) - wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: 'main'
+icon: https://raw.githubusercontent.com/topoteretes/cognee/main/assets/cognee-logo-transparent.png
+keywords:
+    - ai
+    - memory
+    - knowledge-graph
+    - rag
+    - llm
+home: https://github.com/topoteretes/cognee
+sources:
+    - https://github.com/topoteretes/cognee

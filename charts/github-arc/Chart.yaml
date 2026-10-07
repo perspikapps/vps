@@ -1,0 +1,23 @@
+# @format
+apiVersion: v2
+name: github-arc
+description: GitHub Actions Runner Controller (ARC), wrapped for the Rancher Apps & Marketplace catalog
+type: application
+version: 1.0.0
+appVersion: '0.x'
+icon: https://raw.githubusercontent.com/actions/actions-runner-controller/master/docs/detailed-docs-header.png
+keywords:
+    - ci-cd
+    - github-actions
+    - self-hosted-runners
+    - kubernetes
+home: https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started
+sources:
+    - https://github.com/actions/actions-runner-controller
+dependencies:
+    - name: gha-runner-scale-set-controller
+      version: '>=0.9.0'
+      repository: oci://ghcr.io/actions/actions-runner-controller-charts
+    - name: gha-runner-scale-set
+      version: '>=0.9.0'
+      repository: oci://ghcr.io/actions/actions-runner-controller-charts

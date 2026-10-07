@@ -6,14 +6,13 @@
 #
 # Unlike every other feature here, this one isn't itself installed/removed
 # via up()/down() - it drives all the others - so it doesn't end with
-# dispatch_action. It's still zz_use-installable like any feature, but
-# since a single zz_use fetch only pulls this one folder, it needs a full
+# dispatch_action. It's still zz-use-installable like any feature, but
+# since a single zz-use fetch only pulls this one folder, it needs a full
 # local checkout of every sibling feature folder to orchestrate them -
 # see the REPO_ROOT resolution below.
 
 set -euo pipefail
-command -v zz_use >/dev/null 2>&1 || { echo "zz_use not found on PATH - run this repo's setup.sh first: curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh" >&2; exit 1; }
-zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-menu zz-prompt zz-persist
 # shellcheck disable=SC1091
 . vps-common
 
@@ -29,24 +28,24 @@ if [[ -f "$SCRIPT_DIR/../vps-common/run.sh" ]]; then
   # right there, nothing to clone.
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 else
-  # zz_use-installed standalone: this folder alone was fetched, so every
+  # zz-use-installed standalone: this folder alone was fetched, so every
   # sibling feature folder needs a full checkout to orchestrate them.
   require_root
-  zz_log i "[vps-setup] repo=${REPO_URL} ref=${REPO_REF} dir=${INSTALL_DIR}"
+  zz-log i "[vps-setup] repo=${REPO_URL} ref=${REPO_REF} dir=${INSTALL_DIR}"
   if [[ -z "${VPS_SETUP_REPO_REF:-}" ]] && [[ "$REPO_REF" == "main" ]]; then
-    zz_log w "[vps-setup] (VPS_SETUP_REPO_REF not set - using 'main'. Note: a plain" \
+    zz-log w "[vps-setup] (VPS_SETUP_REPO_REF not set - using 'main'. Note: a plain" \
       "shell 'export' before 'sudo vps-setup' is dropped by sudo;" \
       "set it on the sudo line instead, e.g. 'sudo VPS_SETUP_REPO_REF=... vps-setup'.)"
   fi
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    zz_log i "[vps-setup] Updating existing checkout in $INSTALL_DIR..."
+    zz-log i "[vps-setup] Updating existing checkout in $INSTALL_DIR..."
     git -C "$INSTALL_DIR" fetch --depth 1 origin -- "$REPO_REF"
     git -C "$INSTALL_DIR" checkout -q -B "$REPO_REF" FETCH_HEAD
     git -C "$INSTALL_DIR" reset --hard FETCH_HEAD
   elif [[ -d "$INSTALL_DIR" ]]; then
-    zz_log i "[vps-setup] $INSTALL_DIR exists and is not a git checkout; running features in place."
+    zz-log i "[vps-setup] $INSTALL_DIR exists and is not a git checkout; running features in place."
   else
-    zz_log i "[vps-setup] Cloning $REPO_URL (ref: $REPO_REF) into $INSTALL_DIR..."
+    zz-log i "[vps-setup] Cloning $REPO_URL (ref: $REPO_REF) into $INSTALL_DIR..."
     if ! command_exists git; then
       apt_update_once
       apt_install git
@@ -60,13 +59,13 @@ FEATURES_DIR="$REPO_ROOT"
 cd "$REPO_ROOT"
 
 if [[ ! -r /etc/os-release ]]; then
-  zz_log e "[vps-setup] Cannot detect OS: /etc/os-release missing."
+  zz-log e "[vps-setup] Cannot detect OS: /etc/os-release missing."
   exit 1
 fi
 # shellcheck disable=SC1091
 . /etc/os-release
 if [[ "${ID:-}" != "ubuntu" ]]; then
-  zz_log e "[vps-setup] This script targets Ubuntu only (detected: ${ID:-unknown})."
+  zz-log e "[vps-setup] This script targets Ubuntu only (detected: ${ID:-unknown})."
   exit 1
 fi
 
@@ -76,7 +75,7 @@ fi
 ensure_jq() {
   command_exists jq && return 0
   require_root
-  zz_log i "[vps-setup] Installing jq (used to read each feature's package.json)..."
+  zz-log i "[vps-setup] Installing jq (used to read each feature's package.json)..."
   apt_update_once
   apt_install jq
 }
@@ -92,6 +91,7 @@ pkg_input_names() {
 pkg_input_description() { jq -r --arg n "$2" '.vps.inputs[$n].description // empty' "$1"; }
 pkg_input_required() { jq -r --arg n "$2" '.vps.inputs[$n].required // false' "$1"; }
 pkg_input_default() { jq -r --arg n "$2" '.vps.inputs[$n].default // empty' "$1"; }
+pkg_input_secret() { jq -r --arg n "$2" '.vps.inputs[$n].secret // false' "$1"; }
 
 # --- feature discovery: <name>/{package.json,run.sh}, in install
 # order - each package.json's "vps.order" (a plain integer) says where it
@@ -218,48 +218,28 @@ EOF
 }
 
 run_menu() {
-  while true; do
-    echo
-    echo "==== VPS setup menu ===="
-    i=1
-    MENU_NAMES=""
-    for name in $ALL_NAMES; do
-      d=$(feature_dir_for_name "$name")
-      marker="   "
-      [[ "$(feature_default "$d")" == "true" ]] && marker=" * "
-      printf '  %2d)%s%-14s [%-4s] %s\n' "$i" "$marker" "$name" "$(state_get "$name")" "$(feature_desc "$d")"
-      MENU_NAMES="$MENU_NAMES $name"
-      i=$((i + 1))
-    done
-    echo "  (* = installed by default) Enter a number to cycle"
-    echo "  skip -> up -> down -> skip for that step."
-    echo "  <enter> to proceed, 'q' to quit without changing anything."
-    printf '> '
-    read -r choice
-
-    case "$choice" in
-      "") break ;;
-      q | Q)
-        echo "Aborted, nothing changed."
-        exit 0
-        ;;
-      *[!0-9]*)
-        echo "Invalid input: '$choice' (enter a number, or press enter/q)."
-        continue
-        ;;
-    esac
-
-    name=$(echo "$MENU_NAMES" | tr ' ' '\n' | sed -n "$((choice + 1))p")
-    if [[ -z "$name" ]]; then
-      echo "No such step: $choice"
-      continue
-    fi
-    case "$(state_get "$name")" in
-      skip) state_set "$name" up ;;
-      up) state_set "$name" down ;;
-      down) state_set "$name" skip ;;
-    esac
+  local items=() name d marker out rc=0 state
+  for name in $ALL_NAMES; do
+    d=$(feature_dir_for_name "$name")
+    marker=" "
+    [[ "$(feature_default "$d")" == "true" ]] && marker="*"
+    items+=("$name:$(state_get "$name")=$marker $(printf '%-17s' "$name") $(feature_desc "$d")")
   done
+
+  # zz-menu -c cycles each step's state itself; on enter it prints one
+  # "<step>=<state>" line per step (exit 0), on q / end of input it exits 1.
+  out=$(zz-menu -t "VPS setup menu" -c "skip,up,down" \
+    -f "  (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits." \
+    "${items[@]}") || rc=$?
+
+  if [[ "$rc" -ne 0 ]]; then
+    echo "Aborted, nothing changed."
+    exit 0
+  fi
+
+  while IFS== read -r name state; do
+    [[ -n "$name" ]] && state_set "$name" "$state"
+  done <<<"$out"
 }
 
 ONLY_LIST=""
@@ -335,7 +315,7 @@ while [[ "$pass" -lt 3 ]]; do
     d=$(feature_dir_for_name "$name")
     for dep in $(feature_deps "$d"); do
       if [[ "$(state_get "$dep")" == "skip" ]]; then
-        zz_log w "[vps-setup] Also enabling '${dep}' (required by '${name}')."
+        zz-log w "[vps-setup] Also enabling '${dep}' (required by '${name}')."
         state_set "$dep" up
         changed=1
       fi
@@ -354,7 +334,7 @@ if [[ "$FORCE_DOWN" -ne 1 ]]; then
       d=$(feature_dir_for_name "$other")
       for dep in $(feature_deps "$d"); do
         if [[ "$dep" == "$name" ]]; then
-          zz_log e "[vps-setup] Refusing to bring '${name}' down: '${other}' depends on it and is still enabled. Also pass --down-${other}, or --force-down to override (may leave '${other}' broken)."
+          zz-log e "[vps-setup] Refusing to bring '${name}' down: '${other}' depends on it and is still enabled. Also pass --down-${other}, or --force-down to override (may leave '${other}' broken)."
           exit 1
         fi
       done
@@ -374,7 +354,7 @@ ask_missing_inputs
 # leave all of them unreachable. Refuse to proceed rather than silently
 # produce a VPS nothing can be managed on.
 if [[ "$(state_get vps-tailscale)" == "up" ]] && [[ -z "${TAILSCALE_AUTHKEY:-}" ]]; then
-  zz_log w "[vps-setup] TAILSCALE_AUTHKEY is not set, but the vps-tailscale step is enabled." \
+  zz-log w "[vps-setup] TAILSCALE_AUTHKEY is not set, but the vps-tailscale step is enabled." \
     "Cockpit, Rancher, the Traefik dashboard, and the k3s API" \
     "are reachable ONLY over Tailscale (see README's Security model) -" \
     "continuing without it would leave all of them unreachable once ufw" \
@@ -382,7 +362,7 @@ if [[ "$(state_get vps-tailscale)" == "up" ]] && [[ -z "${TAILSCALE_AUTHKEY:-}" 
     "  - set TAILSCALE_AUTHKEY (see README's 'Getting the keys you'll need'), or" \
     "  - pass --skip-vps-tailscale to proceed anyway (you can run 'tailscale up'" \
     "    manually later, then: sudo vps-setup --only-vps-tailscale)."
-  zz_log e "[vps-setup] Refusing to run with vps-tailscale enabled and TAILSCALE_AUTHKEY unset."
+  zz-log e "[vps-setup] Refusing to run with vps-tailscale enabled and TAILSCALE_AUTHKEY unset."
   exit 1
 fi
 
@@ -398,7 +378,7 @@ for name in $ALL_NAMES; do
     up) run_step "$name" up ;;
     *)
       d=$(feature_dir_for_name "$name")
-      zz_log w "[vps-setup] Skipping $(feature_desc "$d") ($(basename "$d")/run.sh)"
+      zz-log w "[vps-setup] Skipping $(feature_desc "$d") ($(basename "$d")/run.sh)"
       ;;
   esac
 done

@@ -1,0 +1,19 @@
+{{/* @format */}}
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ include "hermes.fullname" . }}
+    labels:
+        {{- include "hermes.labels" . | nindent 8 }}
+spec:
+    selector:
+        {{- include "hermes.labels" . | nindent 8 }}
+    ports:
+        - name: dashboard
+          port: {{ .Values.dashboard.port }}
+          targetPort: dashboard
+        {{- if .Values.apiServer.enabled }}
+        - name: api
+          port: {{ .Values.apiServer.port }}
+          targetPort: api
+        {{- end }}

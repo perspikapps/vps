@@ -19,8 +19,8 @@ reference.
 ## Usage
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/perspikapps/vps/main/setup.sh | sh
-zz_use perspikapps/vps/vps-setup
+curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
+zz-use perspikapps/vps/vps-setup
 sudo vps-setup
 ```
 
@@ -33,7 +33,7 @@ sudo vps-setup --down-vps-marketplace
 sudo vps-setup -h    # full flag list, generated from every step's own package.json
 ```
 
-Or directly, from a checkout (no `zz_use` install needed):
+Or directly, from a checkout (no `zz-use` install needed):
 
 ```sh
 sudo bash vps-setup/run.sh --only-vps-rancher
@@ -41,19 +41,19 @@ sudo bash vps-setup/run.sh --only-vps-rancher
 
 ## Why this needs a full checkout
 
-A single `zz_use perspikapps/vps/vps-setup` only fetches this one folder,
+A single `zz-use perspikapps/vps/vps-setup` only fetches this one folder,
 but orchestrating every step means reading every sibling folder's
 `package.json`/`run.sh`. `run.sh` detects which case it's in: run from
 inside a full local checkout (this repo cloned, or `vps-common/` sitting
 right next to it), it uses that directory directly; run standalone (the
-`zz_use`-installed case), it clones/updates a full checkout into
+`zz-use`-installed case), it clones/updates a full checkout into
 `VPS_SETUP_DIR` (default `/opt/vps-setup`) first - same `VPS_SETUP_REPO_URL`/
 `VPS_SETUP_REPO_REF`/`VPS_SETUP_DIR` env vars as every other step reads
 for pinning a fork/branch.
 
 ## Dependencies
 
-`vps-common` (shared helpers). Not itself a dependency target for any
+`vps-common` (shared helpers), `zz-menu` and `zz-prompt` (draw the interactive step and input menus), and `zz-persist` (saves each answered input to `VPS_SETUP_ENV_FILE`, default `/etc/vps-setup.env`, so a later run loads it back instead of asking again). Not itself a dependency target for any
 other step (it isn't a "step" - see above), so the auto-enable logic it
 runs for other steps doesn't apply to it.
 
@@ -63,7 +63,7 @@ runs for other steps doesn't apply to it.
 bats test.bats
 ```
 
-Covers `run.sh`/`steps.sh` syntax and static shape (the `zz_use`/
+Covers `run.sh`/`steps.sh` syntax and static shape (the `zz-use`/
 `vps-common` wiring, the feature-discovery exclusion, sourcing `steps.sh`)
 plus `package.json`'s `bin`/`dependencies` fields. Actually orchestrating
 a real install needs a live root Ubuntu box with every other step's

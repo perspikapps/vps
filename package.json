@@ -1,6 +1,6 @@
 {
   "name": "vps-setup",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "scripts": {
     "lint": "npx --yes lint-staged -p false",
     "test": "bats --recursive .",
@@ -33,7 +33,6 @@
     "vps-cockpit",
     "vps-common",
     "vps-dockermanager",
-    "vps-github-arc",
     "vps-k3s",
     "vps-marketplace",
     "vps-rancher",
@@ -142,7 +141,7 @@
   },
   "lint-staged": {
     "!(*schema).json": [
-      "normalize-json -c -w -a -i -t 4 -f local -l true"
+      "json-normalize -c -w -a -i -t 4 -f local -l true"
     ],
     "*.{js,jsx,ts,tsx,md,html,css,vue,yaml,yml,json}": [
       "npx --yes prettier --write"
