@@ -11,13 +11,13 @@ DIR="$REPO_ROOT/vps-tailscale"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz_use and sources common" {
-    grep -q 'zz_use "perspikapps/vps/vps-common' "$DIR/run.sh"
+@test "run.sh bootstraps zz-use and sources common" {
+    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
-@test "run.sh does not bootstrap zz_use itself (assumes setup.sh already ran)" {
-    ! grep -q 'command -v zz_use' "$DIR/run.sh"
+@test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
+    ! grep -q 'command -v zz-use' "$DIR/run.sh"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
@@ -47,7 +47,7 @@ DIR="$REPO_ROOT/vps-tailscale"
 
 @test "package.json bin name is not the bare 'tailscale'" {
     # This folder is named vps-tailscale/, not tailscale/, specifically so
-    # zz_use (which always installs <name>/run.sh under the literal folder
+    # zz-use (which always installs <name>/run.sh under the literal folder
     # name requested) never shadows the real tailscale CLI this run.sh
     # calls internally - see the README's "Usage" section.
     run node -e "const p = require('$DIR/package.json'); process.exit('tailscale' in p.bin ? 1 : 0)"

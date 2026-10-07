@@ -3,7 +3,7 @@
 # Marketplace repository. Env vars: see README.
 
 set -euo pipefail
-zz_use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 
@@ -13,12 +13,12 @@ MARKETPLACE_REPO_URL="${MARKETPLACE_REPO_URL:-https://perspikapps.github.io/vps/
 up() {
 require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || { zz_log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first."; exit 1; }
-kubectl get deploy -n cattle-system rancher >/dev/null 2>&1 || zz_log w "[vps-setup] Rancher doesn't look installed yet (no cattle-system/rancher" \
+command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first."; exit 1; }
+kubectl get deploy -n cattle-system rancher >/dev/null 2>&1 || zz-log w "[vps-setup] Rancher doesn't look installed yet (no cattle-system/rancher" \
      "deployment) - registering the catalog anyway; it'll show up under" \
      "Apps & Marketplace once Rancher is up."
 
-zz_log i "[vps-setup] Registering the ${MARKETPLACE_REPO_NAME} catalog (${MARKETPLACE_REPO_URL})..."
+zz-log i "[vps-setup] Registering the ${MARKETPLACE_REPO_NAME} catalog (${MARKETPLACE_REPO_URL})..."
 cat <<EOF | kubectl apply -f -
 apiVersion: catalog.cattle.io/v1
 kind: ClusterRepo
@@ -37,7 +37,7 @@ ok "In Rancher: Apps & Marketplace -> Repositories, it should show up there" \
 down() {
   require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-  command_exists kubectl || { zz_log w "[vps-setup] kubectl not found; nothing to remove."; return; }
+  command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   kubectl delete clusterrepo "$MARKETPLACE_REPO_NAME" --ignore-not-found
   ok "Catalog '${MARKETPLACE_REPO_NAME}' removed (apps already installed from it are untouched)."
 }

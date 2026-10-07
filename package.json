@@ -141,7 +141,7 @@
     },
     "lint-staged": {
         "!(*schema).json": [
-            "normalize-json -c -w -a -i -t 4 -f local -l true"
+            "json-normalize -c -w -a -i -t 4 -f local -l true"
         ],
         "*.{js,jsx,ts,tsx,md,html,css,vue,yaml,yml,json}": [
             "npx --yes prettier --write"
