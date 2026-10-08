@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0 (2026-10-08)
+
+*Commits from: v2.0.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.0.0' into develop
+### 📦 vps-setup changes
+
+#### Other changes
+
+- 👷 run update-features every night instead of every week (#29)
+
 ## 2.0.0 (2026-10-08)
 
 *Commits from: v1.1.0..HEAD*
@@ -132,6 +147,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
