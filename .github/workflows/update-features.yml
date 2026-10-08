@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.UPDATE_FEATURES_TOKEN || github.token }}
 
       - name: Set up Node.js
         uses: tomgrv/actions/setup-node@v4
@@ -26,6 +28,21 @@ jobs:
 
       - name: Update features
         run: npm exec --yes -- tomgrv/devcontainer-features update -a
+
+      - name: Skip workflow changes without a workflows token
+        env:
+          UPDATE_FEATURES_TOKEN: ${{ secrets.UPDATE_FEATURES_TOKEN }}
+        run: |
+          # GITHUB_TOKEN cannot push .github/workflows changes. Without the
+          # UPDATE_FEATURES_TOKEN secret (token with the workflows permission),
+          # drop them from the update and warn instead of failing the push.
+          [ -z "$UPDATE_FEATURES_TOKEN" ] || exit 0
+          skipped=$(git status --porcelain -- .github/workflows | awk '{print $NF}' | tr '\n' ' ')
+          [ -n "$skipped" ] || exit 0
+          echo "::warning title=Workflow changes skipped::GITHUB_TOKEN cannot push .github/workflows changes. Set the UPDATE_FEATURES_TOKEN secret (token with the workflows permission) to include them. Skipped: ${skipped}"
+          git reset -q HEAD -- .github/workflows
+          git checkout -- .github/workflows
+          git clean -fdq -- .github/workflows
 
       - name: Detect changes
         id: changes
@@ -39,7 +56,7 @@ jobs:
         if: ${{ steps.changes.outputs.has-changes == 'true' }}
         uses: tomgrv/actions/create-pr@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.UPDATE_FEATURES_TOKEN || secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           head-branch: chore/update-features
           workdir: ${{ github.workspace }}
