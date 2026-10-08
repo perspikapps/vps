@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.0 (2026-10-08)
+
+*Commits from: v1.1.0..HEAD*
+
+### 💥 BREAKING CHANGES
+
+- install-feature, configure-feature and resolve-context are replaced by feature-install, feature-configure and feature-context; requires tomgrv/scripts v2, tomgrv/actions v4 and devcontainer-features v10.
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v1.1.0' into develop
+
 ## 1.1.0 (2026-10-07)
 
 *Commits from: v1.0.0..HEAD*
@@ -123,5 +136,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-07 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-08 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
