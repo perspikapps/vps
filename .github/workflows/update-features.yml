@@ -41,7 +41,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          head-branch: chore/update-features-${{ github.run_id }}
+          head-branch: chore/update-features
           workdir: ${{ github.workspace }}
           commit-message: 'chore: update features'
           pr-title: 'chore: update features'
