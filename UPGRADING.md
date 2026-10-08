@@ -144,7 +144,7 @@ grep -rn -E 'tomgrv/actions[^ ]*@v<old>|scripts-ref: v<old>' .github
 
 1. Rename per the table.
 2. Move **all** pins to the new majors **together**.
-3. Re-run the installers (`configure-feature`, `zz-update`, rebuild the
+3. Re-run the installers (`feature-configure`, `zz-update`, rebuild the
    container) so deployed stubs are replaced.
 4. Trigger each workflow once with `workflow_dispatch`.
 
@@ -154,7 +154,9 @@ Pin the previous majors **together** (tooling, provider ref, any pinned release
 action). Mixing a new provider with old tooling, or the reverse, fails at the
 first renamed call. Rollback never needs a revert commit: re-pin, rerun.
 
-## 7. Worked example: the `zz-*` rename
+## 7. Worked examples
+
+### 7.1 The `zz-*` rename
 
 Provider `tomgrv/scripts` renamed `zz_*` → `zz-*` and
 `<verb>-json|yaml` → `json-<verb>|yaml-<verb>`, adding `json` / `yaml`
@@ -197,3 +199,28 @@ red (release workflow bootstrapped with `./release-promote`, dry run, v3.0.0) �
 devcontainer-features and vps pinned to `@v3`, merged, released → follow-up pin
 PRs (`@v2`→`@v3`, `scripts-ref: v0`→`v1`, `vps` `release-main.yml` →
 `release-promote@v3`) → patch releases.
+
+### 7.2 Second example: `<verb>-feature` → `feature-<verb>` and the `zz` front door
+
+| Old                                    | New                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `install-feature`                      | `feature-install`                                                                    |
+| `configure-feature`                    | `feature-configure`                                                                  |
+| `resolve-context`                      | `feature-context`                                                                    |
+| —                                      | `feature <sub>` dispatcher (`feature install`, …)                                    |
+| —                                      | `zz <name> [args]`: runs `zz-<name>` if installed, else `zz-use -x <name> [args]`    |
+| npm `@tomgrv/scripts-install-feature`… | `@tomgrv/scripts-feature-install` …                                                  |
+
+Lessons it added to the catalogue:
+
+- **Name a family `<family>-<verb>`.** The dispatcher then costs one `run.sh`
+  (`zz-dispatch $0 "$@"`), and installers can request the whole family with one
+  glob (`zz-use feature "feature-*"`) instead of an explicit list that drifts.
+- **Commands outside the glob must be named explicitly** wherever the bundle is
+  installed or refreshed: `setup.sh`, `zz-update`, and the `--force` rule in
+  `zz-use` all needed `zz` added, because `zz-*` does not match plain `zz`.
+- **Keep runtime state paths** (e.g. `.git/info/configure-feature/state`, the
+  merge snapshots): they are data, like `.zz_dist`. Renaming them silently
+  discards the merge base of every consumer.
+- **A front door should have no dependencies** (`zz` does not even call
+  `zz-log`): it is what you run when nothing else is installed yet.

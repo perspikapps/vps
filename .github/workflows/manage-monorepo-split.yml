@@ -21,16 +21,16 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up PHP
-        uses: tomgrv/actions/setup-php@v3
+        uses: tomgrv/actions/setup-php@v4
         with:
           options: '--no-dev'
 
       - name: Set up Node.js
-        uses: tomgrv/actions/setup-node@v3
+        uses: tomgrv/actions/setup-node@v4
 
       - name: List packages
         id: list
-        uses: tomgrv/actions/list-packages@v3
+        uses: tomgrv/actions/list-packages@v4
 
   split-packages:
     name: Split packages
@@ -57,7 +57,7 @@ jobs:
 
       - name: Get GitHub App User ID
         id: get-user-id
-        uses: tomgrv/actions/config-bot@v3
+        uses: tomgrv/actions/config-bot@v4
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           github-app-slug: ${{ steps.app-token.outputs.app-slug }}
@@ -65,7 +65,7 @@ jobs:
       # On a push to main or workflow_dispatch: split and open a PR on the origin repository
       - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         id: split-package
-        uses: tomgrv/actions/split-package@v3
+        uses: tomgrv/actions/split-package@v4
         with:
           package-directory: '${{ matrix.package.path }}'
           repository-organization: '${{ matrix.package.org }}'
@@ -73,7 +73,7 @@ jobs:
           github-token: '${{ steps.app-token.outputs.token }}'
 
       - if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.split-package.outputs.split-branch != '' }}
-        uses: tomgrv/actions/create-pr@v1
+        uses: tomgrv/actions/create-pr@v4
         with:
           github-token: '${{ steps.app-token.outputs.token }}'
           repository: '${{ matrix.package.org }}/${{ matrix.package.name }}'
