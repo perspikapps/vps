@@ -6,3 +6,13 @@
 *.js linguist-vendored
 *.json merge=json
 CHANGELOG.md export-ignore
+*.yaml merge=yaml
+*.yml merge=yaml
+.devcontainer export-ignore
+.github export-ignore
+.vscode export-ignore
+.agents export-ignore
+.claude export-ignore
+.gemini export-ignore
+*.[cC][mM][dD] text eol=crlf
+*.[bB][aA][tT] text eol=crlf

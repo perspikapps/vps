@@ -6,3 +6,8 @@
 # the {{ }} directives (e.g. a bare `{{- if ... }}` before the first key).
 charts/*/templates/
 
+# Standard ignores
+node_modules/
+dist/
+build/
+.git/
