@@ -77,8 +77,13 @@ else
   zz-log w "[vps-setup] No SSH key provided (VPS_ADMIN_SSH_KEY unset): leaving password authentication enabled."
 fi
 
-sshd -t -f /etc/ssh/sshd_config && systemctl reload ssh
-ok "sshd hardened and reloaded."
+sshd -t -f /etc/ssh/sshd_config
+if systemctl is-active --quiet ssh.service; then
+  systemctl reload ssh
+  ok "sshd hardened and reloaded."
+else
+  zz-log w "[vps-setup] ssh.service is not active: sshd config written but not reloaded (it applies on next start)."
+fi
 
 zz-log i "[vps-setup] Enabling fail2ban for sshd..."
 cat > /etc/fail2ban/jail.d/sshd.local <<EOF
@@ -129,7 +134,11 @@ down() {
   zz-log i "[vps-setup] Restoring sshd to its distro default config..."
   rm -f /etc/ssh/sshd_config.d/99-vps-setup.conf
   if sshd -t 2>/dev/null; then
-    systemctl reload ssh
+    if systemctl is-active --quiet ssh.service; then
+      systemctl reload ssh
+    else
+      zz-log w "[vps-setup] ssh.service is not active: nothing to reload."
+    fi
   else
     zz-log w "[vps-setup] sshd -t failed after removing the drop-in; reload it manually once sshd_config is valid again."
   fi

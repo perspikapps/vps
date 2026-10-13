@@ -3,3 +3,39 @@
 .devcontainer/devcontainer-lock.json
 ./.gitattributes
 node_modules
+## Modules
+/node_modules
+**/node_modules
+## DotEnv
+.env*
+!.env.project
+!.env.vault
+## Logs
+*.log
+*.cache
+## Misc
+.history
+.version.json
+.mono
+.toolkit
+obj
+## Gitversion
+VERSION
+## Storage
+/public/storage
+./storage
+## Composer
+/vendor
+**/vendor
+_ide_helper.php
+## Feature Skills
+.github/skills/feature-*/*.md
+## Homestead
+Homestead.json
+Homestead.yaml
+/.mono
+## Vite
+/public/build
+/public/hot
+/public/css
+/public/js
