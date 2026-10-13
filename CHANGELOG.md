@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.2.0 (2026-10-13)
+
+*Commits from: v2.1.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.1.0' into develop
+- update features (#31)
+### 📦 vps-security changes
+
+#### Bug Fixes
+
+- warn instead of failing when ssh.service is not active (#33)
+
+### 📦 vps-setup changes
+
+#### Bug Fixes
+
+- 🐛 let update-features push workflow changes with an optional token (#30)
+- 🐛 sync package-lock.json so npm ci succeeds (#32)
+
 ## 2.1.0 (2026-10-08)
 
 *Commits from: v2.0.0..HEAD*
@@ -153,5 +176,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-08 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-13 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
