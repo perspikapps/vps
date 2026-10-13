@@ -29,6 +29,9 @@ jobs:
       - name: Update features
         run: npm exec --yes -- tomgrv/devcontainer-features update -a
 
+      - name: Sync lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
       - name: Skip workflow changes without a workflows token
         env:
           UPDATE_FEATURES_TOKEN: ${{ secrets.UPDATE_FEATURES_TOKEN }}
