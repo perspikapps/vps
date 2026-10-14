@@ -88,3 +88,12 @@ DIR="$REPO_ROOT/vps-rancher"
     grep -q 'declare -F run_with_progress' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
+
+@test "an already-rebound Service is removed before helm upgrades, so ports are not merged into duplicates" {
+    del_line=$(grep -n 'delete service rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    patch_line=$(grep -n 'patch_service_port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    [ -n "$del_line" ]
+    [ "$del_line" -lt "$helm_line" ]
+    [ "$helm_line" -lt "$patch_line" ]
+}
