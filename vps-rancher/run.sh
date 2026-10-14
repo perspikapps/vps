@@ -57,6 +57,15 @@ jq -n --arg hostname "$RANCHER_HOSTNAME" --arg bootstrapPassword "$RANCHER_BOOTS
 # 80/443, and it is the rebind below that frees them - waiting first deadlocks
 # ("UPGRADE FAILED: context deadline exceeded"). The rollout wait below does
 # the waiting, once the Service is on its own ports.
+# A re-run finds the Service already rebound (7080/7083 below): helm would merge
+# the chart's 80/http and 443/https into it and the API rejects the duplicate
+# port names ("spec.ports[2].name: Duplicate value: http"). Remove it so helm
+# recreates it from the chart; it is rebound again right after. Pods keep running.
+if kubectl -n cattle-system get service rancher >/dev/null 2>&1; then
+  zz-log i "[vps-setup] Removing the already-rebound rancher Service so helm can recreate it (rebound again below)..."
+  kubectl -n cattle-system delete service rancher --wait=true
+fi
+
 rc=0
 run_with_progress cattle-system "Rancher install" \
   helm upgrade --install rancher rancher-latest/rancher \
