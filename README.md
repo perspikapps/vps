@@ -70,19 +70,28 @@ terminal. It's always safe to re-run: every step's script is idempotent,
 and `vps-setup` itself re-clones/updates its own working checkout (see
 below) each time.
 
-### Why this needs its own checkout
+### How `vps-setup` runs: it is a wrapper around `zz-setup`
 
-A single `zz-use perspikapps/vps/vps-setup` only fetches the
-`vps-setup/` folder - orchestrating every other step means reading every
-sibling folder's `package.json`/`run.sh`, which a single-folder fetch
-doesn't give you. `vps-setup/run.sh` handles this itself: run from inside
-a full local checkout (this repo cloned, `vps-setup/run.sh` invoked
-directly), it uses that checkout as-is; run standalone (the `zz-use`
-case, which is how the one-liner above works), it clones/updates a full
-checkout into `VPS_SETUP_DIR` (default `/opt/vps-setup`) first, then
-proceeds exactly the same way. `VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`/
-`VPS_SETUP_DIR` (same env vars as before) control that clone - see
+`vps-setup` is a thin wrapper around
+[`zz-setup`](https://github.com/tomgrv/scripts/tree/main/zz-setup), the
+generic "fetch an `org/repo`, propose its workspaces and their inputs, then
+run them" script of `tomgrv/scripts`: `sudo vps-setup [flags]` is
+`sudo zz-setup perspikapps/vps [options]` plus the Ubuntu/root checks, the
+legacy flags below (translated to `zz-setup`'s `-s`/`-w`/`-o`/`-d`/`-F`) and
+the final connection summary. A single `zz-use perspikapps/vps/vps-setup`
+only fetches the `vps-setup/` folder, so `zz-setup` clones/updates a full
+checkout into `/opt/vps` first (run from inside a full local checkout,
+`vps-setup/run.sh` uses that checkout as-is). `VPS_SETUP_REPO_URL` and
+`VPS_SETUP_REPO_REF` control which fork/branch - see
 [Running from a non-standard branch or fork](#running-from-a-non-standard-branch-or-fork).
+
+> [!NOTE]
+> Upgrading from an older `vps-setup`: the checkout moved from
+> `/opt/vps-setup` (`VPS_SETUP_DIR`, now gone) to `/opt/vps`, and answers typed
+> in the menu are kept by `zz-persist` in `/etc/vps.env` (plain `KEY=VALUE`,
+> `600`). `VPS_SETUP_ENV_FILE` is still read, but only as a shell-syntax
+> settings file you provide (see [Interactive menu](#interactive-menu)); it is
+> never rewritten. `/opt/vps-setup` can be deleted.
 
 ## Running a single step (or a subset)
 
@@ -214,10 +223,14 @@ steps declare in their `package.json` (`vps.inputs`), with its status:
 
 Type an input's number to be asked for its value; it then shows as `[set]`
 (values are never echoed back, so secrets stay off the screen - answer empty
-to keep what is set). Each answer is also persisted to `VPS_SETUP_ENV_FILE`
-(default `/etc/vps-setup.env`) via `zz-persist`, so a later re-run loads it
-back and lists it as `[set]` without asking again, same as an input already
-present in the environment. Press **enter** to proceed, or **`q`** to quit
+to keep what is set). Each answer is also persisted via `zz-persist` to `/etc/vps.env` (plain
+`KEY=VALUE`, owner-only, secrets masked), so a later re-run loads it back and
+lists it as `[set]` without asking again, same as an input already present in
+the environment. `VPS_SETUP_ENV_FILE` (default `/etc/vps-setup.env`) is a
+separate, optional settings file in shell syntax - what cloud-init writes - that
+`vps-setup` sources on every run and never rewrites; values in it win over
+`/etc/vps.env`. A required input still empty (e.g. `TAILSCALE_AUTHKEY`) aborts
+the run before any step starts: set it, or pass `--skip-vps-tailscale`. Press **enter** to proceed, or **`q`** to quit
 before anything is installed. The menu is skipped when every input is
 already set.
 
@@ -336,7 +349,6 @@ Env vars for the internal clone:
 | -------------------- | ---------------------------------------- | ----------------------------------- |
 | `VPS_SETUP_REPO_URL` | `https://github.com/perspikapps/vps.git` | Clone a fork instead                |
 | `VPS_SETUP_REPO_REF` | `main`                                   | Branch, tag, or commit to check out |
-| `VPS_SETUP_DIR`      | `/opt/vps-setup`                         | Where the repo is cloned/updated    |
 
 To point at a fork as well as a branch, set both (and fetch `vps-setup`
 itself from the fork's ref too):
@@ -348,7 +360,7 @@ sudo VPS_SETUP_REPO_URL=https://github.com/ \
     vps-setup < you > /vps.git
 ```
 
-`vps-setup` re-clones into `VPS_SETUP_DIR` on every run (`git fetch` +
+`vps-setup` re-fetches into `/opt/vps` on every run (`git fetch` +
 `reset --hard` if it's already a checkout), so re-running it after pushing
 new commits to the same branch picks them up automatically - only
 `zz-use`'s own fetch of `vps-setup` itself is cached (`zz-update` forces a
@@ -600,8 +612,8 @@ already referenced `@commitlint/config-workspace-scopes`) understands the
 dependency graph too - `package-lock.json` resolves `vps-rancher`'s
 `vps-k3s` dependency like any other workspace package. `vps-setup`
 itself never needs npm installed, though: it reads each `package.json`'s
-`dependencies`/`vps` fields directly with `jq` (installed on demand via
-`ensure_jq` in `vps-setup/run.sh` if missing, since this can run before
+`dependencies`/`vps` fields directly with `jq` (installed on demand by
+`zz-setup` if missing, since this can run before
 `vps-system` - the step that would otherwise install it - on a totally
 fresh box).
 
