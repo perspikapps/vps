@@ -122,7 +122,7 @@ for i in $(seq 1 30); do
   kubectl -n kube-system get deploy traefik >/dev/null 2>&1 && break
   sleep 5
 done
-kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
+run_with_progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
   zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
 ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (Tailscale-only)."
