@@ -165,6 +165,24 @@ run_with_progress() {
   return "$rc"
 }
 
+# What is stuck in a namespace, for a failed wait: pods and services, recent
+# events, the k3s ServiceLB pods (a LoadBalancer Service whose host ports are
+# taken stays pending there) and why each unready pod is not running.
+dump_diagnostics() {
+  local ns="$1" pod
+  zz-log w "[vps-setup] --- diagnostics for namespace ${ns} ---"
+  kubectl -n "$ns" get pods,svc -o wide 2>&1 || true
+  kubectl -n "$ns" get events --sort-by=.lastTimestamp 2>&1 | tail -n 15 || true
+  kubectl -n kube-system get pods -o wide 2>&1 | grep -E 'NAME|svclb' || true
+  for pod in $(kubectl -n "$ns" get pods --no-headers 2>/dev/null | awk '$3 != "Running" && $3 != "Completed" {print $1}'); do
+    kubectl -n "$ns" describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 8 || true
+  done
+  for pod in $(kubectl -n kube-system get pods --no-headers 2>/dev/null | awk '/svclb/ && $3 != "Running" {print $1}'); do
+    kubectl -n kube-system describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 4 || true
+  done
+  zz-log w "[vps-setup] --- end of diagnostics ---"
+}
+
 ensure_cert_manager() {
   if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
     zz-log i "[vps-setup] cert-manager already installed."

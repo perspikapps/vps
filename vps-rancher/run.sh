@@ -45,6 +45,11 @@ zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME}
 VALUES_FILE="$(mktemp)"
 jq -n --arg hostname "$RANCHER_HOSTNAME" --arg bootstrapPassword "$RANCHER_BOOTSTRAP_PASSWORD" \
   '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' > "$VALUES_FILE"
+# No --wait here: helm would wait for the LoadBalancer Service to get an
+# address, but k3s's ServiceLB cannot place it while Traefik holds host ports
+# 80/443, and it is the rebind below that frees them - waiting first deadlocks
+# ("UPGRADE FAILED: context deadline exceeded"). The rollout wait below does
+# the waiting, once the Service is on its own ports.
 rc=0
 run_with_progress cattle-system "Rancher install" \
   helm upgrade --install rancher rancher-latest/rancher \
@@ -54,16 +59,23 @@ run_with_progress cattle-system "Rancher install" \
   --set service.type=LoadBalancer \
   --set replicas=1 \
   "${CHART_VERSION_ARG[@]}" \
-  --wait --timeout 10m || rc=$?
+  --timeout 10m || rc=$?
 rm -f "$VALUES_FILE"
-[[ "$rc" -eq 0 ]] || exit "$rc"
+if [[ "$rc" -ne 0 ]]; then
+  dump_diagnostics cattle-system
+  exit "$rc"
+fi
 
 zz-log i "[vps-setup] Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
 patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
 patch_service_port cattle-system rancher https "$RANCHER_HTTPS_PORT" || true
 
 zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
-run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
+if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
+  dump_diagnostics cattle-system
+  zz-log e "[vps-setup] Rancher did not become ready in time (see the diagnostics above); re-run: sudo vps-setup --only-vps-rancher"
+  exit 1
+fi
 
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"

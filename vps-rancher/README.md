@@ -35,6 +35,18 @@ Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
 `run_with_progress` in `vps-common`, also covers the cert-manager install, this
 step's final rollout wait and the Traefik rollout in `vps-k3s`.
 
+## If the install fails or hangs
+
+Rancher's Service is a `LoadBalancer`. On k3s, ServiceLB cannot place it while
+Traefik holds host ports 80/443, so the step creates the release **without**
+`helm --wait`, moves the Service to `RANCHER_HTTP_PORT`/`RANCHER_HTTPS_PORT`, and
+only then waits for the rollout (`UPGRADE FAILED: context deadline exceeded` was
+helm waiting for an address that could not exist yet). When a wait still fails,
+the step prints diagnostics before exiting: pods and services, recent events,
+the `svclb-*` pods in `kube-system` and why each unready pod is not running.
+Re-running `sudo vps-setup --only-vps-rancher` is safe: `helm upgrade --install`
+replaces a failed release.
+
 ## Removing (`down`)
 
 `down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the Marketplace's cert-manager-dependent charts).

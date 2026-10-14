@@ -135,3 +135,24 @@ EOF
     run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; progress_line cattle-system 'Rancher install' 15"
     [[ "$output" == *"no pod in cattle-system yet"* ]]
 }
+
+@test "dump_diagnostics: shows pods, events, and why an unready pod or a ServiceLB pod is stuck" {
+    mkdir -p "$work/bin"
+    cat >"$work/bin/kubectl" <<'EOF'
+#!/bin/sh
+case "$*" in
+  *"get pods --no-headers"*"-n kube-system"*|*"-n kube-system get pods --no-headers"*) echo "svclb-rancher-abc 0/2 Pending 0 1m" ;;
+  *"-n cattle-system get pods --no-headers"*) echo "rancher-1 0/1 ContainerCreating 0 1m" ;;
+  *"describe pod"*) printf 'Name: x\nEvents:\n  Warning  FailedScheduling  node(s) didn'"'"'t have free ports for the requested pod ports\n' ;;
+  *"get events"*) echo "5s Warning FailedScheduling pod/svclb-rancher-abc no free ports" ;;
+  *) echo "kubectl $*" ;;
+esac
+EOF
+    chmod +x "$work/bin/kubectl"
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; dump_diagnostics cattle-system"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"diagnostics for namespace cattle-system"* ]]
+    [[ "$output" == *"FailedScheduling"* ]]
+    [[ "$output" == *"free ports"* ]]
+    [[ "$output" == *"end of diagnostics"* ]]
+}
