@@ -1,19 +1,33 @@
 #!/usr/bin/env bats
-# Static checks for vps-setup/ - not an installable step itself (excluded
-# from its own feature discovery, like vps-common), so no vps.order to
-# check. It orchestrates every *other* step, so a live run needs a real
-# root Ubuntu box - see this folder's README's "Tests" section.
+# Checks for vps-setup/ - a thin wrapper around zz-setup, not an installable
+# step itself (excluded from zz-setup's feature discovery by having no "vps"
+# key in its package.json, like vps-common). Feature discovery, menus and
+# input handling are tested in tomgrv/scripts' zz-setup; a live run needs a
+# real root Ubuntu box - see the root README's "Tests" section.
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-setup"
+
+setup() {
+    STUBS=$(mktemp -d)
+    # zz-use/vps-common are no-ops; zz-setup just reports what it received.
+    printf '#!/bin/sh\nexit 0\n' >"$STUBS/zz-use"
+    printf '#!/bin/bash\ntrue\n' >"$STUBS/vps-common"
+    printf '#!/bin/sh\necho "zz-setup $*"; echo "foo=$FOO_FROM_FILE"\nexit 1\n' >"$STUBS/zz-setup"
+    chmod +x "$STUBS"/*
+}
+
+teardown() {
+    rm -rf "$STUBS"
+}
 
 @test "run.sh parses as bash" {
     run bash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources vps-common" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
+@test "run.sh fetches vps-common and zz-setup with zz-use, and sources vps-common" {
+    grep -q 'zz-use "perspikapps/vps/vps-common@.*" zz-setup' "$DIR/run.sh"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 
@@ -22,46 +36,35 @@ DIR="$REPO_ROOT/vps-setup"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "run.sh builds its interactive menu with zz-menu in cycle mode" {
-    grep -q 'zz-use .*zz-menu' "$DIR/run.sh"
-    grep -q 'zz-menu -t "VPS setup menu" -c "skip,up,down"' "$DIR/run.sh"
+@test "run.sh leaves discovery, menus and inputs to zz-setup" {
+    ! grep -q 'zz-menu\|zz-prompt\|zz-persist' "$DIR/run.sh"
+    [ ! -e "$DIR/steps.sh" ]
 }
 
-@test "steps.sh lists feature inputs in a zz-menu and asks values with zz-prompt" {
-    grep -q 'zz-use .*zz-prompt' "$DIR/run.sh"
-    grep -q 'zz-menu -t "Feature inputs"' "$DIR/steps.sh"
-    grep -q 'zz-prompt' "$DIR/steps.sh"
+@test "legacy flags are translated to zz-setup lists" {
+    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE=/nonexistent bash "$DIR/run.sh" -h \
+        --skip-vps-rancher --skip-vps-k3s --with-vps-cockpit --only-vps-system --down-vps-marketplace --force-down
+    [[ "$output" == *"-F -s vps-rancher,vps-k3s -w vps-cockpit -o vps-system -d vps-marketplace"* ]]
 }
 
-@test "steps.sh never prints an input's current value in the inputs menu" {
-    ! grep -q '\[\$current\]' "$DIR/steps.sh"
+@test "a full local checkout is used in place" {
+    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE=/nonexistent bash "$DIR/run.sh" -h
+    [[ "$output" == *"zz-setup $REPO_ROOT -h"* ]]
 }
 
-@test "steps.sh persists each answered input via zz-persist and loads them back" {
-    grep -q 'zz-use .*zz-persist' "$DIR/run.sh"
-    grep -q '\. "\$envfile"' "$DIR/steps.sh"
-    grep -F -q "zz-persist -f \"\$envfile\" \"\$choice\" \"'\$answer_quoted'\"" "$DIR/steps.sh"
+@test "the settings file is sourced (shell syntax, quotes and comments allowed)" {
+    printf 'FOO_FROM_FILE="a b" # a comment\n' >"$STUBS/env"
+    cp "$DIR/run.sh" "$STUBS/copy.sh"
+    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE="$STUBS/env" VPS_SETUP_REPO_REF=feat \
+        bash -c 'sed "s#^SCRIPT_DIR=.*#SCRIPT_DIR=/nonexistent#" "$0" > "$1" && bash "$1" -h; echo "foo=$FOO_FROM_FILE"' "$DIR/run.sh" "$STUBS/run2.sh"
+    [[ "$output" == *"zz-setup perspikapps/vps@feat -h"* ]]
+    [[ "$output" == *"foo=a b"* ]]
 }
 
-@test "steps.sh single-quotes a persisted answer so spaces/metacharacters survive sourcing" {
-    # An SSH key or similar value with embedded spaces, written unquoted by
-    # zz-persist, would corrupt the env file on the next ". \$envfile" - see
-    # the comment right above the zz-persist call.
-    grep -F -q 'answer_quoted=' "$DIR/steps.sh"
-    grep -F -q "sed \"s/'/'" "$DIR/steps.sh"
-}
-
-@test "run.sh sources steps.sh from its own folder" {
-    grep -q '"\$REPO_ROOT/vps-setup/steps.sh"' "$DIR/run.sh"
-}
-
-@test "steps.sh parses as POSIX sh" {
-    run sh -n "$DIR/steps.sh"
-    [ "$status" -eq 0 ]
-}
-
-@test "run.sh excludes itself and vps-common from feature discovery" {
-    grep -q 'vps-common | vps-setup' "$DIR/run.sh"
+@test "a fork URL is split into zz-setup's base URL and org/repo" {
+    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE=/nonexistent VPS_SETUP_REPO_URL=https://example.com/me/myvps.git \
+        bash -c 'sed "s#^SCRIPT_DIR=.*#SCRIPT_DIR=/nonexistent#" "$0" > "$1" && bash "$1" -h' "$DIR/run.sh" "$STUBS/run2.sh"
+    [[ "$output" == *"zz-setup me/myvps@main -h"* ]]
 }
 
 @test "package.json bin entry matches the folder name" {
