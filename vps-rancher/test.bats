@@ -50,3 +50,17 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$status" -eq 0 ]
 }
 
+
+@test "hostname and bootstrapPassword are passed as strings via a values file, not --set" {
+    ! grep -q -- '--set bootstrapPassword' "$DIR/run.sh"
+    ! grep -q -- '--set hostname' "$DIR/run.sh"
+    grep -q -- '--values "\$VALUES_FILE"' "$DIR/run.sh"
+}
+
+@test "a numeric-looking bootstrap password stays a string in the values file" {
+    command -v jq >/dev/null || skip "jq not installed"
+    out=$(jq -n --arg hostname "1.2.3.4" --arg bootstrapPassword "12345678" \
+        '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}')
+    [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword | type')" = "string" ]
+    [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword')" = "12345678" ]
+}
