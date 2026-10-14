@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.0 (2026-10-14)
+
+*Commits from: v2.6.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.6.0' into develop
+### 📦 vps-rancher changes
+
+#### Bug Fixes
+
+- 🐛 recreate an already-rebound Service before helm upgrades (#40)
+
 ## 2.6.0 (2026-10-14)
 
 *Commits from: v2.5.0..HEAD*
@@ -230,6 +245,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
