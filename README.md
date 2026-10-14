@@ -312,6 +312,21 @@ Rancher. When it finishes, connect over Tailscale and open Cockpit
 tailnet. Save the printed Rancher bootstrap password (also written to
 `/root/.rancher-bootstrap-password`) to log in.
 
+### "command not found" for a helper after an upgrade
+
+`zz-use` keeps what it downloads for 24 hours (`ZZ_CACHE_TTL`, in minutes) per
+repo and ref. `vps-setup` refreshes that cache itself on every run, but a copy
+of `vps-setup` installed before an upgrade is still the old one until you
+refresh it once:
+
+```bash
+sudo zz-use --force perspikapps/vps/vps-setup
+sudo vps-setup
+```
+
+A step that needs a newer `vps-common` than the cached one stops with this
+instruction instead of failing mid-install.
+
 ## Running from a non-standard branch or fork
 
 Two separate fetches need to agree on the branch/fork you're testing:

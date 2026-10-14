@@ -23,7 +23,10 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-setup
+# --force: the steps that zz-setup runs fetch vps-common through zz-use's cache
+# (24h for a branch ref, one slot per repo+ref). Refreshing it here keeps the
+# helpers in step with the checkout zz-setup is about to run.
+zz-use --force "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-setup
 # shellcheck disable=SC1091
 . vps-common
 

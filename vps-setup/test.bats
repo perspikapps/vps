@@ -27,7 +27,7 @@ teardown() {
 }
 
 @test "run.sh fetches vps-common and zz-setup with zz-use, and sources vps-common" {
-    grep -q 'zz-use "perspikapps/vps/vps-common@.*" zz-setup' "$DIR/run.sh"
+    grep -q 'zz-use --force "perspikapps/vps/vps-common@.*" zz-setup' "$DIR/run.sh"
     grep -q '^\. vps-common$' "$DIR/run.sh"
 }
 

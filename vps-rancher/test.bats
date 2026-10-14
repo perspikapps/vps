@@ -83,3 +83,8 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "a failed install or rollout dumps diagnostics before exiting" {
     [ "$(grep -c 'dump_diagnostics cattle-system' "$DIR/run.sh")" -ge 2 ]
 }
+
+@test "a stale cached vps-common is reported with the command to refresh it" {
+    grep -q 'declare -F run_with_progress' "$DIR/run.sh"
+    grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
+}
