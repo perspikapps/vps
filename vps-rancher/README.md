@@ -45,7 +45,10 @@ helm waiting for an address that could not exist yet). When a wait still fails,
 the step prints diagnostics before exiting: pods and services, recent events,
 the `svclb-*` pods in `kube-system` and why each unready pod is not running.
 Re-running `sudo vps-setup --only-vps-rancher` is safe: `helm upgrade --install`
-replaces a failed release.
+replaces a failed release, and a Service left rebound by a previous run is removed
+first so helm recreates it (merging the chart's ports 80/443 into the rebound ones
+would give duplicate port names). Rancher's pods keep running meanwhile; only the
+Service is briefly gone.
 
 ## Removing (`down`)
 
