@@ -101,3 +101,37 @@ EOF
     run node -e "const p = require('$REPO_ROOT/vps-common/package.json'); process.exit(p.bin['vps-common'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
+
+# kubectl stub printing a pod list: one ready, one still pulling its image.
+_stub_kubectl() {
+    mkdir -p "$work/bin"
+    cat >"$work/bin/kubectl" <<'EOF'
+#!/bin/sh
+printf 'rancher-1 1/1 Running 0 1m\nrancher-2 0/1 ContainerCreating 0 1m\n'
+EOF
+    chmod +x "$work/bin/kubectl"
+}
+
+@test "run_with_progress: logs elapsed time and pod states while the command runs, keeps its output" {
+    _stub_kubectl
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; PROGRESS_INTERVAL=1; run_with_progress cattle-system 'Rancher install' bash -c 'sleep 3; echo done-output'"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Rancher install: 1s, 1/2 pods ready - waiting: rancher-2=ContainerCreating"* ]]
+    [[ "$output" == *"done-output"* ]]
+}
+
+@test "run_with_progress: returns the command's exit status and stops reporting afterwards" {
+    _stub_kubectl
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; PROGRESS_INTERVAL=1; rc=0; run_with_progress ns label bash -c 'sleep 2; exit 7' || rc=\$?; sleep 2; echo rc=\$rc"
+    [[ "$output" == *"rc=7"* ]]
+    # one line per elapsed second only while the command ran (not after it exited)
+    [ "$(printf '%s\n' "$output" | grep -c 'label: ')" -le 2 ]
+}
+
+@test "progress_line: says so when the namespace has no pod yet" {
+    mkdir -p "$work/bin"
+    printf '#!/bin/sh\nexit 0\n' >"$work/bin/kubectl"
+    chmod +x "$work/bin/kubectl"
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; progress_line cattle-system 'Rancher install' 15"
+    [[ "$output" == *"no pod in cattle-system yet"* ]]
+}

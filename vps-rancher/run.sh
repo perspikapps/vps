@@ -37,7 +37,7 @@ kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply 
 CHART_VERSION_ARG=()
 [[ -n "${RANCHER_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$RANCHER_CHART_VERSION")
 
-zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME})..."
+zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
 # hostname and bootstrapPassword go through a values file with JSON-quoted
 # strings, not --set: helm parses --set bootstrapPassword=12345678 as an
 # integer and the chart's b64enc then fails ("wrong type for value; expected
@@ -46,7 +46,8 @@ VALUES_FILE="$(mktemp)"
 jq -n --arg hostname "$RANCHER_HOSTNAME" --arg bootstrapPassword "$RANCHER_BOOTSTRAP_PASSWORD" \
   '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' > "$VALUES_FILE"
 rc=0
-helm upgrade --install rancher rancher-latest/rancher \
+run_with_progress cattle-system "Rancher install" \
+  helm upgrade --install rancher rancher-latest/rancher \
   --namespace cattle-system \
   --values "$VALUES_FILE" \
   --set ingress.enabled=false \
@@ -62,7 +63,7 @@ patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
 patch_service_port cattle-system rancher https "$RANCHER_HTTPS_PORT" || true
 
 zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
-kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
+run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m
 
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"

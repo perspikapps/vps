@@ -21,6 +21,20 @@ sudo bash vps-rancher/run.sh up
 sudo bash vps-rancher/run.sh down
 ```
 
+## Progress
+
+The install is mostly waiting (chart download, then Rancher's images being pulled,
+typically 3-8 minutes), and `helm --wait` itself prints nothing. While it waits,
+the step logs a line every `PROGRESS_INTERVAL` seconds, for example:
+
+```
+Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
+```
+
+(`no pod in cattle-system yet` before the first pod exists.) The same helper,
+`run_with_progress` in `vps-common`, also covers the cert-manager install, this
+step's final rollout wait and the Traefik rollout in `vps-k3s`.
+
 ## Removing (`down`)
 
 `down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the Marketplace's cert-manager-dependent charts).
@@ -36,6 +50,7 @@ sudo vps-setup --down-vps-rancher
 | `CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
 | `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
+| `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
 | `RANCHER_HOSTNAME` | no | _(unset)_ | FQDN/IP used in Rancher's self-signed cert |
 | `RANCHER_HTTPS_PORT` | no | `7083` | Rancher HTTPS port |
 | `RANCHER_HTTP_PORT` | no | `7080` | Rancher HTTP port |

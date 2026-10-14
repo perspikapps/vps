@@ -64,3 +64,8 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword | type')" = "string" ]
     [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword')" = "12345678" ]
 }
+
+@test "the long waits report progress (helm install and rollout status are wrapped)" {
+    grep -q 'run_with_progress cattle-system "Rancher install"' "$DIR/run.sh"
+    grep -q 'run_with_progress cattle-system "Rancher rollout"' "$DIR/run.sh"
+}
