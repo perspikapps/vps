@@ -38,15 +38,24 @@ CHART_VERSION_ARG=()
 [[ -n "${RANCHER_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$RANCHER_CHART_VERSION")
 
 zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME})..."
+# hostname and bootstrapPassword go through a values file with JSON-quoted
+# strings, not --set: helm parses --set bootstrapPassword=12345678 as an
+# integer and the chart's b64enc then fails ("wrong type for value; expected
+# string; got int64"); --set also splits on commas and shows in `ps`.
+VALUES_FILE="$(mktemp)"
+jq -n --arg hostname "$RANCHER_HOSTNAME" --arg bootstrapPassword "$RANCHER_BOOTSTRAP_PASSWORD" \
+  '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' > "$VALUES_FILE"
+rc=0
 helm upgrade --install rancher rancher-latest/rancher \
   --namespace cattle-system \
-  --set hostname="${RANCHER_HOSTNAME}" \
-  --set bootstrapPassword="${RANCHER_BOOTSTRAP_PASSWORD}" \
+  --values "$VALUES_FILE" \
   --set ingress.enabled=false \
   --set service.type=LoadBalancer \
   --set replicas=1 \
   "${CHART_VERSION_ARG[@]}" \
-  --wait --timeout 10m
+  --wait --timeout 10m || rc=$?
+rm -f "$VALUES_FILE"
+[[ "$rc" -eq 0 ]] || exit "$rc"
 
 zz-log i "[vps-setup] Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
 patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
