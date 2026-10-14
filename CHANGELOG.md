@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.5.0 (2026-10-14)
+
+*Commits from: v2.4.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.4.0' into develop
+### 📦 vps-rancher changes
+
+#### Bug Fixes
+
+- 🐛 fix the install hang and report progress during long waits (#38)
+
 ## 2.4.0 (2026-10-14)
 
 *Commits from: v2.3.0..HEAD*
@@ -200,6 +215,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
