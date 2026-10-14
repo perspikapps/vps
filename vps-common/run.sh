@@ -130,6 +130,59 @@ ensure_line() {
   grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
 }
 
+# One status line for a namespace: elapsed time, pods ready/total, and what the
+# others are doing (ContainerCreating, ImagePullBackOff...).
+progress_line() {
+  local ns="$1" label="$2" elapsed="$3" pods ready total waiting
+  pods="$(kubectl -n "$ns" get pods --no-headers 2>/dev/null || true)"
+  if [[ -z "$pods" ]]; then
+    zz-log i "[vps-setup] ${label}: ${elapsed}s, no pod in ${ns} yet (chart and images are still being fetched)..."
+    return
+  fi
+  total="$(printf '%s\n' "$pods" | grep -c .)"
+  ready="$(printf '%s\n' "$pods" | awk '$3 == "Completed" || ($3 == "Running" && split($2, a, "/") && a[1] == a[2]) { n++ } END { print n + 0 }')"
+  waiting="$(printf '%s\n' "$pods" | awk '$3 != "Completed" && !($3 == "Running" && split($2, a, "/") && a[1] == a[2]) { printf "%s=%s ", $1, $3 }')"
+  zz-log i "[vps-setup] ${label}: ${elapsed}s, ${ready}/${total} pods ready${waiting:+ - waiting: ${waiting}}"
+}
+
+# run_with_progress <namespace> <label> <command...>: runs the command as is
+# (its output and exit status untouched) and, while it works, logs a status
+# line every PROGRESS_INTERVAL seconds (default 15), so a long `helm --wait`
+# or `kubectl rollout status` does not look frozen.
+run_with_progress() {
+  local ns="$1" label="$2" parent=$$ start=$SECONDS watcher rc=0
+  shift 2
+  (
+    while sleep "${PROGRESS_INTERVAL:-15}"; do
+      kill -0 "$parent" 2>/dev/null || exit 0
+      progress_line "$ns" "$label" "$((SECONDS - start))"
+    done
+  ) &
+  watcher=$!
+  "$@" || rc=$?
+  kill "$watcher" 2>/dev/null || true
+  wait "$watcher" 2>/dev/null || true
+  return "$rc"
+}
+
+# What is stuck in a namespace, for a failed wait: pods and services, recent
+# events, the k3s ServiceLB pods (a LoadBalancer Service whose host ports are
+# taken stays pending there) and why each unready pod is not running.
+dump_diagnostics() {
+  local ns="$1" pod
+  zz-log w "[vps-setup] --- diagnostics for namespace ${ns} ---"
+  kubectl -n "$ns" get pods,svc -o wide 2>&1 || true
+  kubectl -n "$ns" get events --sort-by=.lastTimestamp 2>&1 | tail -n 15 || true
+  kubectl -n kube-system get pods -o wide 2>&1 | grep -E 'NAME|svclb' || true
+  for pod in $(kubectl -n "$ns" get pods --no-headers 2>/dev/null | awk '$3 != "Running" && $3 != "Completed" {print $1}'); do
+    kubectl -n "$ns" describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 8 || true
+  done
+  for pod in $(kubectl -n kube-system get pods --no-headers 2>/dev/null | awk '/svclb/ && $3 != "Running" {print $1}'); do
+    kubectl -n kube-system describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 4 || true
+  done
+  zz-log w "[vps-setup] --- end of diagnostics ---"
+}
+
 ensure_cert_manager() {
   if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
     zz-log i "[vps-setup] cert-manager already installed."
@@ -141,7 +194,8 @@ ensure_cert_manager() {
   kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
   local version_arg=()
   [[ -n "${CERT_MANAGER_VERSION:-}" ]] && version_arg=(--version "$CERT_MANAGER_VERSION")
-  helm upgrade --install cert-manager jetstack/cert-manager \
+  run_with_progress cert-manager "cert-manager install" \
+    helm upgrade --install cert-manager jetstack/cert-manager \
     --namespace cert-manager \
     --set crds.enabled=true \
     "${version_arg[@]}" \

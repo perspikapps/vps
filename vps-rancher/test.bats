@@ -64,3 +64,22 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword | type')" = "string" ]
     [ "$(printf '%s' "$out" | jq -r '.bootstrapPassword')" = "12345678" ]
 }
+
+@test "the long waits report progress (helm install and rollout status are wrapped)" {
+    grep -q 'run_with_progress cattle-system "Rancher install"' "$DIR/run.sh"
+    grep -q 'run_with_progress cattle-system "Rancher rollout"' "$DIR/run.sh"
+}
+
+@test "helm does not --wait for the LoadBalancer Service: the port rebind has to happen first" {
+    run awk '/helm upgrade --install rancher/ {h=1} h && /--wait/ {print "found"} /--timeout 10m/ {h=0}' "$DIR/run.sh"
+    [ -z "$output" ]
+    helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    patch_line=$(grep -n 'patch_service_port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    rollout_line=$(grep -n 'rollout status deploy/rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    [ "$helm_line" -lt "$patch_line" ]
+    [ "$patch_line" -lt "$rollout_line" ]
+}
+
+@test "a failed install or rollout dumps diagnostics before exiting" {
+    [ "$(grep -c 'dump_diagnostics cattle-system' "$DIR/run.sh")" -ge 2 ]
+}
