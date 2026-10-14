@@ -37,6 +37,7 @@ sudo vps-setup --down-vps-security
 | `VPS_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for VPS_ADMIN_USER (or root if unset) |
 | `VPS_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for VPS_ADMIN_USER and root |
 | `VPS_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
+| `VPS_PRIVATE_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
 
 ## Outputs
 

@@ -107,6 +107,27 @@ net_access() {
   jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .access' "$pkg"
 }
 
+# Private access: ports with access "private" are only reachable over one
+# interface. Whoever provides that network says so by persisting
+# VPS_PRIVATE_INTERFACE (vps-tailscale does on install, to the file below);
+# a caller can also just set it (wg0, a LAN NIC...). The environment wins.
+VPS_PRIVATE_ACCESS_FILE="${VPS_PRIVATE_ACCESS_FILE:-/etc/vps-private-access.env}"
+
+private_interface() {
+  if [[ -n "${VPS_PRIVATE_INTERFACE:-}" ]]; then
+    printf '%s' "$VPS_PRIVATE_INTERFACE"
+  elif [[ -f "$VPS_PRIVATE_ACCESS_FILE" ]]; then
+    sed -n 's/^VPS_PRIVATE_INTERFACE=//p' "$VPS_PRIVATE_ACCESS_FILE" | tail -n1
+  fi
+}
+
+# First IPv4 address of the private interface (empty when it has none yet).
+private_address() {
+  local iface
+  iface="$(private_interface)"
+  [[ -z "$iface" ]] || ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true
+}
+
 all_network_ports() {
   local d
   for d in "$VPS_SETUP_ROOT"/*/; do

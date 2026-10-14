@@ -29,7 +29,7 @@ systemctl daemon-reload
 systemctl enable --now cockpit.socket
 systemctl restart cockpit.socket
 
-ok "Cockpit installed. Reachable at https://<tailscale-ip>:${COCKPIT_HTTP_PORT} and :${COCKPIT_HTTPS_PORT} (self-signed cert)."
+ok "Cockpit installed. Reachable at https://<private-ip>:${COCKPIT_HTTP_PORT} and :${COCKPIT_HTTPS_PORT} (self-signed cert)."
 }
 
 down() {

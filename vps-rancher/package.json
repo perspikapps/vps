@@ -56,12 +56,12 @@
       {
         "name": "rancher_http",
         "port": 7080,
-        "access": "tailscale"
+        "access": "private"
       },
       {
         "name": "rancher_https",
         "port": 7083,
-        "access": "tailscale"
+        "access": "private"
       }
     ]
   },

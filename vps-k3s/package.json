@@ -33,7 +33,7 @@
         "default": "true"
       },
       "TRAEFIK_DASHBOARD_PORT": {
-        "description": "Traefik dashboard port (Tailscale-only)",
+        "description": "Traefik dashboard port (private access only)",
         "required": false,
         "default": "8088"
       }
@@ -61,7 +61,7 @@
       {
         "name": "traefik_dashboard",
         "port": 8088,
-        "access": "tailscale"
+        "access": "private"
       }
     ]
   },

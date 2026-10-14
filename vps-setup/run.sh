@@ -80,9 +80,16 @@ RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http vps-rancher)}"
 RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https vps-rancher)}"
 TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-$(net_port traefik_dashboard vps-k3s)}"
 
-TAILSCALE_IP="$(tailscale ip -4 2>/dev/null || true)"
-HOST_FOR_URLS="${TAILSCALE_IP:-<tailscale-ip>}"
-[[ -z "$TAILSCALE_IP" ]] && TAILSCALE_STATUS="not joined yet - run: tailscale up" || TAILSCALE_STATUS="$TAILSCALE_IP"
+PRIVATE_IFACE="$(private_interface)"
+PRIVATE_IP="$(private_address)"
+HOST_FOR_URLS="${PRIVATE_IP:-<private-ip>}"
+if [[ -z "$PRIVATE_IFACE" ]]; then
+  PRIVATE_STATUS="none - private-access ports are closed (set VPS_PRIVATE_INTERFACE, or run vps-tailscale)"
+elif [[ -z "$PRIVATE_IP" ]]; then
+  PRIVATE_STATUS="${PRIVATE_IFACE} (no address yet - join the private network)"
+else
+  PRIVATE_STATUS="${PRIVATE_IP} (${PRIVATE_IFACE})"
+fi
 
 COCKPIT_USER="$(cat /root/.cockpit-admin-user 2>/dev/null || echo 'not set - run vps-security/run.sh')"
 COCKPIT_PASSWORD="$(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not set - run vps-security/run.sh')"
@@ -97,7 +104,7 @@ cat <<EOF
 ======================================================================
  VPS setup complete
 ======================================================================
- Tailscale IP:        ${TAILSCALE_STATUS}
+ Private network:     ${PRIVATE_STATUS}
 
  Cockpit:             https://${HOST_FOR_URLS}:${COCKPIT_HTTP_PORT}
                        https://${HOST_FOR_URLS}:${COCKPIT_HTTPS_PORT}
@@ -125,7 +132,7 @@ cat <<EOF
                        add the router.tls.certresolver annotation to your
                        own Ingress; see README)
                        dashboard: http://${HOST_FOR_URLS}:${TRAEFIK_DASHBOARD_PORT}/dashboard/
-                       (Tailscale-only, no login - see README's Security model)
+                       (private access only, no login - see README's Security model)
 
  Marketplace:         Apps & Marketplace -> Repositories in Rancher should
                        list "perspikapps-vps" (registered by the
@@ -140,7 +147,7 @@ cat <<EOF
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, and the k3s API are reachable ONLY over
-                       the tailscale0 interface - connect via Tailscale
-                       first.
+                       the private interface (${PRIVATE_IFACE:-none}) - connect
+                       to that network first.
 ======================================================================
 EOF
