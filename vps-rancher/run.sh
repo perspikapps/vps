@@ -34,8 +34,23 @@ fi
 umask 077
 echo "$RANCHER_BOOTSTRAP_PASSWORD" > "$PW_FILE"
 
-helm repo add rancher-latest https://releases.rancher.com/server-charts/latest >/dev/null 2>&1 || true
-helm repo update >/dev/null
+# Chart repository: the community "latest" channel by default; RANCHER_CHART_REPO_URL
+# selects another, e.g. SUSE Rancher Prime (https://charts.rancher.com/server-charts/prime).
+# --force-update lets a changed URL replace the alias from a previous run.
+RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
+case "$RANCHER_CHART_REPO_URL" in
+  http://* | https://*) ;;
+  *) zz-log e "[vps-setup] RANCHER_CHART_REPO_URL must be an http(s) Helm repository URL (got '${RANCHER_CHART_REPO_URL}')."; exit 1 ;;
+esac
+zz-log i "[vps-setup] Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
+helm repo add vps-rancher "$RANCHER_CHART_REPO_URL" --force-update >/dev/null || {
+  zz-log e "[vps-setup] Could not add the Helm repository ${RANCHER_CHART_REPO_URL}."
+  exit 1
+}
+helm repo update vps-rancher >/dev/null || {
+  zz-log e "[vps-setup] Could not fetch the chart index from ${RANCHER_CHART_REPO_URL} (check the URL and any access it needs)."
+  exit 1
+}
 
 ensure_cert_manager
 
@@ -68,7 +83,7 @@ fi
 
 rc=0
 run_with_progress cattle-system "Rancher install" \
-  helm upgrade --install rancher rancher-latest/rancher \
+  helm upgrade --install rancher vps-rancher/rancher \
   --namespace cattle-system \
   --values "$VALUES_FILE" \
   --set ingress.enabled=false \

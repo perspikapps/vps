@@ -97,3 +97,21 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$del_line" -lt "$helm_line" ]
     [ "$helm_line" -lt "$patch_line" ]
 }
+
+@test "the chart repository comes from RANCHER_CHART_REPO_URL (community latest by default), not a hard-coded alias" {
+    grep -q 'RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest' "$DIR/run.sh"
+    grep -q 'helm repo add vps-rancher "\$RANCHER_CHART_REPO_URL" --force-update' "$DIR/run.sh"
+    grep -q 'helm upgrade --install rancher vps-rancher/rancher' "$DIR/run.sh"
+    ! grep -q 'rancher-latest' "$DIR/run.sh"
+}
+
+@test "RANCHER_CHART_REPO_URL is a declared, optional input defaulting to the community repository" {
+    run node -e "const i = require('$DIR/package.json').vps.inputs.RANCHER_CHART_REPO_URL; process.exit(i && i.required === false && i.default === 'https://releases.rancher.com/server-charts/latest' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+@test "a repository URL that is not http(s) is rejected before anything is installed" {
+    grep -q 'http://\* | https://\*)' "$DIR/run.sh"
+    grep -q 'must be an http(s) Helm repository URL' "$DIR/run.sh"
+    [ "$(grep -n 'must be an http(s)' "$DIR/run.sh" | cut -d: -f1)" -lt "$(grep -n 'helm repo add' "$DIR/run.sh" | head -1 | cut -d: -f1)" ]
+}
