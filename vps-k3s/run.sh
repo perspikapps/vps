@@ -5,6 +5,13 @@ set -euo pipefail
 zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
+# vps-common comes from zz-use's download cache (24h for a branch), while the
+# steps come from the fresh checkout: an older cached copy lacks newer helpers.
+declare -F run_with_progress >/dev/null || {
+  zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
+       "sudo zz-use --force perspikapps/vps/vps-common"
+  exit 1
+}
 
 up() {
 require_root

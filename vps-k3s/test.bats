@@ -45,3 +45,8 @@ DIR="$REPO_ROOT/vps-k3s"
     [ "$status" -eq 0 ]
 }
 
+
+@test "a stale cached vps-common is reported with the command to refresh it" {
+    grep -q 'declare -F run_with_progress' "$DIR/run.sh"
+    grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
+}
