@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.6.0 (2026-10-14)
+
+*Commits from: v2.5.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.5.0' into develop
+### 📦 vps-setup changes
+
+#### Bug Fixes
+
+- 🐛 refresh the cached vps-common and report a stale one clearly (#39)
+
 ## 2.5.0 (2026-10-14)
 
 *Commits from: v2.4.0..HEAD*
@@ -215,6 +230,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
