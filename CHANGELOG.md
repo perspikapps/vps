@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.0 (2026-10-14)
+
+*Commits from: v2.2.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.2.0' into develop
+### 📦 vps-setup changes
+
+#### Other changes
+
+- ♻️ become a thin wrapper around zz-setup (#35)
+
 ## 2.2.0 (2026-10-13)
 
 *Commits from: v2.1.0..HEAD*
@@ -177,5 +192,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-13 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-14 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
