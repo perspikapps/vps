@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-common",
-  "version": "2.5.0",
+  "version": "2.8.0",
   "description": "Shared bash helpers sourced by every feature's run.sh",
   "bin": {
     "vps-common": "run.sh"
