@@ -37,7 +37,7 @@ down() {
   rm -rf /etc/systemd/system/cockpit.socket.d
   systemctl daemon-reload
   zz-log i "[vps-setup] Removing Cockpit packages..."
-  apt-get purge -y cockpit cockpit-system cockpit-networkmanager cockpit-storaged 2>/dev/null || true
+  apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged || true
   ok "Cockpit removed."
 }
 
@@ -47,10 +47,9 @@ summary() {
   cat <<EOF
  Cockpit:             https://${host}:$(net_port cockpit_http)
                        https://${host}:$(net_port cockpit_https)
-                       user:     $(cat /root/.cockpit-admin-user 2>/dev/null || echo 'not set - run vps-security/run.sh')
-                       password: $(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not set - run vps-security/run.sh')
-                       (saved to /root/.cockpit-admin-user and
-                       /root/.cockpit-admin-password; PAM login, same
+                       user:     $(vps_secret COCKPIT_ADMIN_USER /root/.cockpit-admin-user | grep . || echo 'not set - run vps-security/run.sh')
+                       password: $(vps_secret COCKPIT_ADMIN_PASSWORD /root/.cockpit-admin-password | grep . || echo 'not set - run vps-security/run.sh')
+                       (saved to ${VPS_SECRETS_FILE}; PAM login, same
                        account you'd use on the local console - separate
                        from SSH, which stays key-only)
 EOF

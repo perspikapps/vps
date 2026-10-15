@@ -2,7 +2,7 @@
 # Rancher on k3s. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
@@ -22,16 +22,9 @@ RANCHER_HTTP_PORT="$(net_port rancher_http)"
 RANCHER_HTTPS_PORT="$(net_port rancher_https)"
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 
-PW_FILE=/root/.rancher-bootstrap-password
-if [[ -z "${RANCHER_BOOTSTRAP_PASSWORD:-}" ]]; then
-  if [[ -f "$PW_FILE" ]]; then
-    RANCHER_BOOTSTRAP_PASSWORD="$(cat "$PW_FILE")"
-  else
-    RANCHER_BOOTSTRAP_PASSWORD="$(random_password 24)"
-  fi
-fi
-umask 077
-echo "$RANCHER_BOOTSTRAP_PASSWORD" > "$PW_FILE"
+RANCHER_BOOTSTRAP_PASSWORD="$(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
+[[ -n "$RANCHER_BOOTSTRAP_PASSWORD" ]] || RANCHER_BOOTSTRAP_PASSWORD="$(random_password 24)"
+vps_secret_set RANCHER_BOOTSTRAP_PASSWORD "$RANCHER_BOOTSTRAP_PASSWORD" /root/.rancher-bootstrap-password
 
 helm repo add rancher-latest https://releases.rancher.com/server-charts/latest >/dev/null 2>&1 || true
 helm repo update >/dev/null
@@ -94,14 +87,14 @@ fi
 
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
-ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
+ok "Bootstrap password saved to ${VPS_SECRETS_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
 down() {
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
   command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   helm_teardown cattle-system rancher
-  rm -f /root/.rancher-bootstrap-password
+  vps_secret_unset RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password
   ok "Rancher removed."
 }
 
@@ -110,8 +103,8 @@ summary() {
  Rancher:             https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
                        (also on plain port $(net_port rancher_http))
                        user:     admin
-                       password: $(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run vps-rancher/run.sh')
-                       (saved to /root/.rancher-bootstrap-password; you'll
+                       password: $(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password | grep . || echo 'not set - run vps-rancher/run.sh')
+                       (saved to ${VPS_SECRETS_FILE}; you'll
                        be prompted to change it on first login)
 EOF
 }
