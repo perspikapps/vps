@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-tailscale",
-  "version": "1.0.0",
+  "version": "2.8.0",
   "description": "Tailscale install",
   "bin": {
     "vps-tailscale": "run.sh"
@@ -10,7 +10,7 @@
   },
   "private": true,
   "vps": {
-    "order": 2,
+    "order": 1,
     "default": true,
     "inputs": {
       "PURGE_TAILSCALE": {

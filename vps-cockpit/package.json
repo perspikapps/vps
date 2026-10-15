@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-cockpit",
-  "version": "1.0.0",
+  "version": "2.8.0",
   "description": "Cockpit install",
   "bin": {
     "vps-cockpit": "run.sh"
@@ -29,12 +29,12 @@
       {
         "name": "cockpit_http",
         "port": 9080,
-        "access": "tailscale"
+        "access": "private"
       },
       {
         "name": "cockpit_https",
         "port": 9083,
-        "access": "tailscale"
+        "access": "private"
       }
     ]
   },

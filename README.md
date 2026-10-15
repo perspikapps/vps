@@ -5,7 +5,7 @@
 One-line bootstrapper that turns a fresh Ubuntu VPS into a secured
 management box running Cockpit and a single-node k3s/Rancher cluster,
 with Traefik as a public HTTP/HTTPS ingress. Cockpit, Rancher, and the
-Traefik dashboard are Tailscale-only; the ingress itself (80/443) is
+Traefik dashboard are private-access only (reachable over the Tailscale network by default); the ingress itself (80/443) is
 public on purpose - see [Security model](#security-model). This repo
 also publishes a Helm chart catalog (ArgoCD, Epinio, Cognee, GitHub ARC,
 and anything else added under `charts/`) that the `vps-marketplace` step registers in Rancher
@@ -486,11 +486,13 @@ Because `runcmd` already executes as root, `zz-use`/`vps-setup` need no
   bootstraps `zz-use` and runs `vps-setup` unattended on first boot.
 - `vps-common/` - shared logging/retry/idempotency helpers sourced by every
   feature's `run.sh` (strict bash mode, non-interactive apt, "already
-  done" checks); `net_port`/`net_access`/`all_network_ports` for reading
-  each feature's own `package.json` port declarations - see
+  done" checks); `net_port`/`all_network_ports` for reading
+  each feature's own `package.json` port declarations (an environment variable
+  named after the port, e.g. `COCKPIT_HTTP_PORT`, overrides the default) - see
   [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
-  feature's `up`/`down` actions. Colors and leveled logging (`ok`, and
+  feature's `up`/`down`/`summary` actions (`up`/`down` require root; each step's
+  optional `summary()` prints its block of the final connection summary). Colors and leveled logging (`ok`, and
   `zz-log` directly for everything else) delegate to `zz-colors`/`zz-log`
   from [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same
   core shared with `tomgrv/devcontainer-features`' common-utils feature -
@@ -508,14 +510,14 @@ Because `runcmd` already executes as root, `zz-use`/`vps-setup` need no
 - `vps-security/` - optional non-root admin user, ufw
   (default-deny inbound, rules generated from every feature's own
   `package.json` port declarations: SSH and Traefik's 80/443 public,
-  everything else Tailscale-only), sshd hardening, fail2ban, and a
+  everything else private-access), sshd hardening, fail2ban, and a
   Cockpit/console login password.
 - `vps-tailscale/` - installs Tailscale, enables `tailscaled` as a
   systemd service, and joins the tailnet.
 - `vps-cockpit/` - installs Cockpit, served on ports 9080/9083.
 - `vps-k3s/` - installs k3s (Traefik enabled), kubectl, Helm, and
   configures Traefik as a public HTTP/HTTPS ingress with a Let's Encrypt
-  certResolver and a Tailscale-only dashboard - see
+  certResolver and a private-access dashboard - see
   [Traefik ingress](#traefik-ingress-lets-encrypt-and-the-dashboard).
 - `vps-rancher/` - installs cert-manager (required by Rancher's
   self-signed TLS even with ingress disabled) and the latest Rancher via
@@ -661,7 +663,7 @@ for running any features it depends on yourself first (see
 
 ## Network config (each feature's own `package.json`)
 
-Every port this repo opens, and whether it's public or Tailscale-only, is
+Every port this repo opens, and whether it's public or private-access, is
 declared on the feature that owns it, in its `package.json`'s `vps.ports`
 array (same file that carries `vps.default`/`dependencies` - see
 [One folder per feature](#one-folder-per-feature)). Each entry looks like:
@@ -670,12 +672,12 @@ array (same file that carries `vps.default`/`dependencies` - see
 {
     "name": "rancher_http",
     "port": 7080,
-    "access": "tailscale",
+    "access": "private",
     "note": "optional, becomes the ufw rule's comment"
 }
 ```
 
-(`access` is `"tailscale"` or `"public"`.) `vps-rancher/package.json`
+(`access` is `"private"` or `"public"`; see [Private access](#private-access).) `vps-rancher/package.json`
 carries `rancher_http`/`rancher_https`, `vps-k3s/package.json`
 carries `http`/`https`/`traefik_dashboard`, and so on - each feature's own
 `run.sh` is what actually binds the port, so its declaration lives right
@@ -707,8 +709,9 @@ lives in `package.json` alongside everything else npm already parses.
 
 SSH and HTTP/HTTPS (Traefik's ingress) are the only things reachable from
 the public internet. Everything else - Cockpit, Rancher, the Traefik
-dashboard, the k3s API - is bound by `ufw` to the `tailscale0`
-interface only, so you must join the same tailnet to reach them. Apps
+dashboard, the k3s API - is bound by `ufw` to the private interface only
+(see [Private access](#private-access)): by default the `tailscale0`
+interface, so you must join the same tailnet to reach them. Apps
 you install through Rancher's Apps & Marketplace (ArgoCD, Epinio, or
 anything else) manage their own exposure - see each chart's `README.md`
 under [`charts/`](charts/) and [Rancher Marketplace](#rancher-marketplace)
@@ -716,15 +719,33 @@ for what to check before installing one.
 
 HTTP/HTTPS are public unconditionally, not behind a flag: Traefik is this
 VPS's real ingress, and Let's Encrypt's HTTP-01 challenge needs port 80
-reachable from the internet to issue certs at all - a Tailscale-only
+reachable from the internet to issue certs at all - a private-only
 ingress would defeat the point of having one.
 
-Because of this, **`vps-setup` refuses to run at all if the Tailscale step
-is enabled but `TAILSCALE_AUTHKEY` is unset** - proceeding anyway would
-lock down ufw and leave every Tailscale-only service unreachable by
-anything. Pass `--skip-vps-tailscale` if you genuinely want to run without
-Tailscale (you can join manually later with `tailscale up`, then `sudo
-vps-setup --only-vps-tailscale`).
+`vps-tailscale` owns its own requirement: `TAILSCALE_AUTHKEY` is a required
+input of that step alone, so `vps-setup` aborts before any step runs if the
+Tailscale step is enabled and the key is unset (nothing else in the repo asks
+for it). Pass `--skip-vps-tailscale` to run without it, and provide another
+network instead (below).
+
+### Private access
+
+Nothing but `vps-tailscale` knows about Tailscale. The other steps only know
+that some ports are `"access": "private"`, and which interface carries the
+private network:
+
+- `vps-tailscale` persists `VPS_PRIVATE_INTERFACE=tailscale0` (to
+  `/etc/vps-private-access.env`, owner-only) when it installs, and removes it on
+  `down`. It runs before `vps-security` for that reason.
+- `vps-security` opens every private port on that interface only, and the final
+  summary shows its address. With no interface at all, private ports simply
+  stay closed.
+- To use another network (WireGuard, a LAN NIC...) skip the Tailscale step and
+  set `VPS_PRIVATE_INTERFACE` yourself, e.g. `sudo VPS_PRIVATE_INTERFACE=wg0
+  vps-setup --skip-vps-tailscale`; it also works as a menu input and from
+  `VPS_SETUP_ENV_FILE`. A set variable wins over the persisted value.
+- Steps read it through `vps-common`'s `private_interface` and
+  `private_address`.
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
@@ -765,7 +786,7 @@ continuously so it's safe to re-apply any time (e.g. via `--only-vps-k3s`).
   trusted certs (production Let's Encrypt has strict per-domain rate
   limits - avoid iterating against it directly).
 - **Dashboard**: exposed on `TRAEFIK_DASHBOARD_PORT` (default `8088`),
-  Tailscale-only like Cockpit/Rancher, at `http://<tailscale-ip>:8088/dashboard/`
+  private-access like Cockpit/Rancher, at `http://<private-ip>:8088/dashboard/`
   (trailing slash required). It has no login of its own - that's fine
   given it's already gated to the tailnet, same threat model as the rest
   of this repo's admin surfaces, but don't put it on a public port.
@@ -862,7 +883,7 @@ that file to change a default for good, or set the env var for one run.
 | `COCKPIT_DOCKERMANAGER_VERSION`            | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install |
 | `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set this to a real address                                              |
 | `TRAEFIK_ACME_STAGING`                     | `true`                               | Use Let's Encrypt's staging (untrusted, no rate limit) vs. production certs                           |
-| `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (Tailscale-only)                                                               |
+| `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (private-access)                                                               |
 | `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `vps-marketplace` step registers                                |
 | `MARKETPLACE_REPO_URL`                     | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
 | `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                         |
@@ -940,8 +961,8 @@ convention, every feature folder carries its own `<name>/test.bats`
 `zz-use`/`vps-common` wiring, `up()`/(where applicable) `down()`, and its
 `package.json`'s `bin`/`vps.order`/`dependencies` shape.
 [`vps-common/test.bats`](vps-common/test.bats) additionally covers `vps-common/run.sh`'s
-pure logic (`net_port`, `net_access`, `all_network_ports`,
-`feature_package_json`, `dispatch_action`) against a small fixture tree.
+pure logic (`net_port`, `all_network_ports`,
+`ordered_feature_dirs`, `feature_package_json`, `dispatch_action`, `download_run`) against a small fixture tree.
 [`tests/`](tests/) holds only what doesn't belong to any single folder:
 invariants spanning every folder's `run.sh`/`package.json` (e.g. no
 leftover `log`/`warn`/`die` wrappers - see

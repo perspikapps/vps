@@ -45,3 +45,13 @@ DIR="$REPO_ROOT/vps-security"
     [ "$status" -eq 0 ]
 }
 
+
+@test "run.sh opens private-access ports on the interface vps-common reports, not a hard-coded one" {
+    grep -q 'PRIVATE_IFACE="\$(private_interface)"' "$DIR/run.sh"
+    ! grep -q 'tailscale0' "$DIR/run.sh"
+    ! grep -q '^    tailscale)' "$DIR/run.sh"
+}
+
+@test "no package.json declares a tailscale port access any more" {
+    ! grep -q '"access": "tailscale"' "$REPO_ROOT"/*/package.json
+}

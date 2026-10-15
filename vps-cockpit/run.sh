@@ -7,11 +7,10 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 . vps-common
 
 up() {
-require_root
 apt_update_once
 
-COCKPIT_HTTP_PORT="${COCKPIT_HTTP_PORT:-$(net_port cockpit_http)}"
-COCKPIT_HTTPS_PORT="${COCKPIT_HTTPS_PORT:-$(net_port cockpit_https)}"
+COCKPIT_HTTP_PORT="$(net_port cockpit_http)"
+COCKPIT_HTTPS_PORT="$(net_port cockpit_https)"
 
 zz-log i "[vps-setup] Installing Cockpit..."
 apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged
@@ -29,11 +28,10 @@ systemctl daemon-reload
 systemctl enable --now cockpit.socket
 systemctl restart cockpit.socket
 
-ok "Cockpit installed. Reachable at https://<tailscale-ip>:${COCKPIT_HTTP_PORT} and :${COCKPIT_HTTPS_PORT} (self-signed cert)."
+ok "Cockpit installed. Reachable at https://<private-ip>:${COCKPIT_HTTP_PORT} and :${COCKPIT_HTTPS_PORT} (self-signed cert)."
 }
 
 down() {
-  require_root
   zz-log i "[vps-setup] Disabling Cockpit..."
   systemctl disable --now cockpit.socket 2>/dev/null || true
   rm -rf /etc/systemd/system/cockpit.socket.d
@@ -41,6 +39,21 @@ down() {
   zz-log i "[vps-setup] Removing Cockpit packages..."
   apt-get purge -y cockpit cockpit-system cockpit-networkmanager cockpit-storaged 2>/dev/null || true
   ok "Cockpit removed."
+}
+
+summary() {
+  local host
+  host="$(summary_host)"
+  cat <<EOF
+ Cockpit:             https://${host}:$(net_port cockpit_http)
+                       https://${host}:$(net_port cockpit_https)
+                       user:     $(cat /root/.cockpit-admin-user 2>/dev/null || echo 'not set - run vps-security/run.sh')
+                       password: $(cat /root/.cockpit-admin-password 2>/dev/null || echo 'not set - run vps-security/run.sh')
+                       (saved to /root/.cockpit-admin-user and
+                       /root/.cockpit-admin-password; PAM login, same
+                       account you'd use on the local console - separate
+                       from SSH, which stays key-only)
+EOF
 }
 
 dispatch_action "$@"

@@ -7,7 +7,6 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 . vps-common
 
 up() {
-  require_root
   apt_update_once
   zz-log i "[vps-setup] Upgrading existing packages..."
   apt-get upgrade -y

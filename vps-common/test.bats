@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Moved from ../tests/ to live alongside vps-common/run.sh, matching every
 # other folder's <name>/test.bats convention (see README's "Tests" section).
-# Covers vps-common/run.sh's pure logic (net_port/net_access/all_network_ports/
+# Covers vps-common/run.sh's pure logic (net_port/all_network_ports/ordered_feature_dirs/
 # feature_package_json/dispatch_action) against a small fixture tree, since
 # the rest of vps-common/run.sh (apt helpers, cert-manager, Helm teardown) needs
 # a live root/Ubuntu/k3s environment this suite doesn't have.
@@ -25,7 +25,7 @@ EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
     "name": "@tomgrv/beta",
-    "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "tailscale" }] }
+    "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] }
 }
 EOF
 }
@@ -42,17 +42,65 @@ _load_common() {
     [ "$output" = "1111" ]
 }
 
-@test "net_access: resolves another feature's access by name" {
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_SETUP_ROOT='$work'; net_access beta_http beta"
+@test "net_port: an environment variable named after the port overrides package.json" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_SETUP_ROOT='$work'; ALPHA_HTTP_PORT=4242 net_port alpha_http alpha"
     [ "$status" -eq 0 ]
-    [ "$output" = "tailscale" ]
+    [ "$output" = "4242" ]
+}
+
+@test "all_network_ports: honours the same environment override" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; BETA_HTTP_PORT=4343 all_network_ports"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *$'beta_http\t4343\tprivate\t'* ]]
+    [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
+}
+
+@test "ordered_feature_dirs: installable steps (with a vps key) in vps.order, others left out" {
+    mkdir -p "$work/gamma" "$work/lib"
+    : >"$work/gamma/run.sh"; : >"$work/lib/run.sh"
+    echo '{"name":"@tomgrv/gamma","vps":{"order":1}}' >"$work/gamma/package.json"
+    echo '{"name":"@tomgrv/lib"}' >"$work/lib/package.json"
+    echo '{"name":"@tomgrv/alpha","vps":{"order":5}}' >"$work/alpha/package.json"
+    echo '{"name":"@tomgrv/beta","vps":{"order":3}}' >"$work/beta/package.json"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; ordered_feature_dirs"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$work/gamma"$'\n'"$work/beta"$'\n'"$work/alpha" ]
+}
+
+@test "dispatch_action: up and down require root, summary does not" {
+    run bash -c "
+        source '$REPO_ROOT/vps-common/run.sh'
+        require_root() { echo needs-root; }
+        up() { echo ran-up; }
+        down() { echo ran-down; }
+        summary() { echo ran-summary; }
+        dispatch_action up; dispatch_action down; dispatch_action summary
+    "
+    [ "$status" -eq 0 ]
+    [ "$output" = $'needs-root\nran-up\nneeds-root\nran-down\nran-summary' ]
+}
+
+@test "dispatch_action: summary is a silent no-op for a step without one" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; dispatch_action summary"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "download_run: fetches the script to a private temp file, runs it with the shell, removes it" {
+    bin=$(mktemp -d)
+    printf '#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && { shift; printf "echo ran-installer \\$0\\n" >"$1"; }; shift; done\n' >"$bin/curl"
+    chmod +x "$bin/curl"
+    run env PATH="$bin:$PATH" bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; download_run https://example.test/install.sh bash"
+    rm -rf "$bin"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "ran-installer /tmp/"* ]]
 }
 
 @test "all_network_ports: aggregates every feature's ports as TSV" {
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; all_network_ports"
     [ "$status" -eq 0 ]
     [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
-    [[ "$output" == *$'beta_http\t2222\ttailscale\t'* ]]
+    [[ "$output" == *$'beta_http\t2222\tprivate\t'* ]]
 }
 
 @test "all_network_ports: skips node_modules/* (no run.sh alongside its package.json)" {
@@ -100,6 +148,26 @@ EOF
 @test "package.json bin entry matches the folder name" {
     run node -e "const p = require('$REPO_ROOT/vps-common/package.json'); process.exit(p.bin['vps-common'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "private_interface: the environment wins, then the persisted file, else empty" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; private_interface"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    printf 'OTHER=x\nVPS_PRIVATE_INTERFACE=tailscale0\n' >"$work/pa.env"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; private_interface"
+    [ "$output" = "tailscale0" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; VPS_PRIVATE_INTERFACE=wg0; private_interface"
+    [ "$output" = "wg0" ]
+}
+
+@test "private_address: empty without an interface, or when it has no address" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/none.env'; private_address"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_INTERFACE=nonexistent9; private_address"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }
 
 # kubectl stub printing a pod list: one ready, one still pulling its image.
