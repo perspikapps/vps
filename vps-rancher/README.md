@@ -21,6 +21,21 @@ sudo bash vps-rancher/run.sh up
 sudo bash vps-rancher/run.sh down
 ```
 
+## Installing from SUSE Rancher Prime
+
+Set `RANCHER_CHART_REPO_URL` to the Prime chart repository, then run the step:
+
+```bash
+sudo RANCHER_CHART_REPO_URL=https://charts.rancher.com/server-charts/prime vps-setup --only-vps-rancher
+```
+
+The URL must be an `http(s)` Helm repository; a bad URL or an unreachable index stops
+the step before anything is installed. Pin a release with `RANCHER_CHART_VERSION`. Prime's
+images and any subscription requirements are SUSE's: this step only changes where the
+chart comes from. Switching an already-running community Rancher over by re-running the
+step is an in-place `helm upgrade` to the Prime chart; check SUSE's upgrade notes for the
+versions involved first.
+
 ## Progress
 
 The install is mostly waiting (chart download, then Rancher's images being pulled,
@@ -64,6 +79,7 @@ sudo vps-setup --down-vps-rancher
 | --- | --- | --- | --- |
 | `CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
 | `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
+| `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
 | `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
 | `RANCHER_HOSTNAME` | no | _(unset)_ | FQDN/IP used in Rancher's self-signed cert |
