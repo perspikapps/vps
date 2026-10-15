@@ -72,23 +72,48 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 # vps-common/run.sh under its own bin dir rather than reusing a checkout.
 VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && pwd)"
 
-feature_package_json() {
-  local feature="$1" d
+# Real feature folders: run.sh alongside package.json. Skips node_modules/*
+# (and any other non-feature directory) instead of jq-parsing every
+# package.json under the checkout.
+feature_dirs() {
+  local d
   for d in "$VPS_SETUP_ROOT"/*/; do
-    # run.sh alongside package.json is what marks a real feature folder -
-    # skips node_modules/* (and any other non-feature directory) instead of
-    # jq-parsing every package.json under the checkout.
-    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
-      printf '%s' "${d}package.json"
-      return 0
+    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]]; then
+      printf '%s\n' "${d%/}"
     fi
   done
+}
+
+feature_package_json() {
+  local feature="$1" d
+  while IFS= read -r d; do
+    if jq -e --arg n "@tomgrv/${feature}" '.name == $n' "${d}/package.json" >/dev/null 2>&1; then
+      printf '%s' "${d}/package.json"
+      return 0
+    fi
+  done < <(feature_dirs)
   zz-log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name @tomgrv/${feature})."
   exit 1
 }
 
+# Feature folders that are installable steps (have a "vps" key), in vps.order.
+ordered_feature_dirs() {
+  local d
+  while IFS= read -r d; do
+    jq -r --arg d "$d" 'select(.vps != null) | [(.vps.order // 999), $d] | @tsv' "${d}/package.json"
+  done < <(feature_dirs) | sort -n | cut -f2
+}
+
+# Port <name> of <feature> (default: the calling step's own package.json). An
+# environment variable named after the port (cockpit_http -> COCKPIT_HTTP_PORT)
+# overrides the package.json default, for every caller alike.
 net_port() {
-  local name="$1" feature="${2:-}" pkg
+  local name="$1" feature="${2:-}" pkg override
+  override="${name^^}_PORT"
+  if [[ -n "${!override:-}" ]]; then
+    printf '%s\n' "${!override}"
+    return 0
+  fi
   if [[ -n "$feature" ]]; then
     pkg="$(feature_package_json "$feature")"
   else
@@ -97,26 +122,34 @@ net_port() {
   jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .port' "$pkg"
 }
 
-net_access() {
-  local name="$1" feature="${2:-}" pkg
-  if [[ -n "$feature" ]]; then
-    pkg="$(feature_package_json "$feature")"
-  else
-    pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
-  fi
-  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .access' "$pkg"
+# Every feature's ports as TSV (name, port, access, note); the port honours
+# the same environment override as net_port.
+all_network_ports() {
+  local d name port access note override
+  while IFS= read -r d; do
+    while IFS=$'\t' read -r name port access note; do
+      override="${name^^}_PORT"
+      printf '%s\t%s\t%s\t%s\n' "$name" "${!override:-$port}" "$access" "$note"
+    done < <(jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}/package.json")
+  done < <(feature_dirs)
 }
 
-all_network_ports() {
-  local d
-  for d in "$VPS_SETUP_ROOT"/*/; do
-    # Same run.sh-alongside-package.json filter as feature_package_json:
-    # skips node_modules/* instead of jq-parsing every package.json under
-    # the checkout.
-    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]]; then
-      jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}package.json"
-    fi
-  done
+# Public/tailnet host for the URLs a step's summary prints.
+summary_host() {
+  local ip
+  ip="$(tailscale ip -4 2>/dev/null || true)"
+  printf '%s' "${ip:-<tailscale-ip>}"
+}
+
+# Fetch an installer script and run it with <shell> (default sh), via a
+# private temp file instead of a predictable /tmp path.
+download_run() {
+  local url="$1" shell="${2:-sh}" f rc=0
+  f="$(mktemp)"
+  retry curl -fsSL "$url" -o "$f"
+  "$shell" "$f" || rc=$?
+  rm -f "$f"
+  return "$rc"
 }
 
 # || true: head closing early sends tr a SIGPIPE that set -o pipefail
@@ -202,13 +235,17 @@ ensure_cert_manager() {
     --wait --timeout 5m
 }
 
+# Runs the step's up(), down() or summary(); root is required for the first two.
+# A step without summary() has nothing to report.
 dispatch_action() {
   local action="${1:-up}"
   case "$action" in
     up)
+      require_root
       up
       ;;
     down)
+      require_root
       if declare -f down >/dev/null; then
         down
       else
@@ -216,8 +253,11 @@ dispatch_action() {
         exit 1
       fi
       ;;
+    summary)
+      if declare -f summary >/dev/null; then summary; fi
+      ;;
     *)
-      zz-log e "[vps-setup] Unknown action '${action}' (expected 'up' or 'down')."
+      zz-log e "[vps-setup] Unknown action '${action}' (expected 'up', 'down' or 'summary')."
       exit 1
       ;;
   esac
