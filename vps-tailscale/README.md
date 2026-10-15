@@ -21,6 +21,14 @@ sudo bash vps-tailscale/run.sh up
 sudo bash vps-tailscale/run.sh down
 ```
 
+## Private access
+
+On install this step persists `VPS_PRIVATE_INTERFACE=tailscale0` to
+`/etc/vps-private-access.env` (removed again on `down`). `vps-security` and the
+final summary read it, so they never mention Tailscale themselves; it is also why
+this step runs before `vps-security`. See the root README's
+[Private access](../README.md#private-access).
+
 ## Removing (`down`)
 
 `down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `PURGE_TAILSCALE=true`.

@@ -101,13 +101,18 @@ ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
 
+PRIVATE_IFACE="$(private_interface)"
+if [[ -z "$PRIVATE_IFACE" ]]; then
+  zz-log w "[vps-setup] No private interface (VPS_PRIVATE_INTERFACE unset, and no step persisted one): private-access ports stay closed."
+fi
+
 while IFS=$'\t' read -r name port access note; do
   case "$access" in
     public)
       ufw allow "${port}/tcp" comment "${note:-$name}"
       ;;
-    tailscale)
-      ufw allow in on tailscale0 to any port "$port" proto tcp comment "vps-setup: tailscale-only (${name})" || true
+    private)
+      [[ -z "$PRIVATE_IFACE" ]] || ufw allow in on "$PRIVATE_IFACE" to any port "$port" proto tcp comment "vps-setup: private-only (${name})" || true
       ;;
     *)
       zz-log w "[vps-setup] unknown access '${access}' for port '${name}' - skipping."
@@ -115,10 +120,10 @@ while IFS=$'\t' read -r name port access note; do
   esac
 done < <(all_network_ports)
 
-ufw allow in on tailscale0 comment "vps-setup: tailscale-only"
+[[ -z "$PRIVATE_IFACE" ]] || ufw allow in on "$PRIVATE_IFACE" comment "vps-setup: private-only"
 
 ufw --force enable
-ok "ufw enabled from every feature's package.json: public ports open to everyone, tailscale ports reachable only via Tailscale."
+ok "ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only via ${PRIVATE_IFACE:-<no private interface>}."
 }
 
 down() {
@@ -155,8 +160,8 @@ summary() {
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, and the k3s API are reachable ONLY over
-                       the tailscale0 interface - connect via Tailscale
-                       first.
+                       the private interface ($(private_interface || true)) - connect
+                       to that network first.
 EOF
 }
 

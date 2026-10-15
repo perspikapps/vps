@@ -134,11 +134,32 @@ all_network_ports() {
   done < <(feature_dirs)
 }
 
-# Public/tailnet host for the URLs a step's summary prints.
+# Private access: ports with access "private" are only reachable over one
+# interface. Whoever provides that network says so by persisting
+# VPS_PRIVATE_INTERFACE (vps-tailscale does on install, to the file below);
+# a caller can also just set it (wg0, a LAN NIC...). The environment wins.
+VPS_PRIVATE_ACCESS_FILE="${VPS_PRIVATE_ACCESS_FILE:-/etc/vps-private-access.env}"
+
+private_interface() {
+  if [[ -n "${VPS_PRIVATE_INTERFACE:-}" ]]; then
+    printf '%s' "$VPS_PRIVATE_INTERFACE"
+  elif [[ -f "$VPS_PRIVATE_ACCESS_FILE" ]]; then
+    sed -n 's/^VPS_PRIVATE_INTERFACE=//p' "$VPS_PRIVATE_ACCESS_FILE" | tail -n1
+  fi
+}
+
+# First IPv4 address of the private interface (empty when it has none yet).
+private_address() {
+  local iface
+  iface="$(private_interface)"
+  [[ -z "$iface" ]] || ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true
+}
+
+# Host for the URLs a step's summary prints: the private address, if any.
 summary_host() {
   local ip
-  ip="$(tailscale ip -4 2>/dev/null || true)"
-  printf '%s' "${ip:-<tailscale-ip>}"
+  ip="$(private_address)"
+  printf '%s' "${ip:-<private-ip>}"
 }
 
 # Fetch an installer script and run it with <shell> (default sh), via a

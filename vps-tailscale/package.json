@@ -10,7 +10,7 @@
   },
   "private": true,
   "vps": {
-    "order": 2,
+    "order": 1,
     "default": true,
     "inputs": {
       "PURGE_TAILSCALE": {

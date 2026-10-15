@@ -25,7 +25,7 @@ EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
     "name": "@tomgrv/beta",
-    "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "tailscale" }] }
+    "vps": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] }
 }
 EOF
 }
@@ -51,7 +51,7 @@ _load_common() {
 @test "all_network_ports: honours the same environment override" {
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; BETA_HTTP_PORT=4343 all_network_ports"
     [ "$status" -eq 0 ]
-    [[ "$output" == *$'beta_http\t4343\ttailscale\t'* ]]
+    [[ "$output" == *$'beta_http\t4343\tprivate\t'* ]]
     [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
 }
 
@@ -100,7 +100,7 @@ _load_common() {
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; all_network_ports"
     [ "$status" -eq 0 ]
     [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
-    [[ "$output" == *$'beta_http\t2222\ttailscale\t'* ]]
+    [[ "$output" == *$'beta_http\t2222\tprivate\t'* ]]
 }
 
 @test "all_network_ports: skips node_modules/* (no run.sh alongside its package.json)" {
@@ -148,6 +148,26 @@ EOF
 @test "package.json bin entry matches the folder name" {
     run node -e "const p = require('$REPO_ROOT/vps-common/package.json'); process.exit(p.bin['vps-common'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "private_interface: the environment wins, then the persisted file, else empty" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; private_interface"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    printf 'OTHER=x\nVPS_PRIVATE_INTERFACE=tailscale0\n' >"$work/pa.env"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; private_interface"
+    [ "$output" = "tailscale0" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/pa.env'; VPS_PRIVATE_INTERFACE=wg0; private_interface"
+    [ "$output" = "wg0" ]
+}
+
+@test "private_address: empty without an interface, or when it has no address" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_ACCESS_FILE='$work/none.env'; private_address"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_PRIVATE_INTERFACE=nonexistent9; private_address"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }
 
 # kubectl stub printing a pod list: one ready, one still pulling its image.

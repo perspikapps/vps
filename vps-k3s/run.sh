@@ -126,7 +126,7 @@ done
 run_with_progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
   zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
-ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (Tailscale-only)."
+ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
@@ -148,7 +148,7 @@ summary() {
                        add the router.tls.certresolver annotation to your
                        own Ingress; see README)
                        dashboard: http://$(summary_host):$(net_port traefik_dashboard)/dashboard/
-                       (Tailscale-only, no login - see README's Security model)
+                       (private access only, no login - see README's Security model)
 
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)

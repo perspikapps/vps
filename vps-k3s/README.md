@@ -37,7 +37,7 @@ sudo vps-setup --down-vps-k3s
 | `K3S_VERSION` | no | _(unset)_ | Pin a k3s version |
 | `TRAEFIK_ACME_EMAIL` | no | `admin@example.com` | Contact email registered with Let's Encrypt |
 | `TRAEFIK_ACME_STAGING` | no | `true` | Use Let's Encrypt's staging environment (true/false) |
-| `TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (Tailscale-only) |
+| `TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (private access only) |
 
 ## Outputs
 
