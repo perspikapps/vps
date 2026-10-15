@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-k3s",
-  "version": "2.6.0",
+  "version": "2.8.0",
   "description": "k3s / kubectl / helm install (includes Traefik configuration)",
   "bin": {
     "vps-k3s": "run.sh"
