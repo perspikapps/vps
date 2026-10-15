@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-security",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Firewall / SSH / fail2ban hardening",
   "bin": {
     "vps-security": "run.sh"
