@@ -24,7 +24,7 @@ jobs:
           ref: develop
 
       - name: Release promote
-        uses: tomgrv/actions/release-promote@v4
+        uses: tomgrv/actions/release-promote@v5
         with:
-          scripts-ref: v2
+          scripts-ref: v3
           dry-run: ${{ inputs.dry_run == true }}
