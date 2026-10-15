@@ -887,6 +887,7 @@ that file to change a default for good, or set the env var for one run.
 | `MARKETPLACE_REPO_NAME`                    | `perspikapps-vps`                    | Name of the Rancher `ClusterRepo` the `vps-marketplace` step registers                                |
 | `MARKETPLACE_REPO_URL`                     | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register                                                             |
 | `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                         |
+| `RANCHER_CHART_REPO_URL`                   | community `latest` channel           | Helm repository for the Rancher chart, e.g. SUSE Rancher Prime (`https://charts.rancher.com/server-charts/prime`) |
 
 Ports follow a per-app range so they're easy to tell apart at a glance:
 Cockpit `9xxx`, Rancher `7xxx`, Traefik dashboard `8xxx` - the
