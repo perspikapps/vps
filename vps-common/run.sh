@@ -44,6 +44,16 @@ apt_install() {
   apt-get install -y --no-install-recommends "$@"
 }
 
+# Best effort: the caller decides what a package that is not there means.
+apt_purge() {
+  apt-get purge -y "$@" 2>/dev/null
+}
+
+# Cockpit picks up new modules / socket settings on a socket restart.
+cockpit_refresh() {
+  systemctl try-restart cockpit.socket 2>/dev/null || true
+}
+
 apt_update_once() {
   if [[ -z "${VPS_SETUP_APT_UPDATED:-}" ]]; then
     zz-log i "[vps-setup] Running apt-get update..."
@@ -160,6 +170,36 @@ summary_host() {
   local ip
   ip="$(private_address)"
   printf '%s' "${ip:-<private-ip>}"
+}
+
+# Credentials generated or chosen by the steps (Cockpit login, Rancher bootstrap
+# password) live as KEY=VALUE lines in one owner-only env file, written with
+# zz-persist (-s) - a step that stores one declares `zz-use ... zz-persist`.
+VPS_SECRETS_FILE="${VPS_SECRETS_FILE:-/root/.vps-secrets.env}"
+
+# vps_secret KEY [legacy-file]: the environment wins, then the secrets file,
+# then (hosts set up by an older version) the legacy one-value file.
+vps_secret() {
+  local key="$1" legacy="${2:-}" value="${!1:-}"
+  if [[ -z "$value" && -f "$VPS_SECRETS_FILE" ]]; then
+    value="$(sed -n "s/^${key}=//p" "$VPS_SECRETS_FILE" | tail -n1)"
+  fi
+  if [[ -z "$value" && -n "$legacy" && -f "$legacy" ]]; then
+    value="$(cat "$legacy")"
+  fi
+  printf '%s' "$value"
+}
+
+# vps_secret_set KEY VALUE [legacy-file]: store it, and migrate away the legacy file.
+vps_secret_set() {
+  zz-persist -s -f "$VPS_SECRETS_FILE" "$1" "$2"
+  [[ -z "${3:-}" ]] || rm -f "$3"
+}
+
+# vps_secret_unset KEY [legacy-file]
+vps_secret_unset() {
+  [[ ! -f "$VPS_SECRETS_FILE" ]] || sed -i "/^${1}=/d" "$VPS_SECRETS_FILE"
+  [[ -z "${2:-}" ]] || rm -f "$2"
 }
 
 # Fetch an installer script and run it with <shell> (default sh), via a

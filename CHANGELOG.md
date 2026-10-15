@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.9.0 (2026-10-15)
+
+*Commits from: v2.8.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.8.0' into develop
+### 📦 vps-common changes
+
+#### Other changes
+
+- store credentials with zz-persist, share apt_purge and cockpit_refresh (#43)
+
 ## 2.8.0 (2026-10-15)
 
 *Commits from: v2.7.0..HEAD*
@@ -266,6 +281,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 

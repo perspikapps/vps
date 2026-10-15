@@ -2,7 +2,7 @@
 # Admin user, SSH hardening, ufw, fail2ban. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 
@@ -40,20 +40,12 @@ if [[ -n "${VPS_ADMIN_SSH_KEY:-}" ]]; then
 fi
 
 COCKPIT_USER="${VPS_ADMIN_USER:-root}"
-COCKPIT_PW_FILE=/root/.cockpit-admin-password
-if [[ -n "${VPS_ADMIN_PASSWORD:-}" ]]; then
-  COCKPIT_PASSWORD="$VPS_ADMIN_PASSWORD"
-elif [[ -f "$COCKPIT_PW_FILE" ]]; then
-  COCKPIT_PASSWORD="$(cat "$COCKPIT_PW_FILE")"
-else
-  COCKPIT_PASSWORD="$(random_password 24)"
-fi
+COCKPIT_PASSWORD="${VPS_ADMIN_PASSWORD:-$(vps_secret COCKPIT_ADMIN_PASSWORD /root/.cockpit-admin-password)}"
+[[ -n "$COCKPIT_PASSWORD" ]] || COCKPIT_PASSWORD="$(random_password 24)"
 echo "${COCKPIT_USER}:${COCKPIT_PASSWORD}" | chpasswd
-umask 077
-echo "$COCKPIT_PASSWORD" > "$COCKPIT_PW_FILE"
-echo "$COCKPIT_USER" > /root/.cockpit-admin-user
-umask 022
-ok "Cockpit login set: user=${COCKPIT_USER} (password saved to ${COCKPIT_PW_FILE})."
+vps_secret_set COCKPIT_ADMIN_PASSWORD "$COCKPIT_PASSWORD" /root/.cockpit-admin-password
+vps_secret_set COCKPIT_ADMIN_USER "$COCKPIT_USER" /root/.cockpit-admin-user
+ok "Cockpit login set: user=${COCKPIT_USER} (password saved to ${VPS_SECRETS_FILE})."
 
 HAS_KEY=0
 for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do

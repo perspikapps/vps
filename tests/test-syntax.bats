@@ -77,3 +77,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
+
+@test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
+    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/vps-*/run.sh | grep -v 'vps_secret'
+}

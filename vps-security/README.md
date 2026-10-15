@@ -43,7 +43,7 @@ sudo vps-setup --down-vps-security
 
 | Output | Description |
 | --- | --- |
-| `COCKPIT_ADMIN_PASSWORD_FILE` | Path to the saved Cockpit/console login password (/root/.cockpit-admin-password) |
+| `COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
 
 ## Dependencies
 
