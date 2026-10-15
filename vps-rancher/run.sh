@@ -14,13 +14,12 @@ declare -F run_with_progress >/dev/null || {
 }
 
 up() {
-require_root
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first."; exit 1; }
 command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first."; exit 1; }
 
-RANCHER_HTTP_PORT="${RANCHER_HTTP_PORT:-$(net_port rancher_http)}"
-RANCHER_HTTPS_PORT="${RANCHER_HTTPS_PORT:-$(net_port rancher_https)}"
+RANCHER_HTTP_PORT="$(net_port rancher_http)"
+RANCHER_HTTPS_PORT="$(net_port rancher_https)"
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 
 PW_FILE=/root/.rancher-bootstrap-password
@@ -99,12 +98,22 @@ ok "Bootstrap password saved to ${PW_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
 down() {
-  require_root
   export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
   command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove."; return; }
   helm_teardown cattle-system rancher
   rm -f /root/.rancher-bootstrap-password
   ok "Rancher removed."
+}
+
+summary() {
+  cat <<EOF
+ Rancher:             https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
+                       (also on plain port $(net_port rancher_http))
+                       user:     admin
+                       password: $(cat /root/.rancher-bootstrap-password 2>/dev/null || echo 'not set - run vps-rancher/run.sh')
+                       (saved to /root/.rancher-bootstrap-password; you'll
+                       be prompted to change it on first login)
+EOF
 }
 
 dispatch_action "$@"

@@ -486,11 +486,13 @@ Because `runcmd` already executes as root, `zz-use`/`vps-setup` need no
   bootstraps `zz-use` and runs `vps-setup` unattended on first boot.
 - `vps-common/` - shared logging/retry/idempotency helpers sourced by every
   feature's `run.sh` (strict bash mode, non-interactive apt, "already
-  done" checks); `net_port`/`net_access`/`all_network_ports` for reading
-  each feature's own `package.json` port declarations - see
+  done" checks); `net_port`/`all_network_ports` for reading
+  each feature's own `package.json` port declarations (an environment variable
+  named after the port, e.g. `COCKPIT_HTTP_PORT`, overrides the default) - see
   [Network config](#network-config-each-features-own-packagejson); and
   `dispatch_action`/`helm_teardown`, the shared plumbing behind every
-  feature's `up`/`down` actions. Colors and leveled logging (`ok`, and
+  feature's `up`/`down`/`summary` actions (`up`/`down` require root; each step's
+  optional `summary()` prints its block of the final connection summary). Colors and leveled logging (`ok`, and
   `zz-log` directly for everything else) delegate to `zz-colors`/`zz-log`
   from [`tomgrv/scripts`](https://github.com/tomgrv/scripts) - the same
   core shared with `tomgrv/devcontainer-features`' common-utils feature -
@@ -940,8 +942,8 @@ convention, every feature folder carries its own `<name>/test.bats`
 `zz-use`/`vps-common` wiring, `up()`/(where applicable) `down()`, and its
 `package.json`'s `bin`/`vps.order`/`dependencies` shape.
 [`vps-common/test.bats`](vps-common/test.bats) additionally covers `vps-common/run.sh`'s
-pure logic (`net_port`, `net_access`, `all_network_ports`,
-`feature_package_json`, `dispatch_action`) against a small fixture tree.
+pure logic (`net_port`, `all_network_ports`,
+`ordered_feature_dirs`, `feature_package_json`, `dispatch_action`, `download_run`) against a small fixture tree.
 [`tests/`](tests/) holds only what doesn't belong to any single folder:
 invariants spanning every folder's `run.sh`/`package.json` (e.g. no
 leftover `log`/`warn`/`die` wrappers - see

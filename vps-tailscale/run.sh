@@ -7,15 +7,12 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 . vps-common
 
 up() {
-require_root
 
 if command_exists tailscale; then
   zz-log i "[vps-setup] Tailscale already installed ($(tailscale --version | head -n1 || true))."
 else
   zz-log i "[vps-setup] Installing Tailscale from the official repo..."
-  retry curl -fsSL https://tailscale.com/install.sh -o /tmp/tailscale-install.sh
-  bash /tmp/tailscale-install.sh
-  rm -f /tmp/tailscale-install.sh
+  download_run https://tailscale.com/install.sh bash
 fi
 
 zz-log i "[vps-setup] Enabling tailscaled as a systemd service..."
@@ -35,7 +32,6 @@ ok "Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
 }
 
 down() {
-  require_root
   if ! command_exists tailscale; then
     zz-log w "[vps-setup] Tailscale not installed; nothing to do."
     return
@@ -51,6 +47,12 @@ down() {
        "dashboard, and the k3s API (all Tailscale-only) are now unreachable" \
        "until you re-run this step's 'up' action."
   ok "Tailscale brought down."
+}
+
+summary() {
+  local ip
+  ip="$(tailscale ip -4 2>/dev/null || true)"
+  echo " Tailscale IP:        ${ip:-not joined yet - run: tailscale up}"
 }
 
 dispatch_action "$@"
