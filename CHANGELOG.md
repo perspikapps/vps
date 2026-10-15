@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.11.0 (2026-10-15)
+
+*Commits from: v2.10.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.10.0' into develop
+### 📦 vps-setup changes
+
+#### Other changes
+
+- 👷 pin actions to v5, scripts to v3 and features to v11 (#44)
+
 ## 2.10.0 (2026-10-15)
 
 *Commits from: v2.9.0..HEAD*
@@ -296,6 +311,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
