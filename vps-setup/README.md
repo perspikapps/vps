@@ -48,7 +48,9 @@ sudo bash vps-setup/run.sh --only-vps-rancher
   file (what cloud-init writes) that is sourced, never rewritten;
 - `VPS_SETUP_REPO_URL` / `VPS_SETUP_REPO_REF`: which fork/branch `zz-setup`
   fetches into `/opt/<repo>`; a full local checkout is used in place;
-- the final connection summary.
+- the final connection summary: each step prints its own block through its
+  `summary` action (`bash <step>/run.sh summary`, also callable on its own),
+  in `vps.order`; a step without `summary()` prints nothing.
 
 ## Dependencies
 

@@ -90,7 +90,7 @@ sudo vps-setup --down-vps-rancher
 
 | Output | Description |
 | --- | --- |
-| `RANCHER_BOOTSTRAP_PASSWORD_FILE` | Path to the saved Rancher bootstrap password (/root/.rancher-bootstrap-password) |
+| `RANCHER_BOOTSTRAP_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `RANCHER_BOOTSTRAP_PASSWORD` (older hosts: `/root/.rancher-bootstrap-password`, migrated on the next run) |
 
 ## Dependencies
 

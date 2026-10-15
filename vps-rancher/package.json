@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-rancher",
-  "version": "2.7.0",
+  "version": "2.9.0",
   "description": "Rancher install",
   "bin": {
     "vps-rancher": "run.sh"
@@ -53,20 +53,20 @@
     "order": 5,
     "outputs": {
       "RANCHER_BOOTSTRAP_PASSWORD_FILE": {
-        "description": "Path to the saved Rancher bootstrap password",
-        "value": "/root/.rancher-bootstrap-password"
+        "description": "Owner-only env file holding RANCHER_BOOTSTRAP_PASSWORD (the saved Rancher bootstrap password)",
+        "value": "/root/.vps-secrets.env"
       }
     },
     "ports": [
       {
         "name": "rancher_http",
         "port": 7080,
-        "access": "tailscale"
+        "access": "private"
       },
       {
         "name": "rancher_https",
         "port": 7083,
-        "access": "tailscale"
+        "access": "private"
       }
     ]
   },

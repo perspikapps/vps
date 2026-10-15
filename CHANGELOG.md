@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.9.0 (2026-10-15)
+
+*Commits from: v2.8.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.8.0' into develop
+### 📦 vps-common changes
+
+#### Other changes
+
+- store credentials with zz-persist, share apt_purge and cockpit_refresh (#43)
+
+## 2.8.0 (2026-10-15)
+
+*Commits from: v2.7.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.7.0' into develop
+### 📦 vps-common changes
+
+#### Other changes
+
+- shared root check, port override, download_run and per-step summary (#42)
+
+### 📦 vps-security changes
+
+#### Other changes
+
+- read the private interface persisted by vps-tailscale instead of hard-coding tailscale0 (#37)
+
 ## 2.7.0 (2026-10-14)
 
 *Commits from: v2.6.0..HEAD*
@@ -257,5 +293,7 @@
 
 
 
+
+
 ---
-*Generated on 2026-10-14 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-15 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*

@@ -7,9 +7,16 @@ Shared bash helpers sourced by every feature's `run.sh` (and by
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-log`,
 an `ERR` trap that prints the failing command/file/line, apt helpers
 (`apt_install`, `apt_update_once`), `retry`, `command_exists`,
-`net_port`/`net_access`/`all_network_ports` (reading each feature's own
-`package.json` `vps.ports`), `dispatch_action` (the `up`/`down` plumbing
-every feature's `run.sh` ends with), `helm_teardown`, `patch_service_port`,
+`net_port`/`all_network_ports` (reading each feature's own
+`package.json` `vps.ports`; an environment variable named after the port,
+e.g. `COCKPIT_HTTP_PORT`, overrides it), `feature_dirs`/`ordered_feature_dirs`,
+`download_run` (fetch and run an installer script via a private temp file),
+`summary_host`, `vps_secret`/`vps_secret_set`/`vps_secret_unset` (credentials as
+KEY=VALUE lines in the owner-only `/root/.vps-secrets.env`, written with
+`zz-persist -s`; a legacy one-value file is read once and migrated),
+`apt_purge`, `cockpit_refresh`, `dispatch_action` (the `up`/`down`/`summary` plumbing
+every feature's `run.sh` ends with; `up`/`down` require root, `summary` is the
+step's optional block of the final connection summary), `helm_teardown`, `patch_service_port`,
 and `ensure_cert_manager`.
 
 Not an installable step itself — excluded from `vps-setup`'s feature
@@ -47,8 +54,9 @@ instead under a `"zzUse"` field (`{"tomgrv/scripts": ["zz-colors",
 bats test.bats
 ```
 
-Covers `run.sh`'s pure logic (`net_port`, `net_access`,
-`all_network_ports`, `feature_package_json`, `dispatch_action`) against a
+Covers `run.sh`'s pure logic (`net_port`,
+`all_network_ports`, `ordered_feature_dirs`, `feature_package_json`,
+`dispatch_action`, `download_run`) against a
 small fixture tree, plus syntax and `package.json`'s `bin` field. The rest
 of `run.sh` (apt helpers, cert-manager, Helm teardown) needs a live
 root/Ubuntu/k3s environment this suite doesn't have — see the root

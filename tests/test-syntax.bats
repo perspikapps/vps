@@ -38,3 +38,46 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
         ! grep -q 'dispatch\.sh' "$f"
     done
 }
+
+@test "steps leave require_root to dispatch_action (up/down) - no explicit call left" {
+    for f in "$REPO_ROOT"/vps-*/run.sh; do
+        [[ "$f" == */vps-common/* || "$f" == */vps-setup/* ]] && continue
+        ! grep -q '^\s*require_root$' "$f"
+    done
+}
+
+@test "installer scripts are fetched with download_run, not through a predictable /tmp path" {
+    ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/vps-*/run.sh
+}
+
+@test "every step's summary action runs and prints its block" {
+    stubs=$(mktemp -d)
+    printf '#!/bin/sh\nexit 0\n' >"$stubs/zz-use"
+    printf '#!/bin/sh\nshift; echo "$*"\n' >"$stubs/zz-log"
+    : >"$stubs/zz-colors"
+    ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
+    chmod +x "$stubs"/zz-use "$stubs"/zz-log
+    for step in cockpit dockermanager k3s marketplace rancher security tailscale; do
+        run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
+        [ "$status" -eq 0 ]
+        [ -n "$output" ]
+    done
+    rm -rf "$stubs"
+}
+
+@test "steps without something to report (system) print nothing for summary" {
+    stubs=$(mktemp -d)
+    printf '#!/bin/sh\nexit 0\n' >"$stubs/zz-use"
+    printf '#!/bin/sh\nshift; echo "$*"\n' >"$stubs/zz-log"
+    : >"$stubs/zz-colors"
+    ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
+    chmod +x "$stubs"/zz-use "$stubs"/zz-log
+    run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-system/run.sh" summary
+    rm -rf "$stubs"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
+    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/vps-*/run.sh | grep -v 'vps_secret'
+}

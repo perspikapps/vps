@@ -54,3 +54,13 @@ DIR="$REPO_ROOT/vps-tailscale"
     [ "$status" -eq 0 ]
 }
 
+
+@test "run.sh persists the private interface for the other steps, and forgets it on down" {
+    grep -q 'zz-persist -f "\$VPS_PRIVATE_ACCESS_FILE" VPS_PRIVATE_INTERFACE tailscale0' "$DIR/run.sh"
+    grep -q "sed -i '/\^VPS_PRIVATE_INTERFACE=tailscale0\$/d'" "$DIR/run.sh"
+}
+
+@test "vps.order puts tailscale before the firewall step that reads the persisted interface" {
+    run node -e "const t = require('$DIR/package.json').vps.order, s = require('$REPO_ROOT/vps-security/package.json').vps.order; process.exit(t < s ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}

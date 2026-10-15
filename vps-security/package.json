@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-security",
-  "version": "2.2.0",
+  "version": "2.9.0",
   "description": "Firewall / SSH / fail2ban hardening",
   "bin": {
     "vps-security": "run.sh"
@@ -28,17 +28,22 @@
         "required": false,
         "default": ""
       },
+      "VPS_PRIVATE_INTERFACE": {
+        "description": "Interface carrying private-only services (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
+        "required": false,
+        "default": ""
+      },
       "VPS_ADMIN_USER": {
         "description": "Optional non-root sudo user to create",
         "required": false,
         "default": ""
       }
     },
-    "order": 1,
+    "order": 2,
     "outputs": {
       "COCKPIT_ADMIN_PASSWORD_FILE": {
-        "description": "Path to the saved Cockpit/console login password",
-        "value": "/root/.cockpit-admin-password"
+        "description": "Owner-only env file holding COCKPIT_ADMIN_USER and COCKPIT_ADMIN_PASSWORD (the saved Cockpit/console login)",
+        "value": "/root/.vps-secrets.env"
       }
     },
     "ports": [
