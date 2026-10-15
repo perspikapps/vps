@@ -42,8 +42,8 @@
     "order": 2,
     "outputs": {
       "COCKPIT_ADMIN_PASSWORD_FILE": {
-        "description": "Path to the saved Cockpit/console login password",
-        "value": "/root/.cockpit-admin-password"
+        "description": "Owner-only env file holding COCKPIT_ADMIN_USER and COCKPIT_ADMIN_PASSWORD (the saved Cockpit/console login)",
+        "value": "/root/.vps-secrets.env"
       }
     },
     "ports": [

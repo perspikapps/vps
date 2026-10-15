@@ -310,7 +310,7 @@ Rancher. When it finishes, connect over Tailscale and open Cockpit
 (`https://<tailscale-ip>:9080`) and Rancher
 (`https://rancher.tailnet-name.ts.net:7083`) from a machine on the same
 tailnet. Save the printed Rancher bootstrap password (also written to
-`/root/.rancher-bootstrap-password`) to log in.
+`/root/.vps-secrets.env`) to log in.
 
 ### "command not found" for a helper after an upgrade
 
@@ -797,10 +797,10 @@ continuously so it's safe to re-apply any time (e.g. via `--only-vps-k3s`).
   password - separate from SSH, which stays key-only. `vps-security/run.sh`
   sets a password for `VPS_ADMIN_USER` (or `root` if that's unset): either
   `VPS_ADMIN_PASSWORD` if you set it, or a random one saved to
-  `/root/.cockpit-admin-password` (username in `/root/.cockpit-admin-user`).
+  `/root/.vps-secrets.env` (`COCKPIT_ADMIN_PASSWORD`, with `COCKPIT_ADMIN_USER`).
 - **Rancher** username is always `admin`; the initial password is
   `RANCHER_BOOTSTRAP_PASSWORD` if set, otherwise a random one saved to
-  `/root/.rancher-bootstrap-password`. Rancher prompts you to change it on
+  `/root/.vps-secrets.env` (`RANCHER_BOOTSTRAP_PASSWORD`). Rancher prompts you to change it on
   first login.
 
 Anything you install afterwards through Apps & Marketplace (ArgoCD,

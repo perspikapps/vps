@@ -38,21 +38,21 @@ trap 'rm -f "$TMP_DEB"' EXIT
 retry curl -fsSL "$DEB_URL" -o "$TMP_DEB"
 apt-get install -y "$TMP_DEB"
 
-systemctl try-restart cockpit.socket 2>/dev/null || true
+cockpit_refresh
 
 ok "cockpit-packagekit, cockpit-files, and cockpit-dockermanager installed."
 }
 
 down() {
   zz-log i "[vps-setup] Removing cockpit-dockermanager..."
-  apt-get purge -y dockermanager 2>/dev/null || zz-log w "[vps-setup] cockpit-dockermanager package not found (already removed?)."
+  apt_purge dockermanager || zz-log w "[vps-setup] cockpit-dockermanager package not found (already removed?)."
   zz-log i "[vps-setup] Removing cockpit-packagekit and cockpit-files..."
-  apt-get purge -y cockpit-packagekit cockpit-files 2>/dev/null || true
-  systemctl try-restart cockpit.socket 2>/dev/null || true
+  apt_purge cockpit-packagekit cockpit-files || true
+  cockpit_refresh
   if [[ "${REMOVE_DOCKER:-false}" == "true" ]] && command_exists docker; then
     zz-log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
     systemctl disable --now docker 2>/dev/null || true
-    apt-get purge -y docker.io 2>/dev/null || true
+    apt_purge docker.io || true
   fi
   ok "cockpit-dockermanager and its extra Cockpit modules removed."
 }

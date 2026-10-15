@@ -11,7 +11,10 @@ an `ERR` trap that prints the failing command/file/line, apt helpers
 `package.json` `vps.ports`; an environment variable named after the port,
 e.g. `COCKPIT_HTTP_PORT`, overrides it), `feature_dirs`/`ordered_feature_dirs`,
 `download_run` (fetch and run an installer script via a private temp file),
-`summary_host`, `dispatch_action` (the `up`/`down`/`summary` plumbing
+`summary_host`, `vps_secret`/`vps_secret_set`/`vps_secret_unset` (credentials as
+KEY=VALUE lines in the owner-only `/root/.vps-secrets.env`, written with
+`zz-persist -s`; a legacy one-value file is read once and migrated),
+`apt_purge`, `cockpit_refresh`, `dispatch_action` (the `up`/`down`/`summary` plumbing
 every feature's `run.sh` ends with; `up`/`down` require root, `summary` is the
 step's optional block of the final connection summary), `helm_teardown`, `patch_service_port`,
 and `ensure_cert_manager`.

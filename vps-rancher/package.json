@@ -48,8 +48,8 @@
     "order": 5,
     "outputs": {
       "RANCHER_BOOTSTRAP_PASSWORD_FILE": {
-        "description": "Path to the saved Rancher bootstrap password",
-        "value": "/root/.rancher-bootstrap-password"
+        "description": "Owner-only env file holding RANCHER_BOOTSTRAP_PASSWORD (the saved Rancher bootstrap password)",
+        "value": "/root/.vps-secrets.env"
       }
     },
     "ports": [
