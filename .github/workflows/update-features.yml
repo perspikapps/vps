@@ -21,10 +21,10 @@ jobs:
           token: ${{ secrets.UPDATE_FEATURES_TOKEN || github.token }}
 
       - name: Set up Node.js
-        uses: tomgrv/actions/setup-node@v4
+        uses: tomgrv/actions/setup-node@v5
 
       - name: Configure git identity
-        uses: tomgrv/actions/config-bot@v4
+        uses: tomgrv/actions/config-bot@v5
 
       - name: Update features
         run: npm exec --yes -- tomgrv/devcontainer-features update -a
@@ -57,7 +57,7 @@ jobs:
 
       - name: Create pull request
         if: ${{ steps.changes.outputs.has-changes == 'true' }}
-        uses: tomgrv/actions/create-pr@v4
+        uses: tomgrv/actions/create-pr@v5
         with:
           github-token: ${{ secrets.UPDATE_FEATURES_TOKEN || secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}

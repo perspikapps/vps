@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate PR title
-        uses: tomgrv/actions/check-pr-format@v4
+        uses: tomgrv/actions/check-pr-format@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fix: true
@@ -36,4 +36,4 @@ jobs:
       pull-requests: write
     steps:
       - name: Check PR source branch
-        uses: tomgrv/actions/check-pr-source-branch@v4
+        uses: tomgrv/actions/check-pr-source-branch@v5
