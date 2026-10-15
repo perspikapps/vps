@@ -7,10 +7,9 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 . vps-common
 
 up() {
-require_root
 apt_update_once
 
-SSH_PORT="${SSH_PORT:-$(net_port ssh)}"
+SSH_PORT="$(net_port ssh)"
 
 zz-log i "[vps-setup] Installing ufw and fail2ban..."
 apt_install ufw fail2ban
@@ -107,9 +106,7 @@ if [[ -z "$PRIVATE_IFACE" ]]; then
   zz-log w "[vps-setup] No private interface (VPS_PRIVATE_INTERFACE unset, and no step persisted one): private-access ports stay closed."
 fi
 
-while IFS=$'\t' read -r name pkg_port access note; do
-  env_var="$(echo "$name" | tr '[:lower:]' '[:upper:]')_PORT"
-  port="${!env_var:-$pkg_port}"
+while IFS=$'\t' read -r name port access note; do
   case "$access" in
     public)
       ufw allow "${port}/tcp" comment "${note:-$name}"
@@ -130,7 +127,6 @@ ok "ufw enabled from every feature's package.json: public ports open to everyone
 }
 
 down() {
-  require_root
 
   zz-log i "[vps-setup] Disabling fail2ban's sshd jail..."
   rm -f /etc/fail2ban/jail.d/sshd.local
@@ -157,6 +153,16 @@ down() {
        "'up' action, or configure your own firewall, before exposing this" \
        "VPS again."
   ok "Security hardening removed."
+}
+
+summary() {
+  cat <<EOF
+ Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
+                       this VPS's ingress). Cockpit, Rancher, the Traefik
+                       dashboard, and the k3s API are reachable ONLY over
+                       the private interface ($(private_interface || true)) - connect
+                       to that network first.
+EOF
 }
 
 dispatch_action "$@"

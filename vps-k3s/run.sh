@@ -5,9 +5,15 @@ set -euo pipefail
 zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
+# vps-common comes from zz-use's download cache (24h for a branch), while the
+# steps come from the fresh checkout: an older cached copy lacks newer helpers.
+declare -F run_with_progress >/dev/null || {
+  zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
+       "sudo zz-use --force perspikapps/vps/vps-common"
+  exit 1
+}
 
 up() {
-require_root
 
 K3S_SERVICE_FILE=/etc/systemd/system/k3s.service
 NEED_K3S_INSTALL=1
@@ -27,9 +33,7 @@ if [[ "$NEED_K3S_INSTALL" -eq 1 ]]; then
   INSTALL_K3S_EXEC="server ${K3S_EXTRA_ARGS:-}"
   export INSTALL_K3S_EXEC
   [[ -n "${K3S_VERSION:-}" ]] && export INSTALL_K3S_VERSION="$K3S_VERSION"
-  retry curl -fsSL https://get.k3s.io -o /tmp/k3s-install.sh
-  sh /tmp/k3s-install.sh
-  rm -f /tmp/k3s-install.sh
+  download_run https://get.k3s.io sh
 fi
 
 systemctl enable --now k3s
@@ -58,17 +62,14 @@ if command_exists helm; then
   zz-log i "[vps-setup] Helm already installed ($(helm version --short))."
 else
   zz-log i "[vps-setup] Installing Helm..."
-  retry curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -o /tmp/get-helm-3.sh
-  chmod +x /tmp/get-helm-3.sh
-  /tmp/get-helm-3.sh
-  rm -f /tmp/get-helm-3.sh
+  download_run https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 bash
 fi
 
 ok "k3s, kubectl and helm are installed. KUBECONFIG=${KUBECONFIG_PATH}"
 
 TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
 TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
-TRAEFIK_DASHBOARD_PORT="${TRAEFIK_DASHBOARD_PORT:-$(net_port traefik_dashboard)}"
+TRAEFIK_DASHBOARD_PORT="$(net_port traefik_dashboard)"
 
 if [[ "$TRAEFIK_ACME_EMAIL" == "admin@example.com" ]]; then
   zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
@@ -122,14 +123,13 @@ for i in $(seq 1 30); do
   kubectl -n kube-system get deploy traefik >/dev/null 2>&1 && break
   sleep 5
 done
-kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
+run_with_progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
   zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
 ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
-  require_root
   if [[ -x /usr/local/bin/k3s-uninstall.sh ]]; then
     zz-log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, any Marketplace-installed apps, etc.)..."
     /usr/local/bin/k3s-uninstall.sh
@@ -138,6 +138,21 @@ down() {
   fi
   rm -f /usr/local/bin/kubectl /etc/profile.d/k3s-kubeconfig.sh
   ok "k3s removed."
+}
+
+summary() {
+  cat <<EOF
+ Traefik (k3s):       public: http://$(hostname -I | awk '{print $1}') and https://$(hostname -I | awk '{print $1}')
+                       (a "letsencrypt" certResolver is configured and
+                       ready to use - it won't issue anything until you
+                       add the router.tls.certresolver annotation to your
+                       own Ingress; see README)
+                       dashboard: http://$(summary_host):$(net_port traefik_dashboard)/dashboard/
+                       (private access only, no login - see README's Security model)
+
+ kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
+                       via /etc/profile.d/k3s-kubeconfig.sh for new shells)
+EOF
 }
 
 dispatch_action "$@"

@@ -21,6 +21,35 @@ sudo bash vps-rancher/run.sh up
 sudo bash vps-rancher/run.sh down
 ```
 
+## Progress
+
+The install is mostly waiting (chart download, then Rancher's images being pulled,
+typically 3-8 minutes), and `helm --wait` itself prints nothing. While it waits,
+the step logs a line every `PROGRESS_INTERVAL` seconds, for example:
+
+```
+Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
+```
+
+(`no pod in cattle-system yet` before the first pod exists.) The same helper,
+`run_with_progress` in `vps-common`, also covers the cert-manager install, this
+step's final rollout wait and the Traefik rollout in `vps-k3s`.
+
+## If the install fails or hangs
+
+Rancher's Service is a `LoadBalancer`. On k3s, ServiceLB cannot place it while
+Traefik holds host ports 80/443, so the step creates the release **without**
+`helm --wait`, moves the Service to `RANCHER_HTTP_PORT`/`RANCHER_HTTPS_PORT`, and
+only then waits for the rollout (`UPGRADE FAILED: context deadline exceeded` was
+helm waiting for an address that could not exist yet). When a wait still fails,
+the step prints diagnostics before exiting: pods and services, recent events,
+the `svclb-*` pods in `kube-system` and why each unready pod is not running.
+Re-running `sudo vps-setup --only-vps-rancher` is safe: `helm upgrade --install`
+replaces a failed release, and a Service left rebound by a previous run is removed
+first so helm recreates it (merging the chart's ports 80/443 into the rebound ones
+would give duplicate port names). Rancher's pods keep running meanwhile; only the
+Service is briefly gone.
+
 ## Removing (`down`)
 
 `down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the Marketplace's cert-manager-dependent charts).
@@ -36,6 +65,7 @@ sudo vps-setup --down-vps-rancher
 | `CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
 | `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
+| `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
 | `RANCHER_HOSTNAME` | no | _(unset)_ | FQDN/IP used in Rancher's self-signed cert |
 | `RANCHER_HTTPS_PORT` | no | `7083` | Rancher HTTPS port |
 | `RANCHER_HTTP_PORT` | no | `7080` | Rancher HTTP port |

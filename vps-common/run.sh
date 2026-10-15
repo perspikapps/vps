@@ -72,23 +72,48 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 # vps-common/run.sh under its own bin dir rather than reusing a checkout.
 VPS_SETUP_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && pwd)"
 
-feature_package_json() {
-  local feature="$1" d
+# Real feature folders: run.sh alongside package.json. Skips node_modules/*
+# (and any other non-feature directory) instead of jq-parsing every
+# package.json under the checkout.
+feature_dirs() {
+  local d
   for d in "$VPS_SETUP_ROOT"/*/; do
-    # run.sh alongside package.json is what marks a real feature folder -
-    # skips node_modules/* (and any other non-feature directory) instead of
-    # jq-parsing every package.json under the checkout.
-    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]] && jq -e --arg n "@tomgrv/${feature}" '.name == $n' "${d}package.json" >/dev/null 2>&1; then
-      printf '%s' "${d}package.json"
-      return 0
+    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]]; then
+      printf '%s\n' "${d%/}"
     fi
   done
+}
+
+feature_package_json() {
+  local feature="$1" d
+  while IFS= read -r d; do
+    if jq -e --arg n "@tomgrv/${feature}" '.name == $n' "${d}/package.json" >/dev/null 2>&1; then
+      printf '%s' "${d}/package.json"
+      return 0
+    fi
+  done < <(feature_dirs)
   zz-log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name @tomgrv/${feature})."
   exit 1
 }
 
+# Feature folders that are installable steps (have a "vps" key), in vps.order.
+ordered_feature_dirs() {
+  local d
+  while IFS= read -r d; do
+    jq -r --arg d "$d" 'select(.vps != null) | [(.vps.order // 999), $d] | @tsv' "${d}/package.json"
+  done < <(feature_dirs) | sort -n | cut -f2
+}
+
+# Port <name> of <feature> (default: the calling step's own package.json). An
+# environment variable named after the port (cockpit_http -> COCKPIT_HTTP_PORT)
+# overrides the package.json default, for every caller alike.
 net_port() {
-  local name="$1" feature="${2:-}" pkg
+  local name="$1" feature="${2:-}" pkg override
+  override="${name^^}_PORT"
+  if [[ -n "${!override:-}" ]]; then
+    printf '%s\n' "${!override}"
+    return 0
+  fi
   if [[ -n "$feature" ]]; then
     pkg="$(feature_package_json "$feature")"
   else
@@ -97,14 +122,16 @@ net_port() {
   jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .port' "$pkg"
 }
 
-net_access() {
-  local name="$1" feature="${2:-}" pkg
-  if [[ -n "$feature" ]]; then
-    pkg="$(feature_package_json "$feature")"
-  else
-    pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
-  fi
-  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .access' "$pkg"
+# Every feature's ports as TSV (name, port, access, note); the port honours
+# the same environment override as net_port.
+all_network_ports() {
+  local d name port access note override
+  while IFS= read -r d; do
+    while IFS=$'\t' read -r name port access note; do
+      override="${name^^}_PORT"
+      printf '%s\t%s\t%s\t%s\n' "$name" "${!override:-$port}" "$access" "$note"
+    done < <(jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}/package.json")
+  done < <(feature_dirs)
 }
 
 # Private access: ports with access "private" are only reachable over one
@@ -128,16 +155,22 @@ private_address() {
   [[ -z "$iface" ]] || ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true
 }
 
-all_network_ports() {
-  local d
-  for d in "$VPS_SETUP_ROOT"/*/; do
-    # Same run.sh-alongside-package.json filter as feature_package_json:
-    # skips node_modules/* instead of jq-parsing every package.json under
-    # the checkout.
-    if [[ -f "${d}run.sh" ]] && [[ -f "${d}package.json" ]]; then
-      jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}package.json"
-    fi
-  done
+# Host for the URLs a step's summary prints: the private address, if any.
+summary_host() {
+  local ip
+  ip="$(private_address)"
+  printf '%s' "${ip:-<private-ip>}"
+}
+
+# Fetch an installer script and run it with <shell> (default sh), via a
+# private temp file instead of a predictable /tmp path.
+download_run() {
+  local url="$1" shell="${2:-sh}" f rc=0
+  f="$(mktemp)"
+  retry curl -fsSL "$url" -o "$f"
+  "$shell" "$f" || rc=$?
+  rm -f "$f"
+  return "$rc"
 }
 
 # || true: head closing early sends tr a SIGPIPE that set -o pipefail
@@ -151,6 +184,59 @@ ensure_line() {
   grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
 }
 
+# One status line for a namespace: elapsed time, pods ready/total, and what the
+# others are doing (ContainerCreating, ImagePullBackOff...).
+progress_line() {
+  local ns="$1" label="$2" elapsed="$3" pods ready total waiting
+  pods="$(kubectl -n "$ns" get pods --no-headers 2>/dev/null || true)"
+  if [[ -z "$pods" ]]; then
+    zz-log i "[vps-setup] ${label}: ${elapsed}s, no pod in ${ns} yet (chart and images are still being fetched)..."
+    return
+  fi
+  total="$(printf '%s\n' "$pods" | grep -c .)"
+  ready="$(printf '%s\n' "$pods" | awk '$3 == "Completed" || ($3 == "Running" && split($2, a, "/") && a[1] == a[2]) { n++ } END { print n + 0 }')"
+  waiting="$(printf '%s\n' "$pods" | awk '$3 != "Completed" && !($3 == "Running" && split($2, a, "/") && a[1] == a[2]) { printf "%s=%s ", $1, $3 }')"
+  zz-log i "[vps-setup] ${label}: ${elapsed}s, ${ready}/${total} pods ready${waiting:+ - waiting: ${waiting}}"
+}
+
+# run_with_progress <namespace> <label> <command...>: runs the command as is
+# (its output and exit status untouched) and, while it works, logs a status
+# line every PROGRESS_INTERVAL seconds (default 15), so a long `helm --wait`
+# or `kubectl rollout status` does not look frozen.
+run_with_progress() {
+  local ns="$1" label="$2" parent=$$ start=$SECONDS watcher rc=0
+  shift 2
+  (
+    while sleep "${PROGRESS_INTERVAL:-15}"; do
+      kill -0 "$parent" 2>/dev/null || exit 0
+      progress_line "$ns" "$label" "$((SECONDS - start))"
+    done
+  ) &
+  watcher=$!
+  "$@" || rc=$?
+  kill "$watcher" 2>/dev/null || true
+  wait "$watcher" 2>/dev/null || true
+  return "$rc"
+}
+
+# What is stuck in a namespace, for a failed wait: pods and services, recent
+# events, the k3s ServiceLB pods (a LoadBalancer Service whose host ports are
+# taken stays pending there) and why each unready pod is not running.
+dump_diagnostics() {
+  local ns="$1" pod
+  zz-log w "[vps-setup] --- diagnostics for namespace ${ns} ---"
+  kubectl -n "$ns" get pods,svc -o wide 2>&1 || true
+  kubectl -n "$ns" get events --sort-by=.lastTimestamp 2>&1 | tail -n 15 || true
+  kubectl -n kube-system get pods -o wide 2>&1 | grep -E 'NAME|svclb' || true
+  for pod in $(kubectl -n "$ns" get pods --no-headers 2>/dev/null | awk '$3 != "Running" && $3 != "Completed" {print $1}'); do
+    kubectl -n "$ns" describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 8 || true
+  done
+  for pod in $(kubectl -n kube-system get pods --no-headers 2>/dev/null | awk '/svclb/ && $3 != "Running" {print $1}'); do
+    kubectl -n kube-system describe pod "$pod" 2>&1 | sed -n '/^Events:/,$p' | tail -n 4 || true
+  done
+  zz-log w "[vps-setup] --- end of diagnostics ---"
+}
+
 ensure_cert_manager() {
   if kubectl get deploy -n cert-manager cert-manager >/dev/null 2>&1; then
     zz-log i "[vps-setup] cert-manager already installed."
@@ -162,20 +248,25 @@ ensure_cert_manager() {
   kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
   local version_arg=()
   [[ -n "${CERT_MANAGER_VERSION:-}" ]] && version_arg=(--version "$CERT_MANAGER_VERSION")
-  helm upgrade --install cert-manager jetstack/cert-manager \
+  run_with_progress cert-manager "cert-manager install" \
+    helm upgrade --install cert-manager jetstack/cert-manager \
     --namespace cert-manager \
     --set crds.enabled=true \
     "${version_arg[@]}" \
     --wait --timeout 5m
 }
 
+# Runs the step's up(), down() or summary(); root is required for the first two.
+# A step without summary() has nothing to report.
 dispatch_action() {
   local action="${1:-up}"
   case "$action" in
     up)
+      require_root
       up
       ;;
     down)
+      require_root
       if declare -f down >/dev/null; then
         down
       else
@@ -183,8 +274,11 @@ dispatch_action() {
         exit 1
       fi
       ;;
+    summary)
+      if declare -f summary >/dev/null; then summary; fi
+      ;;
     *)
-      zz-log e "[vps-setup] Unknown action '${action}' (expected 'up' or 'down')."
+      zz-log e "[vps-setup] Unknown action '${action}' (expected 'up', 'down' or 'summary')."
       exit 1
       ;;
   esac
