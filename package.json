@@ -150,6 +150,7 @@
   "workspaces": [
     "vps-cloudflare",
     "vps-cockpit",
+    "vps-coder",
     "vps-common",
     "vps-dokploy",
     "vps-k3s",

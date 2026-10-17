@@ -1,0 +1,54 @@
+{
+  "name": "@tomgrv/vps-coder",
+  "version": "3.0.0",
+  "description": "Coder (remote development environments) with in-cluster PostgreSQL",
+  "bin": {
+    "vps-coder": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/vps-rancher": "*",
+    "@tomgrv/vps-common": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": false,
+    "inputs": {
+      "CODER_ACCESS_URL": {
+        "description": "Externally reachable URL of Coder (default: http://<private address>:<coder_http port>)",
+        "required": false,
+        "default": ""
+      },
+      "CODER_CHART_VERSION": {
+        "description": "Pin the Coder chart version (e.g. 2.37.4 stable); empty = latest",
+        "required": false,
+        "default": ""
+      },
+      "CODER_DB_PASSWORD": {
+        "description": "PostgreSQL password for Coder (default: generated and saved)",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "CODER_DB_STORAGE": {
+        "description": "PostgreSQL volume size",
+        "required": false,
+        "default": "10Gi"
+      }
+    },
+    "order": 8,
+    "outputs": {},
+    "ports": [
+      {
+        "name": "coder_http",
+        "port": 7100,
+        "access": "private"
+      }
+    ]
+  }
+}

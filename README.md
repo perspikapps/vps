@@ -339,6 +339,7 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
 | `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
 | `vps-dokploy/`        | Opt-in [Dokploy](https://dokploy.com) (Docker, Swarm, Traefik) via its official installer; an alternative to `vps-k3s` - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). |
+| `vps-coder/`          | Opt-in [Coder](https://coder.com) via helm, following its [Rancher guide](https://coder.com/docs/install/server/rancher): Bitnami PostgreSQL, the upstream chart, port 7100 (private). Depends on `vps-rancher`. |
 | `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                                  |
 | `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, Infisical, GitHub ARC). No `run.sh`; installed from Rancher's UI. |
 | `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                               |
@@ -594,6 +595,8 @@ Each feature's README lists its own variables in full.
 | `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                            |
 | `CLOUDFLARE_TUNNEL_TOKEN`                  | unset                                | Tunnel token for `vps-cloudflare` (**required** when that opt-in step is selected)                                |
 | `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
+| `CODER_HTTP_PORT`                          | `7100`                               | Coder port (opt-in `vps-coder`)                                                                                   |
+| `CODER_ACCESS_URL`                         | private address, port 7100           | Externally reachable URL of Coder                                                                                 |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
 | `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |
