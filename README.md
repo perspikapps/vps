@@ -334,6 +334,7 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
 | `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
 | `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
+| `vps-cloudflare/`     | Opt-in Cloudflare Tunnel + WARP private routes as the private network; mutually exclusive with `vps-tailscale` - see [Private access](#private-access). |
 | `vps-cockpit/`        | Installs Cockpit (plus packagekit and files modules) on ports 9080/9083.                                                                                                                         |
 | `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
 | `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
@@ -474,6 +475,13 @@ ports are `"access": "private"` and which interface carries the private network:
   It runs before `vps-security` for that reason.
 - `vps-security` opens every private port on that interface only, and the final
   summary shows its address. With no interface, private ports stay closed.
+- `vps-cloudflare` (opt-in) is the alternative provider: it persists
+  `VPS_PRIVATE_INTERFACE=vpscf0`, a dummy interface holding the address WARP
+  clients reach through a Cloudflare Tunnel private network route. It is
+  **mutually exclusive** with `vps-tailscale` (`config.conflicts` on both sides,
+  and `up` refuses on a host already set up with Tailscale):
+  `sudo vps-setup --skip-vps-tailscale --with-vps-cloudflare`. See
+  [`vps-cloudflare`](vps-cloudflare/README.md).
 - For another network (WireGuard, a LAN NIC...) skip the Tailscale step and set
   the variable yourself: `sudo VPS_PRIVATE_INTERFACE=wg0 vps-setup
 --skip-vps-tailscale`. It also works as a menu input and from
@@ -584,6 +592,8 @@ Each feature's README lists its own variables in full.
 | `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                                       |
 | `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                                  |
 | `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                            |
+| `CLOUDFLARE_TUNNEL_TOKEN`                  | unset                                | Tunnel token for `vps-cloudflare` (**required** when that opt-in step is selected)                                |
+| `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
 | `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |

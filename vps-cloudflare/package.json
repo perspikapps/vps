@@ -1,0 +1,44 @@
+{
+  "name": "@tomgrv/vps-cloudflare",
+  "version": "3.0.0",
+  "description": "Cloudflare Tunnel as the private network (alternative to Tailscale)",
+  "bin": {
+    "vps-cloudflare": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/vps-common": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "conflicts": [
+      "vps-tailscale"
+    ],
+    "order": 1.5,
+    "default": false,
+    "inputs": {
+      "CLOUDFLARE_PRIVATE_IP": {
+        "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",
+        "required": false,
+        "default": "10.254.254.1"
+      },
+      "CLOUDFLARE_TUNNEL_TOKEN": {
+        "description": "Cloudflare Tunnel token (Zero Trust > Networks > Tunnels)",
+        "required": true,
+        "default": "",
+        "secret": true
+      },
+      "PURGE_CLOUDFLARED": {
+        "description": "Also remove the cloudflared package on down (true/false)",
+        "required": false,
+        "default": "false"
+      }
+    },
+    "outputs": {}
+  }
+}

@@ -72,7 +72,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     : >"$stubs/zz-colors"
     ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
-    for step in system dokploy; do
+    for step in system dokploy cloudflare; do
         run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
         [ "$status" -eq 0 ]
         [ -z "$output" ]
