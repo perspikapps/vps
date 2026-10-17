@@ -2,7 +2,7 @@
 # Rancher on k3s. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the

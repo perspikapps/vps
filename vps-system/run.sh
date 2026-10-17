@@ -2,7 +2,7 @@
 # Base system update and common CLI utilities.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 

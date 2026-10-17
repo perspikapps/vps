@@ -72,7 +72,7 @@ plus the Ubuntu/root checks, the legacy flags below (translated to
 A `zz-use perspikapps/vps/vps-setup` only fetches the `vps-setup/` folder, so
 `zz-setup` clones/updates a full checkout into `/opt/vps` on every run (run from
 inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
-`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF` select the fork/branch - see
+`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF` select the fork/branch - see
 [Running from a non-standard branch or fork](#running-from-a-non-standard-branch-or-fork).
 
 > [!NOTE]
@@ -252,32 +252,32 @@ instruction instead of failing mid-install.
 
 Two fetches must agree: `zz-use`'s fetch of the `vps-setup` folder (`@<ref>`),
 and `vps-setup`'s internal clone of the full repo
-(`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`):
+(`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF`):
 
 ```bash
 BRANCH=my-feature
 
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz-use "perspikapps/vps/vps-setup@${BRANCH}"
-sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
+sudo ZZ_SETUP_REF="$BRANCH" vps-setup
 ```
 
 | Variable             | Default                                  | Purpose                             |
 | -------------------- | ---------------------------------------- | ----------------------------------- |
 | `VPS_SETUP_REPO_URL` | `https://github.com/perspikapps/vps.git` | Clone a fork instead                |
-| `VPS_SETUP_REPO_REF` | `main`                                   | Branch, tag, or commit to check out |
+| `ZZ_SETUP_REF`       | `main`                                   | Branch, tag, or commit to check out |
 
 For a fork, set both and fetch `vps-setup` from the fork too:
 
 ```bash
 zz-use "<you>/vps/vps-setup@my-feature"
 sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
-    VPS_SETUP_REPO_REF=my-feature \
+    ZZ_SETUP_REF=my-feature \
     vps-setup
 ```
 
 > [!WARNING]
-> `export VPS_SETUP_REPO_REF=...` then `sudo vps-setup` does **not** work: `sudo`
+> `export ZZ_SETUP_REF=...` then `sudo vps-setup` does **not** work: `sudo`
 > resets the environment, so `vps-setup` silently falls back to `main`. Put the
 > assignment on the `sudo` line (as above) or use `sudo -E` (if sudoers allows).
 

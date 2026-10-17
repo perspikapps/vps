@@ -4,15 +4,15 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 
 # vps-common comes from zz-use's download cache, one slot per repo+ref: running a
-# branch needs VPS_SETUP_REPO_REF set to it too, or an older copy is used.
+# branch fetches its own vps-common (zz-use pins it to ZZ_SETUP_REF); an older copy is used otherwise.
 declare -F wildcard_domain >/dev/null || {
-  zz-log e "[vps-setup] The cached vps-common is older than this step. Run it with the same ref for both:" \
-       "sudo ZZ_SETUP_REF=<ref> VPS_SETUP_REPO_REF=<ref> zz-setup perspikapps/vps -o vps-coder"
+  zz-log e "[vps-setup] The cached vps-common is older than this step. Run it from the branch:" \
+       "sudo ZZ_SETUP_REF=<ref> zz-setup perspikapps/vps -o vps-coder"
   exit 1
 }
 
