@@ -35,6 +35,15 @@ sudo bash vps-coder/run.sh down
 
 The Marketplace's [`charts/coder`](../charts/coder/README.md) is the Rancher-UI route to the same upstream chart; do not install both.
 
+## Workspace templates: use Kubernetes, not Docker
+
+Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/run/docker.sock` for it. The **Docker** starter template fails at its first resource with `failed to create Docker client ... Cannot connect to the Docker daemon` (`docker_volume`). Create workspaces from the **Kubernetes** starter template instead (Templates > Create > Starter templates > Kubernetes), which runs them as pods in the cluster, with these variables:
+
+- `use_kubeconfig = false` (use the pod's own service account, not a kubeconfig);
+- `namespace = coder` (the chart's service account may create pods and volume claims in its own namespace).
+
+Do not mount a Docker socket into the Coder pod: there is no Docker on this node. A host with Docker (`vps-dokploy`) is the other route, and it is exclusive with k3s.
+
 ## Removing (`down`)
 
 ```bash

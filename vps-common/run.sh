@@ -179,10 +179,22 @@ summary_host() {
   printf '%s' "${ip:-<private-ip>}"
 }
 
+# Public IPv4 of this host: the default-route source address, or - behind NAT
+# (a private address, as on some clouds) - what an external echo service sees.
+public_ip() {
+  local ip
+  ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
+  if [[ -z "$ip" || "$ip" =~ ^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
+    ip="$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || true)"
+  fi
+  printf '%s' "$ip"
+}
+
 # Wildcard DNS: apps that need per-app subdomains (Coder's workspace apps) take
 # one domain. vps-system persists WILDCARD_DOMAIN when it is set; the fallback
-# is nip.io on the private address (else the default-route address), which
-# resolves any <a-b-c-d>.nip.io and *.<a-b-c-d>.nip.io to that IP with no DNS to set up.
+# is nip.io on the PUBLIC address (never the private/Tailscale one: the apps are
+# served by the public ingress), which resolves any <a-b-c-d>.nip.io and
+# *.<a-b-c-d>.nip.io to that IP with no DNS to set up.
 VPS_WILDCARD_FILE="${VPS_WILDCARD_FILE:-/etc/vps-wildcard-domain.env}"
 
 wildcard_domain() {
@@ -191,8 +203,7 @@ wildcard_domain() {
     d="$(sed -n 's/^WILDCARD_DOMAIN=//p' "$VPS_WILDCARD_FILE" | tail -n1)"
   fi
   if [[ -z "$d" ]]; then
-    ip="$(private_address)"
-    [[ -n "$ip" ]] || ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
+    ip="$(public_ip)"
     [[ -z "$ip" ]] || d="${ip//./-}.nip.io"
   fi
   printf '%s' "$d"
