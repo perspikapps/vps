@@ -42,9 +42,26 @@ jobs:
             helm dependency build "$chart"
           done
 
-      - name: Run chart-releaser
+      - name: Create gh-pages branch if missing
+        run: |
+          git ls-remote --exit-code --heads origin gh-pages >/dev/null && exit 0
+          git worktree add --orphan -b gh-pages "$RUNNER_TEMP/gh-pages"
+          git -C "$RUNNER_TEMP/gh-pages" commit --allow-empty -m 'chore: init gh-pages'
+          git -C "$RUNNER_TEMP/gh-pages" push origin gh-pages
+
+      # Not the action's release mode: it only releases charts changed since the
+      # latest git tag, which here is the repo's own vX.Y.Z tag, not a chart release.
+      - name: Install chart-releaser
         uses: helm/chart-releaser-action@v1
         with:
-          charts_dir: charts
+          install_only: true
+
+      - name: Package, release and index all charts
         env:
           CR_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          CR_OWNER: '${{ github.repository_owner }}'
+          CR_GIT_REPO: '${{ github.event.repository.name }}'
+        run: |
+          for chart in charts/*/; do cr package "$chart"; done
+          cr upload --skip-existing
+          cr index --push
