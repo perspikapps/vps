@@ -150,7 +150,7 @@
   "workspaces": [
     "vps-cockpit",
     "vps-common",
-    "vps-dockermanager",
+    "vps-dokploy",
     "vps-k3s",
     "vps-marketplace",
     "vps-rancher",
