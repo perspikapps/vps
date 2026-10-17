@@ -17,9 +17,7 @@
     "zz-setup": "*"
   },
   "config": {
-    "zz": {
-      "default": true,
-      "order": 7
-    }
+    "default": true,
+    "order": 7
   }
 }

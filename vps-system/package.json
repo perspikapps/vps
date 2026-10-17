@@ -16,17 +16,15 @@
     "zz-setup": "*"
   },
   "config": {
-    "zz": {
-      "default": true,
-      "inputs": {
-        "TZ": {
-          "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
-          "required": false,
-          "default": ""
-        }
-      },
-      "order": 0,
-      "outputs": {}
-    }
+    "default": true,
+    "inputs": {
+      "TZ": {
+        "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
+        "required": false,
+        "default": ""
+      }
+    },
+    "order": 0,
+    "outputs": {}
   }
 }
