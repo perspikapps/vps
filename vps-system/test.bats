@@ -45,3 +45,10 @@ DIR="$REPO_ROOT/vps-system"
     [ "$status" -eq 0 ]
 }
 
+
+@test "WILDCARD_DOMAIN is validated, persisted for vps-common's wildcard_domain, and optional" {
+    grep -q 'zz-persist -f "\$VPS_WILDCARD_FILE" WILDCARD_DOMAIN' "$DIR/run.sh"
+    grep -q 'nip.io' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs.WILDCARD_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}

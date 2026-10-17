@@ -2,7 +2,7 @@
 # Admin user, SSH hardening, ufw, fail2ban. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 

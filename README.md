@@ -72,7 +72,7 @@ plus the Ubuntu/root checks, the legacy flags below (translated to
 A `zz-use perspikapps/vps/vps-setup` only fetches the `vps-setup/` folder, so
 `zz-setup` clones/updates a full checkout into `/opt/vps` on every run (run from
 inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
-`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF` select the fork/branch - see
+`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF` select the fork/branch - see
 [Running from a non-standard branch or fork](#running-from-a-non-standard-branch-or-fork).
 
 > [!NOTE]
@@ -252,32 +252,32 @@ instruction instead of failing mid-install.
 
 Two fetches must agree: `zz-use`'s fetch of the `vps-setup` folder (`@<ref>`),
 and `vps-setup`'s internal clone of the full repo
-(`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`):
+(`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF`):
 
 ```bash
 BRANCH=my-feature
 
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz-use "perspikapps/vps/vps-setup@${BRANCH}"
-sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
+sudo ZZ_SETUP_REF="$BRANCH" vps-setup
 ```
 
 | Variable             | Default                                  | Purpose                             |
 | -------------------- | ---------------------------------------- | ----------------------------------- |
 | `VPS_SETUP_REPO_URL` | `https://github.com/perspikapps/vps.git` | Clone a fork instead                |
-| `VPS_SETUP_REPO_REF` | `main`                                   | Branch, tag, or commit to check out |
+| `ZZ_SETUP_REF`       | `main`                                   | Branch, tag, or commit to check out |
 
 For a fork, set both and fetch `vps-setup` from the fork too:
 
 ```bash
 zz-use "<you>/vps/vps-setup@my-feature"
 sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
-    VPS_SETUP_REPO_REF=my-feature \
+    ZZ_SETUP_REF=my-feature \
     vps-setup
 ```
 
 > [!WARNING]
-> `export VPS_SETUP_REPO_REF=...` then `sudo vps-setup` does **not** work: `sudo`
+> `export ZZ_SETUP_REF=...` then `sudo vps-setup` does **not** work: `sudo`
 > resets the environment, so `vps-setup` silently falls back to `main`. Put the
 > assignment on the `sudo` line (as above) or use `sudo -E` (if sudoers allows).
 
@@ -334,10 +334,12 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
 | `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
 | `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
+| `vps-cloudflare/`     | Opt-in Cloudflare Tunnel + WARP private routes as the private network; mutually exclusive with `vps-tailscale` - see [Private access](#private-access). |
 | `vps-cockpit/`        | Installs Cockpit (plus packagekit and files modules) on ports 9080/9083.                                                                                                                         |
 | `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
 | `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
 | `vps-dokploy/`        | Opt-in [Dokploy](https://dokploy.com) (Docker, Swarm, Traefik) via its official installer; an alternative to `vps-k3s` - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). |
+| `vps-coder/`          | Opt-in [Coder](https://coder.com) via helm, following its [Rancher guide](https://coder.com/docs/install/server/rancher): Bitnami PostgreSQL, the upstream chart exposed through Traefik (public). Depends on `vps-rancher`. |
 | `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                                  |
 | `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, Infisical, GitHub ARC). No `run.sh`; installed from Rancher's UI. |
 | `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                               |
@@ -474,6 +476,13 @@ ports are `"access": "private"` and which interface carries the private network:
   It runs before `vps-security` for that reason.
 - `vps-security` opens every private port on that interface only, and the final
   summary shows its address. With no interface, private ports stay closed.
+- `vps-cloudflare` (opt-in) is the alternative provider: it persists
+  `VPS_PRIVATE_INTERFACE=vpscf0`, a dummy interface holding the address WARP
+  clients reach through a Cloudflare Tunnel private network route. It is
+  **mutually exclusive** with `vps-tailscale` (`config.conflicts` on both sides,
+  and `up` refuses on a host already set up with Tailscale):
+  `sudo vps-setup --skip-vps-tailscale --with-vps-cloudflare`. See
+  [`vps-cloudflare`](vps-cloudflare/README.md).
 - For another network (WireGuard, a LAN NIC...) skip the Tailscale step and set
   the variable yourself: `sudo VPS_PRIVATE_INTERFACE=wg0 vps-setup
 --skip-vps-tailscale`. It also works as a menu input and from
@@ -584,6 +593,11 @@ Each feature's README lists its own variables in full.
 | `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                                       |
 | `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                                  |
 | `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                            |
+| `CLOUDFLARE_TUNNEL_TOKEN`                  | unset                                | Tunnel token for `vps-cloudflare` (**required** when that opt-in step is selected)                                |
+| `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
+| `CODER_ADMIN_EMAIL` / `CODER_ADMIN_USERNAME`  | `admin@<wildcard domain>` / `admin`  | First Coder admin (`vps-coder`; password generated and saved)                                                     |
+| `CODER_ACCESS_URL`                         | `http://coder.<wildcard domain>`     | URL of Coder (`vps-coder`, through Traefik)                                                                       |
+| `WILDCARD_DOMAIN`                          | unset (nip.io fallback)              | Wildcard DNS domain for apps needing subdomains, read by `vps-coder` (set in `vps-system`)                        |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
 | `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |
