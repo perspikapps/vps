@@ -48,3 +48,8 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q '\*\.${WILDCARD}' "$DIR/run.sh"
     ! grep -q 'patch_service_port' "$DIR/run.sh"
 }
+
+@test "fails early, naming VPS_SETUP_REPO_REF, when the cached vps-common predates wildcard_domain" {
+    grep -q 'declare -F wildcard_domain' "$DIR/run.sh"
+    grep -q 'VPS_SETUP_REPO_REF=<ref>' "$DIR/run.sh"
+}
