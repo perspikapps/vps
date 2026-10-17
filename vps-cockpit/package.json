@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-cockpit",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Cockpit install",
   "bin": {
     "vps-cockpit": "run.sh"

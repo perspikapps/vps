@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.0.0 (2026-10-17)
+
+*Commits from: v2.11.0..HEAD*
+
+### 💥 BREAKING CHANGES
+
+- 💥 ♻️ migrate package.json vps key to engines.zz-setup (#45)
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v2.11.0' into develop
+- update features (#34)
+
 ## 2.11.0 (2026-10-15)
 
 *Commits from: v2.10.0..HEAD*
@@ -327,5 +341,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-15 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-17 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
