@@ -29,6 +29,8 @@ sudo bash vps-coder/run.sh down
 3. Creates the `coder-db-url` Secret the chart reads `CODER_PG_CONNECTION_URL` from.
 4. Installs the upstream `coder` chart behind an **Ingress on k3s's Traefik** (class `traefik`, ports 80/443): host `coder.<wildcard domain>` for the dashboard and `*.<wildcard domain>` for workspace apps. The domain is `vps-system`'s `WILDCARD_DOMAIN`, else nip.io (`coder.54-37-230-112.nip.io`).
 
+5. Waits for Coder, then (through a port-forward, so neither DNS nor Traefik is involved) creates the **first admin** and the **`devcontainer` template**, both once: the admin's password is generated and saved to `/root/.vps-secrets.env` (shown in the final summary), and the template is the Kubernetes + [envbuilder](https://github.com/coder/envbuilder) devcontainer starter embedded in the server's own `coder` binary (so it matches the installed version), pushed with `namespace=coder` and `use_kubeconfig=false`. Workspaces build their `devcontainer.json` repo in a pod, without Docker. A re-run keeps the admin and does not push the template again; if the admin's password was changed in the UI the template step is skipped with a warning. Both steps are best effort: on failure the install still succeeds and you finish in the UI.
+
 `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose: Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
 **Public by design:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and set `CODER_ACCESS_URL` to the `https://` URL; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
@@ -37,7 +39,7 @@ The Marketplace's [`charts/coder`](../charts/coder/README.md) is the Rancher-UI 
 
 ## Workspace templates: use Kubernetes, not Docker
 
-Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/run/docker.sock` for it. The **Docker** starter template fails at its first resource with `failed to create Docker client ... Cannot connect to the Docker daemon` (`docker_volume`). Create workspaces from the **Kubernetes** starter template instead (Templates > Create > Starter templates > Kubernetes), which runs them as pods in the cluster, with these variables:
+Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/run/docker.sock` for it. The **Docker** starter template fails at its first resource with `failed to create Docker client ... Cannot connect to the Docker daemon` (`docker_volume`). Create workspaces from a Kubernetes-based template instead: the step already creates `devcontainer`, or use Templates > Create > Starter templates > Kubernetes, which runs them as pods in the cluster, with these variables:
 
 - `use_kubeconfig = false` (use the pod's own service account, not a kubeconfig);
 - `namespace = coder` (the chart's service account may create pods and volume claims in its own namespace).
@@ -46,20 +48,14 @@ Do not mount a Docker socket into the Coder pod: there is no Docker on this node
 
 ## Envbuilder (dev container) template
 
-Following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the Kubernetes dev container template builds a workspace from a repo's `devcontainer.json`, and can ask the developer for the repo URL. Pushing a template needs an admin, who only exists after the first visit, so the step does it only when you pass `CODER_SESSION_TOKEN` (Account > Tokens) on a re-run:
-
-```bash
-sudo ZZ_SETUP_REF=<ref> CODER_SESSION_TOKEN=... zz-setup perspikapps/vps -o vps-coder
-```
-
-It installs the `coder` CLI if missing, then runs the guide's commands with `use_kubeconfig=false` and `namespace=coder`:
+The `devcontainer` template follows [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the Kubernetes dev container starter builds a workspace from a repo's `devcontainer.json` (the developer is asked for the repo URL). The step pushes it for you, as the admin it just created (see "What it does"), equivalent to:
 
 ```bash
 coder templates init --id kubernetes-devcontainer
-cd kubernetes-devcontainer && coder templates push
+cd kubernetes-devcontainer && coder templates push --variable use_kubeconfig=false --variable namespace=coder
 ```
 
-A failed push only warns; do the two commands by hand then. For faster starts, set the template's cache repository (see [Envbuilder security and caching](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/envbuilder-security-caching)).
+If that push warns, run those two commands by hand. For faster starts, set the template's cache repository (see [Envbuilder security and caching](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/envbuilder-security-caching)).
 
 ## Removing (`down`)
 
@@ -67,15 +63,17 @@ A failed push only warns; do the two commands by hand then. For faster starts, s
 sudo vps-setup --down-vps-coder
 ```
 
-Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database password.
+Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords.
 
 ## Environment variables
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `CODER_ADMIN_EMAIL` | no | `admin@<wildcard domain>` | Email of the first Coder admin |
+| `CODER_ADMIN_PASSWORD` | no | _(generated)_ | Password of the first Coder admin |
+| `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
 | `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
-| `CODER_SESSION_TOKEN` | no | _(unset)_ | Admin token: also pushes the Envbuilder `kubernetes-devcontainer` template; empty = skip |
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
 
@@ -85,7 +83,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Not verified on a live host
 
-- The Envbuilder template push: the `use_kubeconfig`/`namespace` variable names, whether the template needs more (such as a cache repository), and the `coder` CLI reaching the nip.io URL from the host itself.
+- The admin and template bootstrap: the `/users/first` and `/users/login` API shapes, the `kubernetes-devcontainer` id, the `use_kubeconfig`/`namespace` variable names, and whether the template needs more (such as a cache repository).
 - The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
 - The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.
 - That the login cookie error was fully explained by the host/wildcard mismatch: inferred from Coder's wildcard docs, not reproduced.

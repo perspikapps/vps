@@ -54,11 +54,16 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'ZZ_SETUP_REF=<ref> zz-setup' "$DIR/run.sh"
 }
 
-@test "the Envbuilder template push is opt-in on a session token, never fails the install, token not on a command line" {
+@test "creates the first admin and the devcontainer template, best effort, with the password stored" {
+    grep -q '/users/first' "$DIR/run.sh"
     grep -q 'kubernetes-devcontainer' "$DIR/run.sh"
-    grep -q 'if \[\[ -n "\${CODER_SESSION_TOKEN:-}" \]\]' "$DIR/run.sh"
-    grep -q '|| zz-log w' "$DIR/run.sh"
-    ! grep -q -- '--token' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs.CODER_SESSION_TOKEN; process.exit(i && i.required === false && i.secret === true ? 0 : 1)"
-    [ "$status" -eq 0 ]
+    grep -q 'vps_secret_set CODER_ADMIN_PASSWORD' "$DIR/run.sh"
+    grep -q 'bootstrap_coder' "$DIR/run.sh"
+    grep -q 'finish it in the UI' "$DIR/run.sh"
+}
+
+@test "the admin password and session token never appear on a command line" {
+    ! grep -q -- '--first-user-password' "$DIR/run.sh"
+    ! grep -qE 'CODER_SESSION_TOKEN=\$' "$DIR/run.sh"
+    grep -q "d @-" "$DIR/run.sh" || grep -q -- '-d @-' "$DIR/run.sh"
 }

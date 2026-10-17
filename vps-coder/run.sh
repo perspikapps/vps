@@ -18,6 +18,52 @@ declare -F wildcard_domain >/dev/null || {
 
 CODER_NAMESPACE=coder
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+CODER_API=http://127.0.0.1:18080/api/v2
+
+# Creates the first admin (once) and the "devcontainer" template (once), through
+# a port-forward to the pod: Traefik and DNS are not needed, and the template
+# comes from the starter embedded in the server's own `coder` binary, so it
+# always matches the installed version. Everything here is best effort: a
+# failure warns and leaves a working Coder (create them in the UI instead).
+bootstrap_coder() {
+  local email="$1" user="$2" pw="$3" i code token pf_pid
+  kubectl -n "$CODER_NAMESPACE" port-forward deploy/coder 18080:8080 >/dev/null 2>&1 &
+  pf_pid=$!
+  for i in $(seq 1 30); do
+    curl -fs -o /dev/null "$CODER_API/buildinfo" && break
+    sleep 2
+  done
+  _coder_bootstrap_steps "$email" "$user" "$pw" || zz-log w "[vps-setup] Coder admin/template bootstrap incomplete (see above); finish it in the UI."
+  kill "$pf_pid" 2>/dev/null || true
+}
+
+_coder_bootstrap_steps() {
+  local email="$1" user="$2" pw="$3" code token
+  curl -fs -o /dev/null "$CODER_API/buildinfo" || { zz-log w "[vps-setup] Coder API not reachable through the port-forward."; return 1; }
+
+  code="$(curl -s -o /dev/null -w '%{http_code}' "$CODER_API/users/first")"
+  if [[ "$code" == "404" ]]; then
+    zz-log i "[vps-setup] Creating the Coder admin user '${user}'..."
+    jq -n --arg e "$email" --arg u "$user" --arg p "$pw" '{email: $e, username: $u, name: $u, password: $p, trial: false}' |
+      curl -fsS -o /dev/null -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/first" || return 1
+  fi
+
+  token="$(jq -n --arg e "$email" --arg p "$pw" '{email: $e, password: $p}' |
+    curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/login" 2>/dev/null | jq -r '.session_token // empty')" || true
+  [[ -n "$token" ]] || { zz-log w "[vps-setup] Could not log in as '${email}' (password changed since?); skipping the template."; return 1; }
+
+  if curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -e '.[] | select(.name == "devcontainer")' >/dev/null; then
+    zz-log i "[vps-setup] Template 'devcontainer' already exists; leaving it as is."
+    return 0
+  fi
+  zz-log i "[vps-setup] Creating the 'devcontainer' template (Kubernetes + envbuilder starter)..."
+  # token via stdin, not argv; workspaces run as pods in this namespace with the pod's service account
+  printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c '
+    read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
+    coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
+    coder templates push devcontainer -d /tmp/devcontainer -y \
+      --var namespace='"$CODER_NAMESPACE"' --var use_kubeconfig=false'
+}
 
 up() {
 command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first."; exit 1; }
@@ -87,29 +133,18 @@ if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAM
   exit 1
 fi
 
-ok "Coder installed: ${ACCESS_URL} (via Traefik; the first visit creates the admin account)."
-
-# Envbuilder template (https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder):
-# pushing needs an admin, who only exists after the first visit, so it is opt-in
-# with a session token and never fails the install.
-if [[ -n "${CODER_SESSION_TOKEN:-}" ]]; then
-  push_envbuilder_template "$ACCESS_URL" || zz-log w "[vps-setup] Could not push the kubernetes-devcontainer template; do it by hand (see the README)."
+ADMIN_EMAIL="${CODER_ADMIN_EMAIL:-admin@${WILDCARD:-coder.local}}"
+ADMIN_USER="${CODER_ADMIN_USERNAME:-admin}"
+ADMIN_PASSWORD="$(vps_secret CODER_ADMIN_PASSWORD)"
+if [[ -z "$ADMIN_PASSWORD" ]]; then
+  ADMIN_PASSWORD="$(random_password 24)"
+  vps_secret_set CODER_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 fi
-}
+vps_secret_set CODER_ADMIN_EMAIL "$ADMIN_EMAIL"
+vps_secret_set CODER_ADMIN_USERNAME "$ADMIN_USER"
+bootstrap_coder "$ADMIN_EMAIL" "$ADMIN_USER" "$ADMIN_PASSWORD"
 
-push_envbuilder_template() {
-  local dir rc=0
-  command_exists coder || download_run https://coder.com/install.sh sh
-  dir="$(mktemp -d)"
-  (
-    cd "$dir"
-    export CODER_URL="$1" CODER_SESSION_TOKEN
-    coder templates init --id kubernetes-devcontainer kubernetes-devcontainer
-    coder templates push kubernetes-devcontainer --directory kubernetes-devcontainer \
-      --variable use_kubeconfig=false --variable namespace="$CODER_NAMESPACE" --yes
-  ) || rc=$?
-  rm -rf "$dir"
-  return "$rc"
+ok "Coder installed: ${ACCESS_URL} (via Traefik). Admin ${ADMIN_EMAIL}; password saved to ${VPS_SECRETS_FILE}."
 }
 
 down() {
@@ -117,6 +152,9 @@ down() {
   zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
   helm_teardown "$CODER_NAMESPACE" coder
   vps_secret_unset CODER_DB_PASSWORD
+  vps_secret_unset CODER_ADMIN_PASSWORD
+  vps_secret_unset CODER_ADMIN_EMAIL
+  vps_secret_unset CODER_ADMIN_USERNAME
   ok "Coder removed."
 }
 
@@ -126,8 +164,10 @@ summary() {
   local host
   host="$(kubectl -n "$CODER_NAMESPACE" get ingress coder -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
   cat <<EOF2
- Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public;
-                       the first visit creates the admin account)
+ Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public)
+                       user:     $(vps_secret CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')
+                       password: $(vps_secret CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
+                       (saved to ${VPS_SECRETS_FILE}; template: devcontainer)
 EOF2
 }
 

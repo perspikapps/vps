@@ -24,16 +24,26 @@
         "required": false,
         "default": ""
       },
+      "CODER_ADMIN_EMAIL": {
+        "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",
+        "required": false,
+        "default": ""
+      },
+      "CODER_ADMIN_PASSWORD": {
+        "description": "Password of the first Coder admin (default: generated and saved)",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "CODER_ADMIN_USERNAME": {
+        "description": "Username of the first Coder admin",
+        "required": false,
+        "default": "admin"
+      },
       "CODER_CHART_VERSION": {
         "description": "Pin the Coder chart version (e.g. 2.37.4 stable); empty = latest",
         "required": false,
         "default": ""
-      },
-      "CODER_SESSION_TOKEN": {
-        "description": "Admin session token (Coder > Account > Tokens): also pushes the Envbuilder kubernetes-devcontainer template; empty = skip",
-        "required": false,
-        "default": "",
-        "secret": true
       },
       "CODER_DB_PASSWORD": {
         "description": "PostgreSQL password for Coder (default: generated and saved)",
