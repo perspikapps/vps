@@ -11,15 +11,19 @@
 # Upstream chart's values reference:
 # https://github.com/epinio/helm-charts/blob/main/chart/epinio/values.yaml
 
+# Shared with every chart in this catalog (apps are served at
+# <app>.<global.domain>) and read by the upstream chart as its own
+# `global.domain`.
+global:
+    # REQUIRED: a wildcard DNS domain pointed at your cluster's
+    # ingress IP. Epinio creates epinio.<domain>, auth.<domain>, and
+    # one hostname per app you `epinio push`. Leaving this unset (or
+    # as the placeholder below) will fail the install - the upstream
+    # chart requires it.
+    domain: example.com
+
 epinio:
     global:
-        # REQUIRED: a wildcard DNS domain pointed at your cluster's
-        # ingress IP. Epinio creates epinio.<domain>, auth.<domain>, and
-        # one hostname per app you `epinio push`. Leaving this unset (or
-        # as the placeholder below) will fail the install - the upstream
-        # chart requires it.
-        domain: epinio.example.com
-
         # cert-manager ClusterIssuer used for the Ingresses above.
         # epinio-ca is a self-signed CA the chart creates itself (browsers
         # will warn); switch to letsencrypt-staging/letsencrypt-production
