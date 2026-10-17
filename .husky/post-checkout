@@ -1,3 +1,4 @@
 #!/bin/sh
 command -v zz-use >/dev/null 2>&1 || . "$(dirname "$0")/install.sh"
+export ZZ_ORIGIN_REF="${ZZ_ORIGIN_REF:-v3}"
 zz-use -x git-hook-postcheckout "$@"

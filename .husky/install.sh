@@ -62,3 +62,10 @@ fi
     fi
     exit 0
 )
+    ### Pinned to the tomgrv/scripts major this release was built against, so a
+    ### later breaking rename on main cannot break installs of this release.
+    ### Exported so every zz-use below resolves from the same ref. Override with ZZ_ORIGIN_REF.
+    export ZZ_ORIGIN_REF="${ZZ_ORIGIN_REF:-v3}"
+        if curl -fsSL "${ZZ_SCRIPTS_SETUP_URL:-https://raw.githubusercontent.com/tomgrv/scripts/$ZZ_ORIGIN_REF/setup.sh}" -o "$_zz_setup_tmp" &&
+        zz-use json "json-*" >&2 ||
+            echo ".husky/install.sh: zz-use json failed" >&2
