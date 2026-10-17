@@ -9,7 +9,13 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "default": true,
     "inputs": {
       "TZ": {
@@ -20,8 +26,5 @@
     },
     "order": 0,
     "outputs": {}
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }

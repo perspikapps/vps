@@ -10,7 +10,13 @@
     "@tomgrv/vps-cockpit": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "default": true,
     "inputs": {
       "COCKPIT_DOCKERMANAGER_VERSION": {
@@ -31,8 +37,5 @@
     },
     "order": 6,
     "outputs": {}
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }

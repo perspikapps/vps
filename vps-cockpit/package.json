@@ -9,7 +9,13 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "default": true,
     "inputs": {
       "COCKPIT_HTTPS_PORT": {
@@ -37,8 +43,5 @@
         "access": "private"
       }
     ]
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }

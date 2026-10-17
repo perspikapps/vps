@@ -11,5 +11,6 @@
   "private": true,
   "scripts": {
     "test": "bats test.bats"
-  }
+  },
+  "config": {}
 }

@@ -10,11 +10,14 @@
     "@tomgrv/vps-rancher": "*"
   },
   "private": true,
-  "vps": {
-    "default": true,
-    "order": 7
-  },
   "scripts": {
     "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": true,
+    "order": 7
   }
 }
