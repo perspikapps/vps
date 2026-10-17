@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-tailscale",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Tailscale install",
   "bin": {
     "vps-tailscale": "run.sh"
@@ -9,7 +9,13 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "order": 1,
     "default": true,
     "inputs": {
@@ -31,8 +37,5 @@
       }
     },
     "outputs": {}
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }

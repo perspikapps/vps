@@ -36,7 +36,7 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "package.json declares vps.order as a number" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.vps.order === 'number' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.config.order === 'number' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -106,7 +106,7 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "RANCHER_CHART_REPO_URL is a declared, optional input defaulting to the community repository" {
-    run node -e "const i = require('$DIR/package.json').vps.inputs.RANCHER_CHART_REPO_URL; process.exit(i && i.required === false && i.default === 'https://releases.rancher.com/server-charts/latest' ? 0 : 1)"
+    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_CHART_REPO_URL; process.exit(i && i.required === false && i.default === 'https://releases.rancher.com/server-charts/latest' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

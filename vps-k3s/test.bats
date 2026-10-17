@@ -36,7 +36,7 @@ DIR="$REPO_ROOT/vps-k3s"
 }
 
 @test "package.json declares vps.order as a number" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.vps.order === 'number' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.config.order === 'number' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

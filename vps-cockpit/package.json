@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-cockpit",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Cockpit install",
   "bin": {
     "vps-cockpit": "run.sh"
@@ -9,7 +9,13 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "default": true,
     "inputs": {
       "COCKPIT_HTTPS_PORT": {
@@ -37,8 +43,5 @@
         "access": "private"
       }
     ]
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }

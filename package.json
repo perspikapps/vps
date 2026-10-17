@@ -1,6 +1,6 @@
 {
   "name": "vps-setup",
-  "version": "2.11.0",
+  "version": "3.0.0",
   "config": {
     "commitizen": {
       "path": "@commitlint/cz-commitlint"
@@ -87,9 +87,6 @@
       "json-normalize -c -w -a -i -t 4 -f local -l true"
     ],
     "!(templates/**/*|.agents/**|**/package-lock|package-lock).{js,jsx,ts,tsx,md,html,css,vue,yaml,yml,json}": [
-      "npx --yes prettier --write"
-    ],
-    "*.{js,jsx,ts,tsx,md,html,css,vue,yaml,yml,json}": [
       "npx --yes prettier --write"
     ],
     "composer.json": [

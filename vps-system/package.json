@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-system",
-  "version": "2.8.0",
+  "version": "3.0.0",
   "description": "Base system update & essentials",
   "bin": {
     "vps-system": "run.sh"
@@ -9,7 +9,13 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
     "default": true,
     "inputs": {
       "TZ": {
@@ -20,8 +26,5 @@
     },
     "order": 0,
     "outputs": {}
-  },
-  "scripts": {
-    "test": "bats test.bats"
   }
 }
