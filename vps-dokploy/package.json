@@ -16,6 +16,9 @@
     "zz-setup": "*"
   },
   "config": {
+    "conflicts": [
+      "vps-k3s"
+    ],
     "default": false,
     "inputs": {
       "ADVERTISE_ADDR": {

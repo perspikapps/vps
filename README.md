@@ -507,7 +507,8 @@ Traefik on ports 80/443, so pick one ingress per VPS:
 sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
 ```
 
-`vps-dokploy` refuses to run while k3s is installed (the installer's own port
+Selecting both aborts `zz-setup` before any step runs (`config.conflicts`), and
+`vps-dokploy` also refuses to run while k3s is installed (the installer's own port
 check cannot see k3s's ServiceLB rules) and while the host is in a swarm that is
 not Dokploy's (the installer starts with `docker swarm leave --force`).
 

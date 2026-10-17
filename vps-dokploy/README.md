@@ -6,7 +6,7 @@
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
-**Opt-in** (`config.default: false`), and an **alternative to `vps-k3s`**, not an addition: both run a Traefik that must own ports 80/443. `up` refuses to run while k3s is installed.
+**Opt-in** (`config.default: false`), and an **alternative to `vps-k3s`**, not an addition: both run a Traefik that must own ports 80/443. `config.conflicts` makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while k3s is installed (a host set up by an earlier run).
 
 ## Usage
 

@@ -62,6 +62,11 @@ DIR="$REPO_ROOT/vps-dokploy"
     [ "$status" -eq 0 ]
 }
 
+@test "package.json declares the k3s conflict, so zz-setup aborts before any step runs" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.conflicts.includes('vps-k3s') ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
 @test "package.json is opt-in (default false), since a default run installs k3s on the same ports" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.config.default === false ? 0 : 1)"
     [ "$status" -eq 0 ]
