@@ -10,7 +10,7 @@ prompts are all `zz-setup`'s.
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps). Unlike every
 other feature folder, this one isn't itself an installable step, so it has no
-`vps` key in its `package.json` and `zz-setup` never proposes it (like
+`engines.zz-setup` field in its `package.json` and `zz-setup` never proposes it (like
 `vps-common`). See the root README's
 [One folder per feature](../README.md#one-folder-per-feature) and
 [Running vps-setup](../README.md#running-vps-setup) for the full picture.
@@ -50,7 +50,7 @@ sudo bash vps-setup/run.sh --only-vps-rancher
   fetches into `/opt/<repo>`; a full local checkout is used in place;
 - the final connection summary: each step prints its own block through its
   `summary` action (`bash <step>/run.sh summary`, also callable on its own),
-  in `vps.order`; a step without `summary()` prints nothing.
+  in `engines.zz-setup.order`; a step without `summary()` prints nothing.
 
 ## Dependencies
 

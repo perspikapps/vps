@@ -9,53 +9,55 @@
     "@tomgrv/vps-common": "*"
   },
   "private": true,
-  "vps": {
-    "default": true,
-    "inputs": {
-      "SSH_PORT": {
-        "description": "SSH port to keep open",
-        "required": false,
-        "default": "22"
-      },
-      "VPS_ADMIN_PASSWORD": {
-        "description": "Cockpit/console login password for VPS_ADMIN_USER (or root if unset)",
-        "required": false,
-        "default": "",
-        "secret": true
-      },
-      "VPS_ADMIN_SSH_KEY": {
-        "description": "Public key to authorize for VPS_ADMIN_USER and root",
-        "required": false,
-        "default": ""
-      },
-      "VPS_PRIVATE_INTERFACE": {
-        "description": "Interface carrying private-only services (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
-        "required": false,
-        "default": ""
-      },
-      "VPS_ADMIN_USER": {
-        "description": "Optional non-root sudo user to create",
-        "required": false,
-        "default": ""
-      }
-    },
-    "order": 2,
-    "outputs": {
-      "COCKPIT_ADMIN_PASSWORD_FILE": {
-        "description": "Owner-only env file holding COCKPIT_ADMIN_USER and COCKPIT_ADMIN_PASSWORD (the saved Cockpit/console login)",
-        "value": "/root/.vps-secrets.env"
-      }
-    },
-    "ports": [
-      {
-        "name": "ssh",
-        "port": 22,
-        "access": "public",
-        "note": "SSH"
-      }
-    ]
-  },
   "scripts": {
     "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": {
+      "default": true,
+      "inputs": {
+        "SSH_PORT": {
+          "description": "SSH port to keep open",
+          "required": false,
+          "default": "22"
+        },
+        "VPS_ADMIN_PASSWORD": {
+          "description": "Cockpit/console login password for VPS_ADMIN_USER (or root if unset)",
+          "required": false,
+          "default": "",
+          "secret": true
+        },
+        "VPS_ADMIN_SSH_KEY": {
+          "description": "Public key to authorize for VPS_ADMIN_USER and root",
+          "required": false,
+          "default": ""
+        },
+        "VPS_PRIVATE_INTERFACE": {
+          "description": "Interface carrying private-only services (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
+          "required": false,
+          "default": ""
+        },
+        "VPS_ADMIN_USER": {
+          "description": "Optional non-root sudo user to create",
+          "required": false,
+          "default": ""
+        }
+      },
+      "order": 2,
+      "outputs": {
+        "COCKPIT_ADMIN_PASSWORD_FILE": {
+          "description": "Owner-only env file holding COCKPIT_ADMIN_USER and COCKPIT_ADMIN_PASSWORD (the saved Cockpit/console login)",
+          "value": "/root/.vps-secrets.env"
+        }
+      },
+      "ports": [
+        {
+          "name": "ssh",
+          "port": 22,
+          "access": "public",
+          "note": "SSH"
+        }
+      ]
+    }
   }
 }

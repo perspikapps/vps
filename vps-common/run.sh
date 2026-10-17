@@ -106,11 +106,11 @@ feature_package_json() {
   exit 1
 }
 
-# Feature folders that are installable steps (have a "vps" key), in vps.order.
+# Feature folders that are installable steps (have an engines.zz-setup field), in its order.
 ordered_feature_dirs() {
   local d
   while IFS= read -r d; do
-    jq -r --arg d "$d" 'select(.vps != null) | [(.vps.order // 999), $d] | @tsv' "${d}/package.json"
+    jq -r --arg d "$d" 'select(.engines["zz-setup"] != null) | [(.engines["zz-setup"].order // 999), $d] | @tsv' "${d}/package.json"
   done < <(feature_dirs) | sort -n | cut -f2
 }
 
@@ -129,7 +129,7 @@ net_port() {
   else
     pkg="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)/package.json"
   fi
-  jq -r --arg name "$name" '(.vps.ports // [])[] | select(.name == $name) | .port' "$pkg"
+  jq -r --arg name "$name" '(.engines["zz-setup"].ports // [])[] | select(.name == $name) | .port' "$pkg"
 }
 
 # Every feature's ports as TSV (name, port, access, note); the port honours
@@ -140,7 +140,7 @@ all_network_ports() {
     while IFS=$'\t' read -r name port access note; do
       override="${name^^}_PORT"
       printf '%s\t%s\t%s\t%s\n' "$name" "${!override:-$port}" "$access" "$note"
-    done < <(jq -r '(.vps.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}/package.json")
+    done < <(jq -r '(.engines["zz-setup"].ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "${d}/package.json")
   done < <(feature_dirs)
 }
 

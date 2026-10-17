@@ -36,7 +36,7 @@ DIR="$REPO_ROOT/vps-tailscale"
 }
 
 @test "package.json declares vps.order as a number" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.vps.order === 'number' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.engines['zz-setup'].order === 'number' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -61,6 +61,6 @@ DIR="$REPO_ROOT/vps-tailscale"
 }
 
 @test "vps.order puts tailscale before the firewall step that reads the persisted interface" {
-    run node -e "const t = require('$DIR/package.json').vps.order, s = require('$REPO_ROOT/vps-security/package.json').vps.order; process.exit(t < s ? 0 : 1)"
+    run node -e "const t = require('$DIR/package.json').engines['zz-setup'].order, s = require('$REPO_ROOT/vps-security/package.json').engines['zz-setup'].order; process.exit(t < s ? 0 : 1)"
     [ "$status" -eq 0 ]
 }

@@ -11,5 +11,8 @@
   "private": true,
   "scripts": {
     "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": null
   }
 }
