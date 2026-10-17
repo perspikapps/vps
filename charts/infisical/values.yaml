@@ -38,6 +38,7 @@ infisical-standalone:
         enabled: true
         # REQUIRED: externally-reachable hostname for the bundled Ingress
         # (must match the SITE_URL host set in infisical-secrets above).
+        # Literal: Helm cannot derive it. Use infisical.<your server domain>.
         hostName: infisical.example.com
 
     # Bundled Postgres/Redis are fine for trying Infisical out; swap in

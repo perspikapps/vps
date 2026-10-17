@@ -38,9 +38,11 @@ docker push <your-registry>/hermes-agent:<tag>
    above, in the same namespace you're about to install into.
 3. **Apps & Marketplace → Charts**, pick **hermes**, fill in
    `image.repository`/`image.tag` and `envFromSecretName`, and install.
-4. Set `dashboard.ingress.enabled: true` (plus `dashboard.ingress.host`
-   and `dashboard.ingress.tlsIssuer`) to expose the dashboard through an
-   Ingress instead of port-forwarding to the Service.
+4. The dashboard is exposed through an Ingress at `hermes.<server
+   domain>` (`dashboard.ingress.enabled: true`; set `dashboard.ingress.host`
+   to override, `dashboard.ingress.tlsIssuer` for TLS). The domain is
+   `global.domain`, else the host of Rancher's `global.cattle.url` (a
+   bare IP becomes `<ip>.nip.io`).
 
 This chart runs Hermes's `gateway` and `dashboard` processes as two
 containers in one pod (upstream's `docker-compose.yml` runs them as

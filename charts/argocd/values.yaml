@@ -8,14 +8,26 @@
 # Upstream chart's full value reference:
 # https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
 
+# Server domain for the Ingress: apps are served at <app>.<global.domain>.
+# Left empty it is derived from Rancher's own server URL (global.cattle.url,
+# injected on install); a bare IP there becomes <ip>.nip.io.
+global:
+    domain: ''
+    cattle:
+        url: ''
+
+ingress:
+    enabled: true
+    className: traefik
+    # Override the generated <app>.<domain> host.
+    host: ''
+
 argo-cd:
+    fullnameOverride: argocd
     server:
         service:
-            # The VPS bootstrapper exposed this via k3s's built-in ServiceLB
-            # (LoadBalancer) rebound to a fixed Tailscale-only port. On a
-            # normal cluster, ClusterIP + your own Ingress is usually the
-            # better choice - change this to fit how you expose apps here.
-            type: LoadBalancer
+            # Exposed through this chart's own Ingress (see top of file).
+            type: ClusterIP
 
         # server.insecure=true: the server talks plain HTTP on its own
         # port rather than terminating TLS itself. Only safe if something
@@ -26,12 +38,6 @@ argo-cd:
         extraArgs:
             - --insecure
 
-        # Uncomment and set a host to get an Ingress instead of a bare
-        # LoadBalancer/ClusterIP service:
-        # ingress:
-        #   enabled: true
-        #   ingressClassName: traefik
-        #   hostname: argocd.example.com
 
     # No SSO/dex - this repo's default install only used ArgoCD's
     # built-in admin login. Enable dex.enabled/configure an SSO provider
