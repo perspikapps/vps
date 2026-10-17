@@ -86,7 +86,7 @@ inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
 
 `vps-setup` runs eight feature folders in the order of each one's
 `config.order` (see [One folder per feature](#one-folder-per-feature)):
-`vps-system`, `vps-security`, `vps-tailscale`, `vps-cockpit`, `vps-k3s`
+`vps-system`, `vps-tailscale`, `vps-security`, `vps-cockpit`, `vps-k3s`
 (includes Traefik configuration), `vps-rancher`, `vps-dockermanager` and
 `vps-marketplace`. All run by default; a step that sets `config.default: false`
 is opt-in. Three flag families choose which run:
@@ -138,7 +138,8 @@ one-line edit to the feature's `package.json`.
 ```
 ==== VPS setup menu ====
    1) [up  ] * vps-system        Base system update & essentials
-   2) [up  ] * vps-security      Firewall / SSH / fail2ban hardening
+   2) [up  ] * vps-tailscale     Tailscale install
+   3) [up  ] * vps-security      Firewall / SSH / fail2ban hardening
    ...
    8) [up  ] * vps-marketplace   Rancher Apps & Marketplace catalog registration
   (* = installed by default) Number cycles skip -> up -> down; <enter> proceeds, q quits.
@@ -325,22 +326,22 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 
 ## Layout
 
-| Path                  | Role                                                                                                                                                    |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vps-setup/`          | Orchestrator: a thin [`zz-setup`](https://github.com/tomgrv/scripts/tree/main/zz-setup) wrapper plus the connection summary. Not a step.                |
-| `vps-common/`         | Shared helpers sourced by every `run.sh` (logging, retry, idempotency, port lookup, `dispatch_action`). Bash, not POSIX sh. Not a step.                 |
-| `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                         |
-| `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                |
-| `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                            |
-| `vps-cockpit/`        | Installs Cockpit on ports 9080/9083.                                                                                                                    |
-| `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                       |
-| `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                             |
-| `vps-dockermanager/`  | cockpit-packagekit, cockpit-files, Docker and [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager). Depends on `vps-cockpit`. |
-| `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                             |
-| `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, GitHub ARC). No `run.sh`; installed from Rancher's UI.       |
-| `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                          |
-| `tests/`              | Invariants spanning every folder - see [Tests](#tests).                                                                                                 |
-| `package.json` (root) | npm workspaces root listing every top-level folder, for tooling (`npm ls`, lint-staged, commitlint scopes). `vps-setup` itself needs no npm.            |
+| Path                  | Role                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `vps-setup/`          | Orchestrator: a thin [`zz-setup`](https://github.com/tomgrv/scripts/tree/main/zz-setup) wrapper plus the connection summary. Not a step.                     |
+| `vps-common/`         | Shared helpers sourced by every `run.sh` (logging, retry, idempotency, port lookup, `dispatch_action`). Bash, not POSIX sh. Not a step.                      |
+| `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
+| `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
+| `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
+| `vps-cockpit/`        | Installs Cockpit on ports 9080/9083.                                                                                                                         |
+| `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
+| `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
+| `vps-dockermanager/`  | cockpit-packagekit, cockpit-files, Docker and [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager). Depends on `vps-cockpit`.      |
+| `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                                  |
+| `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, Infisical, GitHub ARC). No `run.sh`; installed from Rancher's UI. |
+| `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                               |
+| `tests/`              | Invariants spanning every folder - see [Tests](#tests).                                                                                                      |
+| `package.json` (root) | npm workspaces root listing every top-level folder, for tooling (`npm ls`, lint-staged, commitlint scopes). `vps-setup` itself needs no npm.                 |
 
 There is no root `setup.sh`: the one-liner bootstraps
 [`tomgrv/scripts`'s own `setup.sh`](https://github.com/tomgrv/scripts/blob/main/setup.sh).

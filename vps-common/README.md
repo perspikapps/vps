@@ -27,26 +27,16 @@ zz-use perspikapps/vps/vps-common
 . vps-common
 ```
 
-(`vps-setup` clones a full checkout for itself when run standalone via
-`zz-use`, so every feature's own `run.sh` can rely on `zz-use`
-already being bootstrapped there too — but each `run.sh` still bootstraps
-`zz-use` itself first, for when it's run standalone.)
-
 ## `package.json`
 
-Like every folder in this repo, `vps-common/`'s `package.json` declares a
-`"bin"` entry (`{"vps-common": "run.sh"}`) matching the folder name, and a
-`"name"` of `"@tomgrv/vps-common"` — this repo's own npm scope plus the
-folder's bare name (see the root README's
-[One folder per feature](../README.md#one-folder-per-feature) for why
-that differs from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s
-own unscoped convention) — what `zz-use perspikapps/vps/vps-common`
-relies on. Its real npm `"dependencies"` is empty: `zz-colors`/`zz-log`
-aren't npm-resolvable workspace members (they live in `tomgrv/scripts`, a
-separate repo, fetched at runtime by `zz-use` — not by `npm install`) —
-listing them there would break a plain `npm install`. They're documented
-instead under a `"zzUse"` field (`{"tomgrv/scripts": ["zz-colors",
-"zz-log"]}`), which `npm`/workspace tooling ignores.
+Like every folder here: `"name": "@tomgrv/vps-common"` and a `"bin"` entry
+(`{"vps-common": "run.sh"}`), which `zz-use perspikapps/vps/vps-common` relies
+on (see the root README's
+[One folder per feature](../README.md#one-folder-per-feature)). It has no
+`engines.zz-setup`, so `zz-setup` never proposes it as a step. Its npm
+`"dependencies"` is empty: `zz-colors`/`zz-log` live in `tomgrv/scripts` and are
+fetched at runtime by `zz-use`, so listing them would break `npm install`; they
+are documented under a `"zzUse"` field that npm ignores.
 
 ## Tests
 

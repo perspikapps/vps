@@ -4,7 +4,7 @@
 
 Rancher Apps & Marketplace catalog registration.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order `7`, enabled by default). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
 ## Usage
 
@@ -31,7 +31,7 @@ sudo vps-setup --down-vps-marketplace
 
 ## Dependencies
 
-`vps-common` (shared helpers), plus `vps-rancher` (see this folder's `package.json` `dependencies`). `vps-setup` auto-enables these when this step is enabled - see the root README's [Dependencies between steps](../README.md#dependencies-between-steps).
+Step dependency: `vps-rancher` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)). Also `vps-common` (shared helpers).
 
 ## Tests
 
