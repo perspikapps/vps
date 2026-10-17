@@ -54,6 +54,13 @@ cockpit_refresh() {
   systemctl try-restart cockpit.socket 2>/dev/null || true
 }
 
+# Ports published by k3s (ServiceLB) or Docker are DNAT-ed past ufw; vps-security's
+# vps-private-ports-guard unit re-inserts its FORWARD rule ahead of theirs. Call
+# once k3s or Docker is up (best effort: the unit exists only after vps-security).
+reapply_private_guard() {
+  systemctl restart vps-private-ports-guard.service 2>/dev/null || true
+}
+
 apt_update_once() {
   if [[ -z "${VPS_SETUP_APT_UPDATED:-}" ]]; then
     zz-log i "[vps-setup] Running apt-get update..."

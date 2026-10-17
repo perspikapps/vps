@@ -27,12 +27,12 @@ sudo bash vps-dokploy/run.sh up
 sudo bash vps-dokploy/run.sh down
 ```
 
-`up` installs Docker (the installer pins and holds `docker-ce`) if it is missing, initialises the swarm, starts Dokploy, its Postgres and its Traefik, then installs the admin-port guard below. A re-run is safe: once Dokploy is there the upstream installer is **not** run again, because it starts with `docker swarm leave --force`. To upgrade, use Dokploy's own update (UI: Settings, Server) rather than this step.
+`up` installs Docker (the installer pins and holds `docker-ce`) if it is missing, initialises the swarm, starts Dokploy, its Postgres and its Traefik, then re-applies `vps-security`'s private-ports guard (see below). A re-run is safe: once Dokploy is there the upstream installer is **not** run again, because it starts with `docker swarm leave --force`. To upgrade, use Dokploy's own update (UI: Settings, Server) rather than this step.
 
 ## Access and security
 
 - **Admin UI** on port `3000`, declared `private`: `vps-security` opens it on the private interface only, and the final summary prints `http://<private-ip>:3000`. The first visit creates the admin account, so join the private network before opening it.
-- **Docker bypasses ufw.** Published container ports are NAT-ed ahead of ufw's rules, so a ufw rule alone would leave `3000` open to the internet. `up` therefore installs `vps-dokploy-guard.service`, which drops port `3000` arriving on the default-route interface in Docker's `DOCKER-USER` chain (re-applied after every Docker start). Check it from outside the private network: `curl -m 5 http://<public-ip>:3000` must time out. IPv4 only.
+- **Docker bypasses ufw.** Published container ports are NAT-ed ahead of ufw's rules, so a ufw rule alone would leave `3000` open to the internet. `vps-security`'s `vps-private-ports-guard.service` drops DNAT-ed connections to every `private` port (this one included) on the default-route interface, and `up` re-applies it once Docker is running. Check it from outside the private network: `curl -m 5 http://<public-ip>:3000` must time out. It therefore needs `vps-security` (on by default); without it nothing here is private. IPv4 only.
 - **Apps** deployed through Dokploy are served by its own Traefik on `80`/`443` (public). Any other port an app publishes is NAT-ed past ufw too: publish only what you mean to expose, or front it with Dokploy's domains.
 - `/etc/dokploy` is created `777` by the upstream installer and left as is.
 

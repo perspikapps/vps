@@ -6,6 +6,9 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 
+GUARD_BIN=/usr/local/sbin/vps-private-ports-guard
+GUARD_UNIT=/etc/systemd/system/vps-private-ports-guard.service
+
 up() {
 apt_update_once
 
@@ -116,9 +119,62 @@ done < <(all_network_ports)
 
 ufw --force enable
 ok "ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only via ${PRIVATE_IFACE:-<no private interface>}."
+
+install_private_guard "${PRIVATE_IFACE:--}" "$(all_network_ports | awk -F'\t' '$3 == "private" { print $2 }')"
+}
+
+# ufw only filters INPUT. Ports published by k3s's ServiceLB or by Docker are
+# DNAT-ed and go through FORWARD, where those two accept them ahead of ufw: a
+# "private" Rancher, Traefik dashboard or Dokploy UI would answer on the public
+# interface. This drops DNAT-ed connections to the private ports arriving on the
+# default-route interface (unless that is the private one). FORWARD position 1,
+# re-inserted on every run: k3s and Docker must be (re)started before the rule
+# is final, so their steps call reapply_private_guard once they are up.
+install_private_guard() {
+  local private="$1" ports="$2"
+  cat >"$GUARD_BIN" <<'GUARD'
+#!/bin/sh
+# usage: vps-private-ports-guard add|del <private-interface|-> <port>...
+action="$1" private="$2"
+shift 2
+iface="$(ip -4 route show default | awk '{print $5; exit}')"
+[ -n "$iface" ] && [ "$iface" != "$private" ] || exit 0
+for port in "$@"; do
+  rule="-i $iface -p tcp -m conntrack --ctstate DNAT --ctorigdstport $port -j DROP"
+  while iptables -D FORWARD $rule 2>/dev/null; do :; done
+  if [ "$action" = add ]; then iptables -I FORWARD 1 $rule; fi
+done
+GUARD
+  chmod 755 "$GUARD_BIN"
+  cat >"$GUARD_UNIT" <<UNIT
+[Unit]
+Description=Keep private-access ports off the public interface
+After=network-online.target docker.service k3s.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=${GUARD_BIN} add ${private} $(printf '%s ' $ports)
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable vps-private-ports-guard.service
+  systemctl restart vps-private-ports-guard.service
 }
 
 down() {
+
+  if [[ -f "$GUARD_UNIT" ]]; then
+    zz-log i "[vps-setup] Removing the private-ports FORWARD guard..."
+    # The rules are in iptables, not in the unit: delete them with the ports the unit added.
+    # shellcheck disable=SC2046
+    "$GUARD_BIN" del - $(sed -n 's/^ExecStart=[^ ]* add [^ ]* //p' "$GUARD_UNIT") || true
+    systemctl disable vps-private-ports-guard.service 2>/dev/null || true
+    rm -f "$GUARD_UNIT" "$GUARD_BIN"
+    systemctl daemon-reload
+  fi
 
   zz-log i "[vps-setup] Disabling fail2ban's sshd jail..."
   rm -f /etc/fail2ban/jail.d/sshd.local

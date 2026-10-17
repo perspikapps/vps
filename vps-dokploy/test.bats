@@ -40,11 +40,14 @@ DIR="$REPO_ROOT/vps-dokploy"
     ! grep -qE 'curl[^#]*\| *(ba)?sh' "$DIR/run.sh"
 }
 
-@test "the generated guard script parses as sh" {
-    sed -n "/<<'GUARD'/,/^GUARD$/p" "$DIR/run.sh" | sed '1d;$d' >"$BATS_TEST_TMPDIR/guard.sh"
-    [ -s "$BATS_TEST_TMPDIR/guard.sh" ]
-    run sh -n "$BATS_TEST_TMPDIR/guard.sh"
-    [ "$status" -eq 0 ]
+@test "a stale cached vps-common is reported with the command to refresh it" {
+    grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
+    grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
+}
+
+@test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
+    grep -q '^  reapply_private_guard$' "$DIR/run.sh"
+    ! grep -qE '^[[:space:]]*iptables ' "$DIR/run.sh"
 }
 
 @test "package.json bin entry matches the folder name" {

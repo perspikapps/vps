@@ -5,58 +5,21 @@ set -euo pipefail
 zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
+# vps-common comes from zz-use's download cache (24h for a branch), while the
+# steps come from the fresh checkout: an older cached copy lacks newer helpers.
+declare -F reapply_private_guard >/dev/null || {
+  zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
+       "sudo zz-use --force perspikapps/vps/vps-common"
+  exit 1
+}
 
 DOKPLOY_INSTALL_URL=https://dokploy.com/install.sh
-GUARD_BIN=/usr/local/sbin/vps-dokploy-guard
-GUARD_UNIT=/etc/systemd/system/vps-dokploy-guard.service
 
 # Both halves must exist: a service without Traefik is a broken install, which
 # the installer (it re-initialises the swarm) is the right way to repair.
 dokploy_installed() {
   command_exists docker && docker service inspect dokploy >/dev/null 2>&1 \
     && docker container inspect dokploy-traefik >/dev/null 2>&1
-}
-
-# Docker publishes ports through iptables NAT, so ufw's rules never see them:
-# without this, the admin port (whose first visitor creates the admin account)
-# would be open to the internet whatever "private" says. DOCKER-USER is the
-# chain Docker leaves to the admin; the unit re-applies the rule after docker starts.
-install_guard() {
-  local port="$1" private="$2"
-  cat >"$GUARD_BIN" <<'GUARD'
-#!/bin/sh
-# usage: vps-dokploy-guard add|del <port> [private-interface]
-# Drops <port> arriving on the default-route interface, unless that interface
-# is the private one (a LAN NIC used as the private network).
-action="$1" port="$2" private="${3:-}"
-iface="$(ip -4 route show default | awk '{print $5; exit}')"
-[ -n "$iface" ] && [ "$iface" != "$private" ] || exit 0
-rule="-i $iface -p tcp -m conntrack --ctorigdstport $port --ctdir ORIGINAL -j DROP"
-case "$action" in
-  add) iptables -C DOCKER-USER $rule 2>/dev/null || iptables -I DOCKER-USER $rule ;;
-  del) iptables -D DOCKER-USER $rule 2>/dev/null || true ;;
-esac
-GUARD
-  chmod 755 "$GUARD_BIN"
-  cat >"$GUARD_UNIT" <<UNIT
-[Unit]
-Description=Keep the Dokploy admin port off the public interface
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=${GUARD_BIN} add ${port} ${private}
-ExecStop=${GUARD_BIN} del ${port} ${private}
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-  systemctl daemon-reload
-  systemctl enable vps-dokploy-guard.service
-  # restart, not --now: re-applies the rule with the current port/interface on a re-run.
-  systemctl restart vps-dokploy-guard.service
 }
 
 up() {
@@ -92,16 +55,12 @@ up() {
     dokploy_installed || { zz-log e "[vps-setup] The Dokploy installer finished but the dokploy service/Traefik are not there."; exit 1; }
   fi
 
-  install_guard "$ui_port" "$(private_interface)"
+  # Docker publishes the admin UI past ufw: vps-security's FORWARD guard covers it.
+  reapply_private_guard
   ok "Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
 }
 
 down() {
-  if [[ -f "$GUARD_UNIT" ]]; then
-    systemctl disable --now vps-dokploy-guard.service 2>/dev/null || true
-    rm -f "$GUARD_UNIT" "$GUARD_BIN"
-    systemctl daemon-reload
-  fi
   if command_exists docker; then
     zz-log i "[vps-setup] Removing Dokploy and the applications it deployed (swarm services, volumes, secrets)..."
     docker container rm -f dokploy-traefik 2>/dev/null || true
