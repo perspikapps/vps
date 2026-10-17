@@ -8,7 +8,7 @@ Shared bash helpers sourced by every feature's `run.sh` (and by
 an `ERR` trap that prints the failing command/file/line, apt helpers
 (`apt_install`, `apt_update_once`), `retry`, `command_exists`,
 `net_port`/`all_network_ports` (reading each feature's own
-`package.json` `vps.ports`; an environment variable named after the port,
+`package.json` `config.ports`; an environment variable named after the port,
 e.g. `COCKPIT_HTTP_PORT`, overrides it), `feature_dirs`/`ordered_feature_dirs`,
 `download_run` (fetch and run an installer script via a private temp file),
 `summary_host`, `vps_secret`/`vps_secret_set`/`vps_secret_unset` (credentials as
