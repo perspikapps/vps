@@ -19,13 +19,13 @@ setup() {
     cat >"$work/alpha/package.json" <<'EOF'
 {
     "name": "@tomgrv/alpha",
-    "engines": { "zz-setup": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] } }
+    "engines": { "zz-setup": "*" }, "config": { "zz": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] } }
 }
 EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
     "name": "@tomgrv/beta",
-    "engines": { "zz-setup": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] } }
+    "engines": { "zz-setup": "*" }, "config": { "zz": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] } }
 }
 EOF
 }
@@ -58,10 +58,10 @@ _load_common() {
 @test "ordered_feature_dirs: installable steps (with an engines.zz-setup field) in its order, others left out" {
     mkdir -p "$work/gamma" "$work/lib"
     : >"$work/gamma/run.sh"; : >"$work/lib/run.sh"
-    echo '{"name":"@tomgrv/gamma","engines":{"zz-setup":{"order":1}}}' >"$work/gamma/package.json"
+    echo '{"name":"@tomgrv/gamma","engines":{"zz-setup":"*"},"config":{"zz":{"order":1}}}' >"$work/gamma/package.json"
     echo '{"name":"@tomgrv/lib"}' >"$work/lib/package.json"
-    echo '{"name":"@tomgrv/alpha","engines":{"zz-setup":{"order":5}}}' >"$work/alpha/package.json"
-    echo '{"name":"@tomgrv/beta","engines":{"zz-setup":{"order":3}}}' >"$work/beta/package.json"
+    echo '{"name":"@tomgrv/alpha","engines":{"zz-setup":"*"},"config":{"zz":{"order":5}}}' >"$work/alpha/package.json"
+    echo '{"name":"@tomgrv/beta","engines":{"zz-setup":"*"},"config":{"zz":{"order":3}}}' >"$work/beta/package.json"
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; ordered_feature_dirs"
     [ "$status" -eq 0 ]
     [ "$output" = "$work/gamma"$'\n'"$work/beta"$'\n'"$work/alpha" ]
@@ -106,7 +106,7 @@ _load_common() {
 @test "all_network_ports: skips node_modules/* (no run.sh alongside its package.json)" {
     mkdir -p "$work/node_modules/some-dep"
     cat >"$work/node_modules/some-dep/package.json" <<'EOF'
-{ "name": "some-dep", "engines": { "zz-setup": { "ports": [{ "name": "should_not_appear", "port": 9999, "access": "public" }] } } }
+{ "name": "some-dep", "engines": { "zz-setup": "*" }, "config": { "zz": { "ports": [{ "name": "should_not_appear", "port": 9999, "access": "public" }] } } }
 EOF
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; all_network_ports"
     [ "$status" -eq 0 ]

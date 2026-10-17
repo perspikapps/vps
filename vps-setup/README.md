@@ -50,7 +50,7 @@ sudo bash vps-setup/run.sh --only-vps-rancher
   fetches into `/opt/<repo>`; a full local checkout is used in place;
 - the final connection summary: each step prints its own block through its
   `summary` action (`bash <step>/run.sh summary`, also callable on its own),
-  in `engines.zz-setup.order`; a step without `summary()` prints nothing.
+  in `config.zz.order`; a step without `summary()` prints nothing.
 
 ## Dependencies
 

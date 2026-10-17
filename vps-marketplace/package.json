@@ -14,7 +14,10 @@
     "test": "bats test.bats"
   },
   "engines": {
-    "zz-setup": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "zz": {
       "default": true,
       "order": 7
     }

@@ -96,7 +96,7 @@ checkout into `/opt/vps` first (run from inside a full local checkout,
 ## Running a single step (or a subset)
 
 `vps-setup` runs eight feature folders, in the order each one's
-`package.json` declares (`engines.zz-setup.order` - see
+`package.json` declares (`config.zz.order` - see
 [One folder per feature](#one-folder-per-feature)): `vps-system`, `vps-security`,
 `vps-tailscale`, `vps-cockpit`, `vps-k3s` (includes Traefik configuration), `vps-rancher`,
 `vps-dockermanager`, and `vps-marketplace`. All of them run by default -
@@ -104,7 +104,7 @@ none is currently opt-in (GitHub Actions Runner Controller and friends
 install through the Rancher Marketplace instead - see
 [Rancher Marketplace](#rancher-marketplace)), but the flags below stay
 available for whichever step declares itself opt-in
-(`engines.zz-setup.default: false`) in the future. Three flag families control which
+(`config.zz.default: false`) in the future. Three flag families control which
 of them run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
@@ -207,7 +207,7 @@ about flags, env vars, and dependencies applies whether you got there via
 the menu or the command line.
 
 After the steps are chosen, a second menu lists every input the enabled
-steps declare in their `package.json` (`engines.zz-setup.inputs`), with its status:
+steps declare in their `package.json` (`config.zz.inputs`), with its status:
 
 ```
 ==== Feature inputs ====
@@ -549,7 +549,7 @@ vps-rancher/
   package.json   # "name": "@tomgrv/vps-rancher" (npm scope + this repo's
                  # own "vps-" prefix - see below), description,
                  # "bin": { "vps-rancher": "run.sh" } (matches the folder),
-                 # "engines": { "zz-setup": { "default": true|false } }, "scripts": { "test": "bats test.bats" },
+                 # "engines": { "zz-setup": "*" }, "config": { "zz": { "default": true|false } }, "scripts": { "test": "bats test.bats" },
                  # and "dependencies": { "@tomgrv/vps-<other-feature>": "*" }
   run.sh         # up() and down() - see Removing a feature, below
   test.bats      # syntax + shape checks - see Tests, below
@@ -563,7 +563,7 @@ below lists them as optional for adopting the convention elsewhere.
 
 Folder names carry no ordering (`vps-rancher/`, not
 `05-vps-rancher/`) - install order is a plain integer,
-`package.json`'s `engines.zz-setup.order`, and `vps-setup` sorts by that instead of
+`package.json`'s `config.zz.order`, and `vps-setup` sorts by that instead of
 by folder name. Everything that used to live in `setup.sh`'s
 hand-maintained bash tables (label, install order, default on/off, what
 depends on what) now lives in each feature's own `package.json` instead:
@@ -575,7 +575,8 @@ depends on what) now lives in each feature's own `package.json` instead:
     "private": true,
     "description": "Rancher install",
     "bin": { "vps-rancher": "run.sh" },
-    "engines": { "zz-setup": { "order": 5, "default": true } },
+    "engines": { "zz-setup": "*" },
+    "config": { "zz": { "order": 5, "default": true } },
     "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
 }
 ```
@@ -665,7 +666,7 @@ for running any features it depends on yourself first (see
 
 Every port this repo opens, and whether it's public or private-access, is
 declared on the feature that owns it, in its `package.json`'s `vps.ports`
-array (same file that carries `engines.zz-setup.default`/`dependencies` - see
+array (same file that carries `config.zz.default`/`dependencies` - see
 [One folder per feature](#one-folder-per-feature)). Each entry looks like:
 
 ```json
@@ -960,7 +961,7 @@ convention, every feature folder carries its own `<name>/test.bats`
 (runnable on its own with `bats <name>/test.bats`, or via that folder's
 `npm test`), covering that folder's `run.sh` syntax (`bash -n`), its
 `zz-use`/`vps-common` wiring, `up()`/(where applicable) `down()`, and its
-`package.json`'s `bin`/`engines.zz-setup.order`/`dependencies` shape.
+`package.json`'s `bin`/`config.zz.order`/`dependencies` shape.
 [`vps-common/test.bats`](vps-common/test.bats) additionally covers `vps-common/run.sh`'s
 pure logic (`net_port`, `all_network_ports`,
 `ordered_feature_dirs`, `feature_package_json`, `dispatch_action`, `download_run`) against a small fixture tree.

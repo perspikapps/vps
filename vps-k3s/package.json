@@ -13,7 +13,10 @@
     "test": "bats test.bats"
   },
   "engines": {
-    "zz-setup": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "zz": {
       "default": true,
       "inputs": {
         "K3S_EXTRA_ARGS": {
