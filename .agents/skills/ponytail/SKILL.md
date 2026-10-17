@@ -6,7 +6,7 @@ description: >
   fixing, refactoring, reviewing, choosing dependencies) and when the user says
   "ponytail", "be lazy", "simplest solution", "yagni", or complains about
   over-engineering or bloat. Levels: lite, full (default), ultra.
-argument-hint: "[lite|full|ultra]"
+argument-hint: "[lite|full|ultra|off]"
 license: MIT
 ---
 
@@ -39,7 +39,7 @@ Take the first option that fully works:
 - Code you move or merge keeps its error handling and validation.
 - Between options of equal size, take the one that is correct on edge cases.
 - Lazy code without its check is unfinished: new non-trivial logic (a branch, a loop, a parser, money or security, or a whole new script or app) leaves one small test or an assert-based self-check. Trivial changes need none.
-- A shortcut with a known limit gets a `ponytail:` comment that names the limit and when to upgrade.
+- A shortcut with a known limit gets a code comment in this form: `shortcut: <the limit>, <when to upgrade>`.
 
 Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
 
