@@ -182,7 +182,7 @@ summary_host() {
 # Wildcard DNS: apps that need per-app subdomains (Coder's workspace apps) take
 # one domain. vps-system persists WILDCARD_DOMAIN when it is set; the fallback
 # is nip.io on the private address (else the default-route address), which
-# resolves any <ip>.nip.io and *.<ip>.nip.io to that IP with no DNS to set up.
+# resolves any <a-b-c-d>.nip.io and *.<a-b-c-d>.nip.io to that IP with no DNS to set up.
 VPS_WILDCARD_FILE="${VPS_WILDCARD_FILE:-/etc/vps-wildcard-domain.env}"
 
 wildcard_domain() {
@@ -193,7 +193,7 @@ wildcard_domain() {
   if [[ -z "$d" ]]; then
     ip="$(private_address)"
     [[ -n "$ip" ]] || ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
-    [[ -z "$ip" ]] || d="${ip}.nip.io"
+    [[ -z "$ip" ]] || d="${ip//./-}.nip.io"
   fi
   printf '%s' "$d"
 }

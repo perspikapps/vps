@@ -9,7 +9,6 @@ zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
 . vps-common
 
 CODER_NAMESPACE=coder
-CODER_HTTP_PORT="$(net_port coder_http)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
 up() {
@@ -47,25 +46,24 @@ kubectl -n "$CODER_NAMESPACE" create secret generic coder-db-url \
   --from-literal=url="postgres://coder:${DB_PASSWORD}@coder-db-postgresql.${CODER_NAMESPACE}.svc.cluster.local:5432/coder?sslmode=disable" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-ACCESS_URL="${CODER_ACCESS_URL:-http://$(summary_host):${CODER_HTTP_PORT}}"
+# Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
+# Coder sets is scoped to the wildcard domain, so the dashboard host must sit
+# under it: both come from one domain (vps-system's WILDCARD_DOMAIN, else nip.io).
 WILDCARD="$(wildcard_domain)"
+ACCESS_URL="${CODER_ACCESS_URL:-${WILDCARD:+http://coder.${WILDCARD}}}"
+[[ -n "$ACCESS_URL" ]] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or WILDCARD_DOMAIN."; exit 1; }
+HOST="${ACCESS_URL#*://}"; HOST="${HOST%%[:/]*}"
 VALUES_FILE="$(mktemp)"
-# workspace apps need subdomains: *.<wildcard domain>:<port> (vps-system's WILDCARD_DOMAIN, else nip.io)
-jq -n --arg url "$ACCESS_URL" --arg wildcard "${WILDCARD:+*.${WILDCARD}:${CODER_HTTP_PORT}}" \
+jq -n --arg url "$ACCESS_URL" --arg host "$HOST" --arg wildcard "${WILDCARD:+*.${WILDCARD}}" \
   '{coder: {env: ([
       {name: "CODER_PG_CONNECTION_URL", valueFrom: {secretKeyRef: {name: "coder-db-url", key: "url"}}},
       {name: "CODER_ACCESS_URL", value: $url}]
       + (if $wildcard == "" then [] else [{name: "CODER_WILDCARD_ACCESS_URL", value: $wildcard}] end)),
-    service: {type: "LoadBalancer"}}}' >"$VALUES_FILE"
+    service: {type: "ClusterIP"},
+    ingress: ({enable: true, className: "traefik", host: $host}
+      + (if $wildcard == "" then {} else {wildcardHost: $wildcard} end))}}' >"$VALUES_FILE"
 CHART_VERSION_ARG=()
 [[ -z "${CODER_CHART_VERSION:-}" ]] || CHART_VERSION_ARG=(--version "$CODER_CHART_VERSION")
-
-# Same as vps-rancher: a Service already rebound to CODER_HTTP_PORT would be
-# merged with the chart's 80/http into duplicate port names; drop it so helm
-# recreates it (pods keep running), and no --wait before the rebind below.
-if kubectl -n "$CODER_NAMESPACE" get service coder >/dev/null 2>&1; then
-  kubectl -n "$CODER_NAMESPACE" delete service coder --wait=true
-fi
 
 zz-log i "[vps-setup] Installing/upgrading Coder (access URL ${ACCESS_URL})..."
 rc=0
@@ -75,16 +73,13 @@ run_with_progress "$CODER_NAMESPACE" "Coder install" \
 rm -f "$VALUES_FILE"
 if [[ "$rc" -ne 0 ]]; then dump_diagnostics "$CODER_NAMESPACE"; exit "$rc"; fi
 
-patch_service_port "$CODER_NAMESPACE" coder http "$CODER_HTTP_PORT" || true
-
 if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAMESPACE" rollout status deploy/coder --timeout=10m; then
   dump_diagnostics "$CODER_NAMESPACE"
   zz-log e "[vps-setup] Coder did not become ready in time; re-run: sudo vps-setup --only-vps-coder"
   exit 1
 fi
 
-reapply_private_guard
-ok "Coder installed: ${ACCESS_URL} (the first visit creates the admin account)."
+ok "Coder installed: ${ACCESS_URL} (via Traefik; the first visit creates the admin account)."
 }
 
 down() {
@@ -98,10 +93,11 @@ down() {
 summary() {
   # Opt-in step: say nothing on a host that never installed it.
   command_exists kubectl && kubectl get namespace "$CODER_NAMESPACE" >/dev/null 2>&1 || return 0
+  local host
+  host="$(kubectl -n "$CODER_NAMESPACE" get ingress coder -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
   cat <<EOF2
- Coder:               ${CODER_ACCESS_URL:-http://$(summary_host):${CODER_HTTP_PORT}}
-                       (private access only; the first visit creates the
-                       admin account, so join the private network first)
+ Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public;
+                       the first visit creates the admin account)
 EOF2
 }
 

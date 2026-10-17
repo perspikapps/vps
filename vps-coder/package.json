@@ -20,7 +20,7 @@
     "default": false,
     "inputs": {
       "CODER_ACCESS_URL": {
-        "description": "Externally reachable URL of Coder (default: http://<private address>:<coder_http port>)",
+        "description": "Externally reachable URL of Coder (default: http://coder.<wildcard domain>)",
         "required": false,
         "default": ""
       },
@@ -42,13 +42,6 @@
       }
     },
     "order": 8,
-    "outputs": {},
-    "ports": [
-      {
-        "name": "coder_http",
-        "port": 7100,
-        "access": "private"
-      }
-    ]
+    "outputs": {}
   }
 }

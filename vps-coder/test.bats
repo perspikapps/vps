@@ -34,20 +34,17 @@ DIR="$REPO_ROOT/vps-coder"
     ! grep -q 'auth.password=' "$DIR/run.sh"
 }
 
-@test "opt-in, depends on vps-rancher, ordered after it, with a private port" {
+@test "opt-in, depends on vps-rancher, ordered after it" {
     run node -e "
         const p = require('$DIR/package.json'), r = require('$REPO_ROOT/vps-rancher/package.json');
-        const port = p.config.ports.find(x => x.name === 'coder_http');
-        process.exit(p.config.default === false && p.dependencies['@tomgrv/vps-rancher'] === '*'
-            && p.config.order > r.config.order && port && port.access === 'private' ? 0 : 1)"
+        process.exit(p.config.default === false && p.dependencies['@tomgrv/vps-rancher'] === '*' && p.config.order > r.config.order ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
-@test "no other step claims the coder_http port number" {
-    run node -e "
-        const fs = require('fs'), root = '$REPO_ROOT';
-        const used = fs.readdirSync(root).filter(d => fs.existsSync(root + '/' + d + '/package.json') && d !== 'vps-coder')
-            .flatMap(d => (require(root + '/' + d + '/package.json').config || {}).ports || []).map(x => x.port);
-        process.exit(used.includes(require('$DIR/package.json').config.ports[0].port) ? 1 : 0)"
-    [ "$status" -eq 0 ]
+@test "exposed through the Traefik ingress, access URL and wildcard from the same domain (cookie scope)" {
+    grep -q 'className: "traefik"' "$DIR/run.sh"
+    grep -q 'wildcardHost' "$DIR/run.sh"
+    grep -q 'http://coder.${WILDCARD}' "$DIR/run.sh"
+    grep -q '\*\.${WILDCARD}' "$DIR/run.sh"
+    ! grep -q 'patch_service_port' "$DIR/run.sh"
 }

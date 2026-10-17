@@ -27,11 +27,11 @@ sudo bash vps-coder/run.sh down
 1. Creates the `coder` namespace and adds the Bitnami and Coder (`https://helm.coder.com/v2`) Helm repositories.
 2. Installs `coder-db` (Bitnami PostgreSQL, user/database `coder`, `CODER_DB_STORAGE` volume) with a generated password saved to `/root/.vps-secrets.env`.
 3. Creates the `coder-db-url` Secret the chart reads `CODER_PG_CONNECTION_URL` from.
-4. Installs the upstream `coder` chart with `CODER_ACCESS_URL` set, then rebinds its Service to the `coder_http` port (default `7100`, `access: "private"`), like `vps-rancher` does for 7080/7083.
+4. Installs the upstream `coder` chart behind an **Ingress on k3s's Traefik** (class `traefik`, ports 80/443): host `coder.<wildcard domain>` for the dashboard and `*.<wildcard domain>` for workspace apps. The domain is `vps-system`'s `WILDCARD_DOMAIN`, else nip.io (`coder.54-37-230-112.nip.io`).
 
-`CODER_WILDCARD_ACCESS_URL` is set to `*.<wildcard domain>:7100` from `vps-system`'s `WILDCARD_DOMAIN`, falling back to nip.io (`*.<ip>.nip.io:7100`), for Coder's workspace apps.
+`CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose: Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
-`CODER_ACCESS_URL` defaults to `http://<private address>:7100`, so workspaces and users must reach that address; set it to your real URL (and put an Ingress/TLS in front) for production. Without a private network the URL has no address yet: set `CODER_ACCESS_URL`.
+**Public by design:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and set `CODER_ACCESS_URL` to the `https://` URL; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
 
 The Marketplace's [`charts/coder`](../charts/coder/README.md) is the Rancher-UI route to the same upstream chart; do not install both.
 
@@ -47,11 +47,10 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `CODER_ACCESS_URL` | no | _(private address, port 7100)_ | Externally reachable URL of Coder |
+| `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
-| `CODER_HTTP_PORT` | no | `7100` | Port Coder is published on (private access) |
 
 ## Dependencies
 
@@ -59,7 +58,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Not verified on a live host
 
-The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here); whether Coder accepts a port in the wildcard URL, the chart's Service port name `http` and the rebind are assumed from the upstream chart.
+The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here); the chart's `ingress.enable`/`className`/`host`/`wildcardHost` values and that the cookie error is fully explained by the host/wildcard mismatch (the cause is inferred from Coder's wildcard docs, not reproduced) and the rebind are assumed from the upstream chart.
 
 ## Tests
 

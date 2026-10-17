@@ -33,7 +33,7 @@ This step has no `down` action - it's a one-shot base package upgrade, nothing t
 
 ## Wildcard DNS
 
-Apps that need per-app subdomains (e.g. Coder's workspace apps) read one wildcard domain through `vps-common`'s `wildcard_domain`. If `WILDCARD_DOMAIN` is set, this step validates it and persists it to `/etc/vps-wildcard-domain.env`. If not, apps fall back to [nip.io](https://nip.io) on the private address (the default-route address while there is none): `<ip>.nip.io` and `*.<ip>.nip.io` resolve to that IP with no DNS to set up. nip.io is a third-party service: use your own domain for anything you depend on.
+Apps that need per-app subdomains (e.g. Coder's workspace apps) read one wildcard domain through `vps-common`'s `wildcard_domain`. If `WILDCARD_DOMAIN` is set, this step validates it and persists it to `/etc/vps-wildcard-domain.env`. If not, apps fall back to [nip.io](https://nip.io) on the private address (the default-route address while there is none): `<a-b-c-d>.nip.io` (dashes, e.g. `54-37-230-112.nip.io`) and `*.<a-b-c-d>.nip.io` resolve to that IP with no DNS to set up. nip.io is a third-party service: use your own domain for anything you depend on.
 
 ## Dependencies
 

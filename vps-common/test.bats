@@ -178,7 +178,7 @@ EOF
     [ "$output" = "saved.example.org" ]
     run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/none.env'; wildcard_domain"
     [ "$status" -eq 0 ]
-    [[ -z "$output" || "$output" == *.nip.io ]]
+    [[ -z "$output" || "$output" =~ ^[0-9]+-[0-9]+-[0-9]+-[0-9]+\.nip\.io$ ]]
 }
 
 # kubectl stub printing a pod list: one ready, one still pulling its image.
