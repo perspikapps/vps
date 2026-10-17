@@ -179,6 +179,25 @@ summary_host() {
   printf '%s' "${ip:-<private-ip>}"
 }
 
+# Wildcard DNS: apps that need per-app subdomains (Coder's workspace apps) take
+# one domain. vps-system persists WILDCARD_DOMAIN when it is set; the fallback
+# is nip.io on the private address (else the default-route address), which
+# resolves any <ip>.nip.io and *.<ip>.nip.io to that IP with no DNS to set up.
+VPS_WILDCARD_FILE="${VPS_WILDCARD_FILE:-/etc/vps-wildcard-domain.env}"
+
+wildcard_domain() {
+  local d="${WILDCARD_DOMAIN:-}" ip
+  if [[ -z "$d" && -f "$VPS_WILDCARD_FILE" ]]; then
+    d="$(sed -n 's/^WILDCARD_DOMAIN=//p' "$VPS_WILDCARD_FILE" | tail -n1)"
+  fi
+  if [[ -z "$d" ]]; then
+    ip="$(private_address)"
+    [[ -n "$ip" ]] || ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
+    [[ -z "$ip" ]] || d="${ip}.nip.io"
+  fi
+  printf '%s' "$d"
+}
+
 # Credentials generated or chosen by the steps (Cockpit login, Rancher bootstrap
 # password) live as KEY=VALUE lines in one owner-only env file, written with
 # zz-persist (-s) - a step that stores one declares `zz-use ... zz-persist`.

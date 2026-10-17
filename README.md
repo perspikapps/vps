@@ -597,6 +597,7 @@ Each feature's README lists its own variables in full.
 | `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
 | `CODER_HTTP_PORT`                          | `7100`                               | Coder port (opt-in `vps-coder`)                                                                                   |
 | `CODER_ACCESS_URL`                         | private address, port 7100           | Externally reachable URL of Coder                                                                                 |
+| `WILDCARD_DOMAIN`                          | unset (nip.io fallback)              | Wildcard DNS domain for apps needing subdomains, read by `vps-coder` (set in `vps-system`)                        |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
 | `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |

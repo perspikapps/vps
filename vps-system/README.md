@@ -28,7 +28,12 @@ This step has no `down` action - it's a one-shot base package upgrade, nothing t
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `WILDCARD_DOMAIN` | no | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); unset = nip.io fallback |
 | `TZ` | no | _(unset)_ | Timezone to set on the VPS (e.g. Europe/Paris) |
+
+## Wildcard DNS
+
+Apps that need per-app subdomains (e.g. Coder's workspace apps) read one wildcard domain through `vps-common`'s `wildcard_domain`. If `WILDCARD_DOMAIN` is set, this step validates it and persists it to `/etc/vps-wildcard-domain.env`. If not, apps fall back to [nip.io](https://nip.io) on the private address (the default-route address while there is none): `<ip>.nip.io` and `*.<ip>.nip.io` resolve to that IP with no DNS to set up. nip.io is a third-party service: use your own domain for anything you depend on.
 
 ## Dependencies
 

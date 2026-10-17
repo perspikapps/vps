@@ -170,6 +170,17 @@ EOF
     [ -z "$output" ]
 }
 
+@test "wildcard_domain: the environment wins, then the persisted file, else nip.io (or empty with no address)" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/wc.env'; WILDCARD_DOMAIN=apps.example.com wildcard_domain"
+    [ "$output" = "apps.example.com" ]
+    printf 'WILDCARD_DOMAIN=saved.example.org\n' >"$work/wc.env"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/wc.env'; wildcard_domain"
+    [ "$output" = "saved.example.org" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/none.env'; wildcard_domain"
+    [ "$status" -eq 0 ]
+    [[ -z "$output" || "$output" == *.nip.io ]]
+}
+
 # kubectl stub printing a pod list: one ready, one still pulling its image.
 _stub_kubectl() {
     mkdir -p "$work/bin"

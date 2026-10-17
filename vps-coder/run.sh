@@ -48,11 +48,14 @@ kubectl -n "$CODER_NAMESPACE" create secret generic coder-db-url \
   --dry-run=client -o yaml | kubectl apply -f -
 
 ACCESS_URL="${CODER_ACCESS_URL:-http://$(summary_host):${CODER_HTTP_PORT}}"
+WILDCARD="$(wildcard_domain)"
 VALUES_FILE="$(mktemp)"
-jq -n --arg url "$ACCESS_URL" \
-  '{coder: {env: [
+# workspace apps need subdomains: *.<wildcard domain>:<port> (vps-system's WILDCARD_DOMAIN, else nip.io)
+jq -n --arg url "$ACCESS_URL" --arg wildcard "${WILDCARD:+*.${WILDCARD}:${CODER_HTTP_PORT}}" \
+  '{coder: {env: ([
       {name: "CODER_PG_CONNECTION_URL", valueFrom: {secretKeyRef: {name: "coder-db-url", key: "url"}}},
-      {name: "CODER_ACCESS_URL", value: $url}],
+      {name: "CODER_ACCESS_URL", value: $url}]
+      + (if $wildcard == "" then [] else [{name: "CODER_WILDCARD_ACCESS_URL", value: $wildcard}] end)),
     service: {type: "LoadBalancer"}}}' >"$VALUES_FILE"
 CHART_VERSION_ARG=()
 [[ -z "${CODER_CHART_VERSION:-}" ]] || CHART_VERSION_ARG=(--version "$CODER_CHART_VERSION")
