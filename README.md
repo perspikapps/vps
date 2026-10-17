@@ -448,6 +448,15 @@ by default `tailscale0`, so you must join the same tailnet. Apps installed from
 the Marketplace manage their own exposure: check each chart's `README.md` under
 [`charts/`](charts/) first.
 
+ufw alone does not hold that line for ports that k3s (ServiceLB: Rancher, the
+Traefik dashboard) or Docker (the Dokploy UI) publish: they are DNAT-ed through
+the FORWARD chain, which both accept ahead of ufw. `vps-security` therefore also
+installs `vps-private-ports-guard.service`, which drops DNAT-ed connections to
+every `access: private` port arriving on the default-route interface (unless
+that interface is the private one). `vps-k3s`, `vps-rancher` and `vps-dokploy`
+re-apply it once they are up. IPv4 only. To verify, from outside the private
+network: `curl -m 5 http://<public-ip>:<private-port>` must time out.
+
 HTTP/HTTPS are public unconditionally: Traefik is the VPS's real ingress, and
 Let's Encrypt's HTTP-01 challenge needs port 80 reachable to issue certificates.
 
@@ -512,8 +521,8 @@ Selecting both aborts `zz-setup` before any step runs (`config.conflicts`), and
 check cannot see k3s's ServiceLB rules) and while the host is in a swarm that is
 not Dokploy's (the installer starts with `docker swarm leave --force`).
 
-The admin UI (port 3000) is `private`; since Docker publishes ports past ufw,
-the step also installs a small `DOCKER-USER` guard so it really is - see
+The admin UI (port 3000) is `private`, enforced by the same
+[FORWARD guard](#security-model) as Rancher and the Traefik dashboard - see
 [`vps-dokploy`](vps-dokploy/README.md#access-and-security).
 
 ## Cockpit and Rancher logins
