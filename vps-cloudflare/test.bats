@@ -60,3 +60,9 @@ DIR="$REPO_ROOT/vps-cloudflare"
     run node -e "const c = require('$DIR/package.json').config.order, s = require('$REPO_ROOT/vps-security/package.json').config.order; process.exit(typeof c === 'number' && c < s ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
+
+@test "verify refuses to run without a public ip, and warns it must run off-host" {
+    grep -q '^verify() {' "$DIR/run.sh"
+    grep -q 'run.sh verify <public-ip>' "$DIR/run.sh"
+    grep -q 'ANOTHER machine' "$DIR/run.sh"
+}

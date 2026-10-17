@@ -32,6 +32,20 @@ sudo bash vps-cloudflare/run.sh down
 
 In Zero Trust: add a **private network route** `<CLOUDFLARE_PRIVATE_IP>/32` to the tunnel, enroll your devices with the WARP client, and make sure that range is not in WARP's split-tunnel _Exclude_ list (the default excludes the RFC 1918 ranges, which includes the default `10.254.254.1`). Then browse `https://<CLOUDFLARE_PRIVATE_IP>:9080` (Cockpit), etc.
 
+## SSH
+
+SSH needs no extra step here: the private route to `CLOUDFLARE_PRIVATE_IP` already carries port 22 for WARP clients (`ssh user@<CLOUDFLARE_PRIVATE_IP>`). Unlike Tailscale's `--ssh`, this step does not replace sshd's authentication, and it does not close the public SSH port - that stays `vps-security`'s decision (`SSH_PORT`).
+
+## Verifying that private ports stay closed
+
+From **another machine** (never the VPS itself: a connection to its own public address is delivered locally and proves nothing):
+
+```bash
+bash vps-cloudflare/run.sh verify <public-ip>
+```
+
+Fails if any `access: "private"` port answers on the public address.
+
 ## Removing (`down`)
 
 Stops and removes both units and the token file, and forgets the private interface. Leaves the `cloudflared` package installed unless `PURGE_CLOUDFLARED=true`.

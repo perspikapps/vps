@@ -109,4 +109,27 @@ summary() {
   echo "                       route for this /32 to the tunnel, and connect with the WARP client"
 }
 
+# verify <public-ip>: run it from ANOTHER machine, never on the VPS itself (a
+# connection to its own public address is delivered locally and proves nothing).
+# Every access:"private" port must time out or be refused from the internet.
+verify() {
+  local ip="$1" name port access note bad=0
+  while IFS=$'\t' read -r name port access note; do
+    [[ "$access" == "private" ]] || continue
+    if curl -s -m 5 -o /dev/null "http://${ip}:${port}" 2>/dev/null || curl -sk -m 5 -o /dev/null "https://${ip}:${port}" 2>/dev/null; then
+      zz-log e "[vps-setup] ${name} (${port}) answers on ${ip}: private port is exposed."
+      bad=1
+    else
+      ok "${name} (${port}) is closed on ${ip}."
+    fi
+  done < <(all_network_ports)
+  return "$bad"
+}
+
+if [[ "${1:-}" == "verify" ]]; then
+  VPS_SETUP_ROOT="${VPS_SETUP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+  verify "${2:?usage: run.sh verify <public-ip> (from another machine)}"
+  exit
+fi
+
 dispatch_action "$@"
