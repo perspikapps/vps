@@ -44,6 +44,12 @@ helm repo update vps-rancher >/dev/null || {
   exit 1
 }
 
+# Bitnami charts (e.g. the databases some Marketplace apps depend on) resolve from this alias.
+helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null || {
+  zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami."
+  exit 1
+}
+
 ensure_cert_manager
 
 kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
