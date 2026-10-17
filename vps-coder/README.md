@@ -44,6 +44,23 @@ Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/r
 
 Do not mount a Docker socket into the Coder pod: there is no Docker on this node. A host with Docker (`vps-dokploy`) is the other route, and it is exclusive with k3s.
 
+## Envbuilder (dev container) template
+
+Following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the Kubernetes dev container template builds a workspace from a repo's `devcontainer.json`, and can ask the developer for the repo URL. Pushing a template needs an admin, who only exists after the first visit, so the step does it only when you pass `CODER_SESSION_TOKEN` (Account > Tokens) on a re-run:
+
+```bash
+sudo ZZ_SETUP_REF=<ref> CODER_SESSION_TOKEN=... zz-setup perspikapps/vps -o vps-coder
+```
+
+It installs the `coder` CLI if missing, then runs the guide's commands with `use_kubeconfig=false` and `namespace=coder`:
+
+```bash
+coder templates init --id kubernetes-devcontainer
+cd kubernetes-devcontainer && coder templates push
+```
+
+A failed push only warns; do the two commands by hand then. For faster starts, set the template's cache repository (see [Envbuilder security and caching](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/envbuilder-security-caching)).
+
 ## Removing (`down`)
 
 ```bash
@@ -58,6 +75,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | --- | --- | --- | --- |
 | `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
+| `CODER_SESSION_TOKEN` | no | _(unset)_ | Admin token: also pushes the Envbuilder `kubernetes-devcontainer` template; empty = skip |
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
 
@@ -67,7 +85,10 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Not verified on a live host
 
-The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here); the chart's `ingress.enable`/`className`/`host`/`wildcardHost` values and that the cookie error is fully explained by the host/wildcard mismatch (the cause is inferred from Coder's wildcard docs, not reproduced) and the rebind are assumed from the upstream chart.
+- The Envbuilder template push: the `use_kubeconfig`/`namespace` variable names, whether the template needs more (such as a cache repository), and the `coder` CLI reaching the nip.io URL from the host itself.
+- The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
+- The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.
+- That the login cookie error was fully explained by the host/wildcard mismatch: inferred from Coder's wildcard docs, not reproduced.
 
 ## Tests
 

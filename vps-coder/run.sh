@@ -88,6 +88,28 @@ if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAM
 fi
 
 ok "Coder installed: ${ACCESS_URL} (via Traefik; the first visit creates the admin account)."
+
+# Envbuilder template (https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder):
+# pushing needs an admin, who only exists after the first visit, so it is opt-in
+# with a session token and never fails the install.
+if [[ -n "${CODER_SESSION_TOKEN:-}" ]]; then
+  push_envbuilder_template "$ACCESS_URL" || zz-log w "[vps-setup] Could not push the kubernetes-devcontainer template; do it by hand (see the README)."
+fi
+}
+
+push_envbuilder_template() {
+  local dir rc=0
+  command_exists coder || download_run https://coder.com/install.sh sh
+  dir="$(mktemp -d)"
+  (
+    cd "$dir"
+    export CODER_URL="$1" CODER_SESSION_TOKEN
+    coder templates init --id kubernetes-devcontainer kubernetes-devcontainer
+    coder templates push kubernetes-devcontainer --directory kubernetes-devcontainer \
+      --variable use_kubeconfig=false --variable namespace="$CODER_NAMESPACE" --yes
+  ) || rc=$?
+  rm -rf "$dir"
+  return "$rc"
 }
 
 down() {

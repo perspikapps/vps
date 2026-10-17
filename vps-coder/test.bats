@@ -53,3 +53,12 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'declare -F wildcard_domain' "$DIR/run.sh"
     grep -q 'ZZ_SETUP_REF=<ref> zz-setup' "$DIR/run.sh"
 }
+
+@test "the Envbuilder template push is opt-in on a session token, never fails the install, token not on a command line" {
+    grep -q 'kubernetes-devcontainer' "$DIR/run.sh"
+    grep -q 'if \[\[ -n "\${CODER_SESSION_TOKEN:-}" \]\]' "$DIR/run.sh"
+    grep -q '|| zz-log w' "$DIR/run.sh"
+    ! grep -q -- '--token' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs.CODER_SESSION_TOKEN; process.exit(i && i.required === false && i.secret === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}

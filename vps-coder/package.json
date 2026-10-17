@@ -29,6 +29,12 @@
         "required": false,
         "default": ""
       },
+      "CODER_SESSION_TOKEN": {
+        "description": "Admin session token (Coder > Account > Tokens): also pushes the Envbuilder kubernetes-devcontainer template; empty = skip",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
       "CODER_DB_PASSWORD": {
         "description": "PostgreSQL password for Coder (default: generated and saved)",
         "required": false,
