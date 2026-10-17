@@ -87,9 +87,10 @@ inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
 `vps-setup` runs eight feature folders in the order of each one's
 `config.order` (see [One folder per feature](#one-folder-per-feature)):
 `vps-system`, `vps-tailscale`, `vps-security`, `vps-cockpit`, `vps-k3s`
-(includes Traefik configuration), `vps-rancher`, `vps-dockermanager` and
-`vps-marketplace`. All run by default; a step that sets `config.default: false`
-is opt-in. Three flag families choose which run:
+(includes Traefik configuration), `vps-rancher`, `vps-dokploy` and
+`vps-marketplace`. All run by default except `vps-dokploy`, which is opt-in
+(`config.default: false`) because it is an alternative to the k3s stack, not an
+addition to it - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). Three flag families choose which run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
 - **`--with-<step>`** - turn on an opt-in step (a no-op on one already on).
@@ -100,8 +101,8 @@ is opt-in. Three flag families choose which run:
 # Re-run just Rancher after changing RANCHER_HOSTNAME:
 sudo RANCHER_HOSTNAME=new.example.com vps-setup --only-vps-rancher
 
-# Cockpit and the dockermanager plugin together:
-sudo vps-setup --only-vps-cockpit --only-vps-dockermanager
+# Dokploy instead of the k3s/Rancher stack:
+sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
 
 # Everything except Kubernetes:
 sudo vps-setup --skip-vps-rancher --skip-vps-k3s
@@ -115,7 +116,7 @@ final summary. Re-running one step to pick up a changed variable is safe.
 
 A feature's `package.json` `dependencies` field is the single source of truth
 for what it needs: `vps-rancher` depends on `vps-k3s`, `vps-marketplace` on
-`vps-rancher`, `vps-dockermanager` on `vps-cockpit`. `vps-setup` resolves it
+`vps-rancher`. `vps-setup` resolves it
 transitively, so enabling `vps-marketplace` also enables `vps-rancher` and
 `vps-k3s`:
 
@@ -178,7 +179,7 @@ Pass `--down-<step>` to uninstall one step without touching the rest:
 
 ```bash
 sudo vps-setup --down-vps-marketplace
-sudo vps-setup --down-vps-marketplace --down-vps-dockermanager
+sudo vps-setup --down-vps-marketplace --down-vps-dokploy
 ```
 
 A step whose dependent is still enabled refuses to come down:
@@ -198,10 +199,10 @@ Either bring the dependents down in the same run (`--down-vps-k3s
 | `vps-system`        | _(no down action - a base upgrade, nothing to undo)_                                                    | everything                                                         |
 | `vps-security`      | ufw rules (disables ufw), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                       |
 | `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                          | the `tailscale` package (`PURGE_TAILSCALE=true` removes it too)    |
-| `vps-cockpit`       | the Cockpit packages and socket config - **refused while `vps-dockermanager` is enabled**               | -                                                                  |
+| `vps-cockpit`       | the Cockpit packages (incl. packagekit, files) and socket config                                        | -                                                                  |
 | `vps-k3s`           | k3s itself - **takes Rancher and every Marketplace app (ArgoCD, Epinio, GitHub ARC, ...) down with it** | -                                                                  |
 | `vps-rancher`       | the Helm release and its namespace                                                                      | cert-manager, apps installed via Apps & Marketplace                |
-| `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                | Docker itself (`REMOVE_DOCKER=true` removes it too)                |
+| `vps-dokploy`       | Dokploy, **every app it deployed** (swarm services, volumes), the swarm and `/etc/dokploy`              | Docker itself (`REMOVE_DOCKER=true` removes it too)                |
 | `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                             | apps already installed from it (uninstall those from Rancher's UI) |
 
 Every feature's `run.sh` also takes the action directly (`up` is the default):
@@ -333,10 +334,10 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
 | `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
 | `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
-| `vps-cockpit/`        | Installs Cockpit on ports 9080/9083.                                                                                                                         |
+| `vps-cockpit/`        | Installs Cockpit (plus packagekit and files modules) on ports 9080/9083.                                                                                                                         |
 | `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
 | `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
-| `vps-dockermanager/`  | cockpit-packagekit, cockpit-files, Docker and [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager). Depends on `vps-cockpit`.      |
+| `vps-dokploy/`        | Opt-in [Dokploy](https://dokploy.com) (Docker, Swarm, Traefik) via its official installer; an alternative to `vps-k3s` - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). |
 | `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                                  |
 | `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, Infisical, GitHub ARC). No `run.sh`; installed from Rancher's UI. |
 | `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                               |
@@ -495,6 +496,26 @@ letsencrypt` and point real DNS at the VPS. Each hostname gets its own cert on
   login of its own, which is acceptable only because it is gated to the tailnet;
   never put it on a public port.
 
+## Dokploy instead of k3s
+
+`vps-dokploy` (opt-in) installs [Dokploy](https://dokploy.com) with its official
+installer: Docker, a single-node Swarm, Postgres and Dokploy's own Traefik.
+`vps-k3s` and `vps-dokploy` are **mutually exclusive on one host**, both want
+Traefik on ports 80/443, so pick one ingress per VPS:
+
+```bash
+sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
+```
+
+Selecting both aborts `zz-setup` before any step runs (`config.conflicts`), and
+`vps-dokploy` also refuses to run while k3s is installed (the installer's own port
+check cannot see k3s's ServiceLB rules) and while the host is in a swarm that is
+not Dokploy's (the installer starts with `docker swarm leave --force`).
+
+The admin UI (port 3000) is `private`; since Docker publishes ports past ufw,
+the step also installs a small `DOCKER-USER` guard so it really is - see
+[`vps-dokploy`](vps-dokploy/README.md#access-and-security).
+
 ## Cockpit and Rancher logins
 
 - **Cockpit** authenticates through PAM against a real Linux account, separate
@@ -519,8 +540,8 @@ Repositories**. Install or remove apps from **Apps & Marketplace → Charts** li
 any catalog app; `charts/<name>/README.md` lists the required values.
 `vps-marketplace down` removes only the registration.
 
-**Why the split.** `vps-cockpit` and `vps-dockermanager` configure the host (apt
-packages, systemd), which a chart cannot do. The cluster apps are ordinary
+**Why the split.** `vps-cockpit` and `vps-dokploy` configure the host (apt
+packages, systemd, Docker), which a chart cannot do. The cluster apps are ordinary
 Kubernetes workloads, so a Rancher-native catalog gives install/upgrade/values
 UI, version pinning and easy removal for free.
 
@@ -560,8 +581,10 @@ Each feature's README lists its own variables in full.
 | `RANCHER_BOOTSTRAP_PASSWORD`               | random                               | Rancher initial admin password                                                                                    |
 | `RANCHER_CHART_REPO_URL`                   | community `latest` channel           | Helm repository for the Rancher chart, e.g. SUSE Rancher Prime (`https://charts.rancher.com/server-charts/prime`) |
 | `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                                     |
-| `INSTALL_DOCKER`                           | `true`                               | Install `docker.io` for cockpit-dockermanager to manage                                                           |
-| `COCKPIT_DOCKERMANAGER_VERSION`            | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install             |
+| `DOKPLOY_VERSION`                          | latest stable                        | Dokploy release tag to install (`vps-dokploy`)                                                                    |
+| `ADVERTISE_ADDR`                           | host's first IPv4                    | Address Docker Swarm advertises (`vps-dokploy`)                                                                   |
+| `DOCKER_SWARM_INIT_ARGS`                   | unset                                | Extra `docker swarm init` flags, e.g. a non-clashing `--default-addr-pool` (`vps-dokploy`)                        |
+| `REMOVE_DOCKER`                            | `false`                              | Also remove Docker itself when `vps-dokploy` comes down                                                           |
 | `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set a real address                                                                  |
 | `TRAEFIK_ACME_STAGING`                     | `true`                               | Let's Encrypt staging (untrusted, no rate limit) vs. production certs                                             |
 | `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (private-access)                                                                           |

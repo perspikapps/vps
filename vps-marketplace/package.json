@@ -18,6 +18,19 @@
   },
   "config": {
     "default": true,
-    "order": 7
+    "inputs": {
+      "MARKETPLACE_REPO_NAME": {
+        "description": "Name of the Rancher ClusterRepo to register",
+        "required": false,
+        "default": "perspikapps-vps"
+      },
+      "MARKETPLACE_REPO_URL": {
+        "description": "URL of the Helm chart catalog to register",
+        "required": false,
+        "default": "https://perspikapps.github.io/vps/"
+      }
+    },
+    "order": 7,
+    "outputs": {}
   }
 }

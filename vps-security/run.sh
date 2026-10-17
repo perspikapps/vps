@@ -151,7 +151,7 @@ summary() {
   cat <<EOF
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
-                       dashboard, and the k3s API are reachable ONLY over
+                       dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
                        the private interface ($(private_interface || true)) - connect
                        to that network first.
 EOF

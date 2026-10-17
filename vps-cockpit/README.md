@@ -2,7 +2,7 @@
 
 # vps-cockpit
 
-Cockpit install.
+Cockpit install, with the `cockpit-packagekit` (software updates) and `cockpit-files` modules.
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
@@ -23,7 +23,7 @@ sudo bash vps-cockpit/run.sh down
 
 ## Removing (`down`)
 
-`down` removes the Cockpit packages and socket config.
+`down` removes the Cockpit packages (including `cockpit-packagekit` and `cockpit-files`) and socket config.
 
 ```bash
 sudo vps-setup --down-vps-cockpit

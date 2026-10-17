@@ -13,7 +13,7 @@ COCKPIT_HTTP_PORT="$(net_port cockpit_http)"
 COCKPIT_HTTPS_PORT="$(net_port cockpit_https)"
 
 zz-log i "[vps-setup] Installing Cockpit..."
-apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged
+apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
 
 zz-log i "[vps-setup] Configuring cockpit.socket to listen on ${COCKPIT_HTTP_PORT} and ${COCKPIT_HTTPS_PORT}..."
 mkdir -p /etc/systemd/system/cockpit.socket.d
@@ -37,7 +37,7 @@ down() {
   rm -rf /etc/systemd/system/cockpit.socket.d
   systemctl daemon-reload
   zz-log i "[vps-setup] Removing Cockpit packages..."
-  apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged || true
+  apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
   ok "Cockpit removed."
 }
 
