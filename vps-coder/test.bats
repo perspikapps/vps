@@ -103,8 +103,10 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'template failed (see above)' "$DIR/run.sh"
 }
 
-@test "the chart is told not to manage the namespace, which the step owns and adopts for Helm if rendered anyway" {
-    grep -q 'manageNamespace: false' "$DIR/run.sh"
-    grep -q 'app.kubernetes.io/managed-by=Helm' "$DIR/run.sh"
-    grep -q 'meta.helm.sh/release-name=devcontainer-builder' "$DIR/run.sh"
+@test "BuildKit is deployed by the step (chart 0.5.0's bundled one is broken): privileged, endpoint passed to the chart, plain-HTTP registry in buildkitd.toml" {
+    grep -q '^deploy_buildkit() {' "$DIR/run.sh"
+    grep -q 'moby/buildkit' "$DIR/run.sh"
+    grep -q 'http = true' "$DIR/run.sh"
+    grep -q 'buildkit: {endpoint:' "$DIR/run.sh"
+    ! grep -q 'deploy: {enabled: true}' "$DIR/run.sh"
 }

@@ -123,6 +123,51 @@ EOF2
   fi
 }
 
+# BuildKit for devcontainer-builder, deployed here instead of through the chart's bundled option:
+# chart 0.5.0's bundled sub-chart names its container after the Helm alias ("buildkitBundled",
+# not a valid name), and it cannot be told about a plain-HTTP registry from here. Privileged, as
+# BuildKit requires (the namespace is labelled for it). $1: a plain-HTTP registry host:port, or "".
+deploy_buildkit() {
+  local plain_http="$1" toml=""
+  [[ -z "$plain_http" ]] || toml="$(printf '[registry."%s"]\n  http = true\n  insecure = true\n' "$plain_http")"
+  kubectl -n devcontainer-builder create configmap buildkitd-config --from-literal=buildkitd.toml="$toml" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -n devcontainer-builder -f - <<EOF2
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: buildkit}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: buildkit}}
+  template:
+    metadata:
+      labels: {app: buildkit}
+      annotations: {config-sha: "$(printf '%s' "$toml" | sha256sum | cut -c1-16)"}
+    spec:
+      containers:
+        - name: buildkitd
+          image: moby/buildkit:v0.31.0
+          args: [--addr, "unix:///run/buildkit/buildkitd.sock", --addr, "tcp://0.0.0.0:1234"]
+          ports: [{containerPort: 1234}]
+          securityContext: {privileged: true}
+          readinessProbe: {tcpSocket: {port: 1234}, initialDelaySeconds: 5, periodSeconds: 10}
+          volumeMounts:
+            - {name: state, mountPath: /var/lib/buildkit}
+            - {name: config, mountPath: /etc/buildkit}
+      volumes:
+        - {name: state, emptyDir: {}}
+        - {name: config, configMap: {name: buildkitd-config}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: buildkit}
+spec:
+  selector: {app: buildkit}
+  ports: [{port: 1234, targetPort: 1234}]
+EOF2
+  kubectl -n devcontainer-builder rollout status deploy/buildkit --timeout=5m
+}
+
 # devcontainer-builder (https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/):
 # builds a repo's devcontainer.json into an image pushed to a registry, with its own BuildKit (needs a
 # privileged namespace). Third-party chart: an unset DEVCONTAINER_BUILDER_VERSION resolves to the latest
@@ -130,7 +175,7 @@ EOF2
 # set, else the in-cluster one. Sets BUILDER_READY=1 for the template step.
 install_devcontainer_builder() {
   local values rc=0 chart=oci://ghcr.io/deepspacecartel/charts/devcontainer-builder version="${DEVCONTAINER_BUILDER_VERSION:-}"
-  local registry mapped auth_user auth_pw node_ip insecure='[]'
+  local registry mapped auth_user auth_pw node_ip insecure='[]' insecure_host=""
   if [[ -z "$version" ]]; then
     version="$(helm show chart "$chart" 2>/dev/null | awk '/^version:/ {print $2; exit}')" \
       || true
@@ -148,17 +193,15 @@ install_devcontainer_builder() {
     auth_user=""; auth_pw=""
     deploy_local_registry "$registry" || return 1
     insecure="$(jq -nc --arg r "$registry" '[$r]')"
+    insecure_host="$registry"
   fi
   zz-log i "[vps-setup] Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
   kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
   kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
-  # The namespace is ours (buildkit.manageNamespace=false below). If a chart version renders it anyway,
-  # Helm refuses a namespace it does not own ("invalid ownership metadata"): give it that metadata.
-  kubectl label namespace devcontainer-builder app.kubernetes.io/managed-by=Helm --overwrite
-  kubectl annotate namespace devcontainer-builder meta.helm.sh/release-name=devcontainer-builder meta.helm.sh/release-namespace=devcontainer-builder --overwrite
+  deploy_buildkit "${insecure_host}" || return 1
   values="$(mktemp)"
   jq -n --arg reg "$registry" --arg user "$auth_user" --arg tok "$auth_pw" --arg mapped "$mapped" --argjson insecure "$insecure" \
-    '{buildkit: {deploy: {enabled: true}, manageNamespace: false},
+    '{buildkit: {endpoint: "tcp://buildkit.devcontainer-builder.svc.cluster.local:1234"},
       registryAuth: {registries: (if $user == "" then [] else [{registry: $reg, username: $user, password: $tok}] end)},
       registryMapping: {rules: [{hostMatch: "github.com", registry: $mapped}]},
       insecureRegistries: $insecure}' >"$values"

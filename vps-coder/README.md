@@ -48,7 +48,7 @@ Do not mount a Docker socket into the Coder pod: there is no Docker on this node
 
 ## Dev container platform: devcontainer-builder and a registry
 
-The namespace is created and labelled by the step (`buildkit.manageNamespace=false`, and it carries Helm's ownership metadata in case a chart version renders it anyway, which otherwise fails with `invalid ownership metadata`). Right after Coder is ready (before the admin and template steps, so it comes up even if those only warn), the step installs the [devcontainer-builder](https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/) chart with its bundled BuildKit (namespace `devcontainer-builder`, labelled Pod Security `privileged`, which BuildKit requires) and the `devcontainer-images` pull secret in the `coder` namespace.
+Right after Coder is ready (before the admin and template steps, so it comes up even if those only warn), the step installs the [devcontainer-builder](https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/) chart, pointed at a BuildKit the step deploys itself (namespace `devcontainer-builder`, labelled Pod Security `privileged`, which BuildKit requires; chart 0.5.0, the latest published, cannot deploy its bundled BuildKit: its container name is the invalid Helm alias `buildkitBundled`, so `buildkit.deploy.enabled` is not used) and the `devcontainer-images` pull secret in the `coder` namespace.
 
 **Registry.** By default an **in-cluster registry** (`registry:2`, 20Gi volume, anonymous, plain HTTP) is deployed in that namespace on host port 5000, reachable as `<node ip>:5000` by BuildKit (pods) and by containerd (which cannot resolve cluster DNS names). Port 5000 is declared `private` (`devcontainer_registry`), so ufw and the FORWARD guard keep it off the internet. The builder maps `github.com` repos to `<node ip>:5000/devcontainers` and lists that host in `insecureRegistries`; if `/etc/rancher/k3s/registries.yaml` does not exist, the step creates it with an HTTP mirror for the registry and **restarts k3s once** (running pods keep running; an existing file is never edited, a warning says what to add). The final summary shows the registry address.
 
@@ -67,7 +67,7 @@ After the admin exists, one template is pushed (once; an existing one is left as
 sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_BUILDER_REF=<tag> zz-setup perspikapps/vps -o vps-coder
 ```
 
-**Known gap:** the builder's *own* BuildKit must also be told to push to a plain-HTTP registry (its `buildkitd.toml`, `http = true` for the registry host); the chart documentation does not say how to set that for the bundled BuildKit, so it is not done here. If builds fail pushing to `<node ip>:5000`, set it (via `buildkitBundled` values) or use an external HTTPS registry.
+BuildKit's `buildkitd.toml` is set to push to the in-cluster registry over plain HTTP (`http = true`); an external registry needs nothing.
 
 Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, retry only this part with `sudo ZZ_SETUP_REF=<ref> bash /opt/vps/vps-coder/run.sh bootstrap` (uses the saved admin credentials), or run `coder templates push` by hand.
 
