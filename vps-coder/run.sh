@@ -45,7 +45,8 @@ _coder_bootstrap_steps() {
   if [[ "$code" == "404" ]]; then
     zz-log i "[vps-setup] Creating the Coder admin user '${user}'..."
     jq -n --arg e "$email" --arg u "$user" --arg p "$pw" '{email: $e, username: $u, name: $u, password: $p, trial: false}' |
-      curl -fsS -o /dev/null -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/first" || return 1
+      curl -fsS -o /dev/null -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/first" \
+      || { zz-log w "[vps-setup] Creating the first Coder user failed (POST /users/first)."; return 1; }
   fi
 
   token="$(jq -n --arg e "$email" --arg p "$pw" '{email: $e, password: $p}' |
@@ -54,13 +55,14 @@ _coder_bootstrap_steps() {
 
   if [[ -n "${DEVCONTAINER_REGISTRY_TOKEN:-}" && -n "${DEVCONTAINER_REGISTRY_USER:-}" && -n "${DEVCONTAINER_REGISTRY_ORG:-}" ]]; then
     if [[ "${DEVCONTAINER_BUILDER_VERSION:-}" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ && "${DEVCONTAINER_BUILDER_REF:-}" =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ ]]; then
-      install_devcontainer_builder || return 1
-      push_coder_template "$token" kubernetes-devcontainer || return 1
+      install_devcontainer_builder || { zz-log w "[vps-setup] Installing devcontainer-builder failed (see above)."; return 1; }
+      push_coder_template "$token" kubernetes-devcontainer || { zz-log w "[vps-setup] Pushing the kubernetes-devcontainer template failed (see above)."; return 1; }
       return 0
     fi
     zz-log w "[vps-setup] Registry credentials are set but devcontainer-builder is third-party code and must be pinned: set DEVCONTAINER_BUILDER_VERSION (chart) and DEVCONTAINER_BUILDER_REF (template tag/commit). Using the Envbuilder starter instead."
   fi
-  push_coder_template "$token" envbuilder || return 1
+  push_coder_template "$token" envbuilder || { zz-log w "[vps-setup] Pushing the Envbuilder 'devcontainer' template failed (see above)."; return 1; }
+  zz-log i "[vps-setup] Template pushed."
 }
 
 # devcontainer-builder (https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/):
@@ -224,5 +226,15 @@ summary() {
                        (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF2
 }
+
+# bootstrap: re-run only the admin/template step (e.g. after fixing a warning above),
+# with the admin credentials the install saved.
+if [[ "${1:-}" == "bootstrap" ]]; then
+  command_exists kubectl || { zz-log e "[vps-setup] kubectl not found."; exit 1; }
+  pw="$(vps_secret CODER_ADMIN_PASSWORD)"
+  [[ -n "$pw" ]] || { zz-log e "[vps-setup] No saved admin password: run the full step first (sudo vps-setup --only-vps-coder)."; exit 1; }
+  bootstrap_coder "$(vps_secret CODER_ADMIN_EMAIL)" "$(vps_secret CODER_ADMIN_USERNAME)" "$pw"
+  exit
+fi
 
 dispatch_action "$@"

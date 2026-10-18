@@ -81,3 +81,9 @@ DIR="$REPO_ROOT/vps-coder"
     ! grep -q -- '--set .*password' "$DIR/run.sh"
     grep -q 'registryAuth' "$DIR/run.sh"
 }
+
+@test "a bootstrap action retries only the admin/template step, and each failure names its step" {
+    grep -q '"bootstrap"' "$DIR/run.sh"
+    grep -q 'POST /users/first' "$DIR/run.sh"
+    grep -q 'template failed (see above)' "$DIR/run.sh"
+}

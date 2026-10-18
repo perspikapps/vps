@@ -61,7 +61,7 @@ sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_REGISTRY_USER=<user> DEVCONTAINER_REGISTRY_
   zz-setup perspikapps/vps -o vps-coder
 ```
 
-Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, run `coder templates push` by hand.
+Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, retry only this part with `sudo ZZ_SETUP_REF=<ref> bash /opt/vps/vps-coder/run.sh bootstrap` (uses the saved admin credentials), or run `coder templates push` by hand.
 
 ## Removing (`down`)
 
