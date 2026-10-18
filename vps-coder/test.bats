@@ -102,3 +102,9 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'POST /users/first' "$DIR/run.sh"
     grep -q 'template failed (see above)' "$DIR/run.sh"
 }
+
+@test "the chart is told not to manage the namespace, which the step owns and adopts for Helm if rendered anyway" {
+    grep -q 'manageNamespace: false' "$DIR/run.sh"
+    grep -q 'app.kubernetes.io/managed-by=Helm' "$DIR/run.sh"
+    grep -q 'meta.helm.sh/release-name=devcontainer-builder' "$DIR/run.sh"
+}

@@ -152,9 +152,13 @@ install_devcontainer_builder() {
   zz-log i "[vps-setup] Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
   kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
   kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
+  # The namespace is ours (buildkit.manageNamespace=false below). If a chart version renders it anyway,
+  # Helm refuses a namespace it does not own ("invalid ownership metadata"): give it that metadata.
+  kubectl label namespace devcontainer-builder app.kubernetes.io/managed-by=Helm --overwrite
+  kubectl annotate namespace devcontainer-builder meta.helm.sh/release-name=devcontainer-builder meta.helm.sh/release-namespace=devcontainer-builder --overwrite
   values="$(mktemp)"
   jq -n --arg reg "$registry" --arg user "$auth_user" --arg tok "$auth_pw" --arg mapped "$mapped" --argjson insecure "$insecure" \
-    '{buildkit: {deploy: {enabled: true}},
+    '{buildkit: {deploy: {enabled: true}, manageNamespace: false},
       registryAuth: {registries: (if $user == "" then [] else [{registry: $reg, username: $user, password: $tok}] end)},
       registryMapping: {rules: [{hostMatch: "github.com", registry: $mapped}]},
       insecureRegistries: $insecure}' >"$values"
