@@ -110,3 +110,8 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'buildkit: {endpoint:' "$DIR/run.sh"
     ! grep -q 'deploy: {enabled: true}' "$DIR/run.sh"
 }
+
+@test "a failed devcontainer-builder release from an earlier attempt is forgotten by record, never uninstalled (it may own the namespace)" {
+    grep -q 'delete secret -l owner=helm,name=devcontainer-builder' "$DIR/run.sh"
+    ! grep -q 'helm uninstall devcontainer-builder' "$DIR/run.sh"
+}

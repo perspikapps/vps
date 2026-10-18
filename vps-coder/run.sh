@@ -175,7 +175,7 @@ EOF2
 # set, else the in-cluster one. Sets BUILDER_READY=1 for the template step.
 install_devcontainer_builder() {
   local values rc=0 chart=oci://ghcr.io/deepspacecartel/charts/devcontainer-builder version="${DEVCONTAINER_BUILDER_VERSION:-}"
-  local registry mapped auth_user auth_pw node_ip insecure='[]' insecure_host=""
+  local registry mapped auth_user auth_pw node_ip insecure='[]' insecure_host="" status
   if [[ -z "$version" ]]; then
     version="$(helm show chart "$chart" 2>/dev/null | awk '/^version:/ {print $2; exit}')" \
       || true
@@ -198,6 +198,14 @@ install_devcontainer_builder() {
   zz-log i "[vps-setup] Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
   kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
   kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
+  # A release left "failed" by an earlier attempt makes `helm upgrade` choke on resources it lists but
+  # that are gone. Forget the record only: `helm uninstall` would delete what it lists, which can
+  # include this namespace (older attempts had the chart own it) and with it the registry and its images.
+  status="$(helm status devcontainer-builder -n devcontainer-builder -o json 2>/dev/null | jq -r '.info.status // empty')" || status=""
+  if [[ -n "$status" && "$status" != "deployed" ]]; then
+    zz-log w "[vps-setup] Dropping the record of the ${status} devcontainer-builder release from an earlier attempt (resources are kept)."
+    kubectl -n devcontainer-builder delete secret -l owner=helm,name=devcontainer-builder
+  fi
   deploy_buildkit "${insecure_host}" || return 1
   values="$(mktemp)"
   jq -n --arg reg "$registry" --arg user "$auth_user" --arg tok "$auth_pw" --arg mapped "$mapped" --argjson insecure "$insecure" \
