@@ -17,6 +17,7 @@ declare -F wildcard_domain >/dev/null || {
 }
 
 CODER_NAMESPACE=coder
+REGISTRY_PORT="$(net_port devcontainer_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
 
@@ -53,40 +54,121 @@ _coder_bootstrap_steps() {
     curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/login" 2>/dev/null | jq -r '.session_token // empty')" || true
   [[ -n "$token" ]] || { zz-log w "[vps-setup] Could not log in as '${email}' (password changed since?); skipping the template."; return 1; }
 
-  if [[ -n "${DEVCONTAINER_REGISTRY_TOKEN:-}" && -n "${DEVCONTAINER_REGISTRY_USER:-}" && -n "${DEVCONTAINER_REGISTRY_ORG:-}" ]]; then
-    if [[ "${DEVCONTAINER_BUILDER_VERSION:-}" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ && "${DEVCONTAINER_BUILDER_REF:-}" =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ ]]; then
-      install_devcontainer_builder || { zz-log w "[vps-setup] Installing devcontainer-builder failed (see above)."; return 1; }
+  # the platform (devcontainer-builder + registry) is installed before the admin step;
+  # its template is pushed only when it is up and the template repo ref is pinned
+  if [[ "${BUILDER_READY:-}" == "1" ]]; then
+    if [[ "${DEVCONTAINER_BUILDER_REF:-}" =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ ]]; then
       push_coder_template "$token" kubernetes-devcontainer || { zz-log w "[vps-setup] Pushing the kubernetes-devcontainer template failed (see above)."; return 1; }
       return 0
     fi
-    zz-log w "[vps-setup] Registry credentials are set but devcontainer-builder is third-party code and must be pinned: set DEVCONTAINER_BUILDER_VERSION (chart) and DEVCONTAINER_BUILDER_REF (template tag/commit). Using the Envbuilder starter instead."
+    zz-log w "[vps-setup] devcontainer-builder is installed, but its template is third-party code and must be pinned: set DEVCONTAINER_BUILDER_REF (a tag or commit of github.com/DeepSpaceCartel/devcontainer-builder). Using the Envbuilder starter instead."
   fi
   push_coder_template "$token" envbuilder || { zz-log w "[vps-setup] Pushing the Envbuilder 'devcontainer' template failed (see above)."; return 1; }
   zz-log i "[vps-setup] Template pushed."
 }
 
+# In-cluster registry for the built images (anonymous, plain HTTP, no TLS): registry:2 with a PVC, on
+# hostPort 5000 so that both BuildKit (pods) and containerd (kubelet, which cannot resolve cluster DNS)
+# reach it as <node ip>:5000. Port 5000 is declared "private" in package.json, so ufw and the
+# FORWARD guard keep it off the internet. containerd needs a registries.yaml mirror to pull over HTTP.
+deploy_local_registry() {
+  local addr="$1" cfg=/etc/rancher/k3s/registries.yaml
+  zz-log i "[vps-setup] Deploying the in-cluster image registry at ${addr}..."
+  kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
+  kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
+  kubectl apply -n devcontainer-builder -f - <<EOF2
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: registry-data}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 20Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: registry}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: registry}}
+  template:
+    metadata: {labels: {app: registry}}
+    spec:
+      containers:
+        - name: registry
+          image: registry:2
+          ports: [{containerPort: 5000, hostPort: ${REGISTRY_PORT}}]
+          env: [{name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true"}]
+          volumeMounts: [{name: data, mountPath: /var/lib/registry}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: registry-data}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: registry}
+spec:
+  selector: {app: registry}
+  ports: [{port: 5000, targetPort: 5000}]
+EOF2
+  kubectl -n devcontainer-builder rollout status deploy/registry --timeout=5m
+  reapply_private_guard
+  if [[ ! -f "$cfg" ]]; then
+    zz-log i "[vps-setup] Letting containerd pull ${addr} over HTTP (${cfg}); restarting k3s (running pods keep running)..."
+    printf 'mirrors:\n  "%s":\n    endpoint:\n      - "http://%s"\n' "$addr" "$addr" >"$cfg"
+    systemctl restart k3s
+    for _ in $(seq 1 60); do kubectl get --raw /readyz >/dev/null 2>&1 && break; sleep 2; done
+  elif ! grep -qF "$addr" "$cfg"; then
+    zz-log w "[vps-setup] ${cfg} exists without ${addr}: add a mirror with endpoint http://${addr} yourself, then restart k3s, or workspaces cannot pull the built images."
+  fi
+}
+
 # devcontainer-builder (https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/):
-# the service that builds a repo's devcontainer.json into an image pushed to a registry, with
-# its own BuildKit (needs a privileged namespace). Third-party: the chart version is pinned.
+# builds a repo's devcontainer.json into an image pushed to a registry, with its own BuildKit (needs a
+# privileged namespace). Third-party chart: an unset DEVCONTAINER_BUILDER_VERSION resolves to the latest
+# and is logged so it can be pinned. The registry is the external one when DEVCONTAINER_REGISTRY_* are
+# set, else the in-cluster one. Sets BUILDER_READY=1 for the template step.
 install_devcontainer_builder() {
-  local values rc=0 registry="${DEVCONTAINER_REGISTRY:-ghcr.io}"
-  zz-log i "[vps-setup] Installing devcontainer-builder chart ${DEVCONTAINER_BUILDER_VERSION} (registry ${registry}/${DEVCONTAINER_REGISTRY_ORG})..."
+  local values rc=0 chart=oci://ghcr.io/deepspacecartel/charts/devcontainer-builder version="${DEVCONTAINER_BUILDER_VERSION:-}"
+  local registry mapped auth_user auth_pw node_ip insecure='[]'
+  if [[ -z "$version" ]]; then
+    version="$(helm show chart "$chart" 2>/dev/null | awk '/^version:/ {print $2; exit}')" \
+      || true
+    [[ -n "$version" ]] || { zz-log w "[vps-setup] Could not resolve the latest devcontainer-builder chart version."; return 1; }
+    zz-log w "[vps-setup] DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with DEVCONTAINER_BUILDER_VERSION=${version}."
+  fi
+  if [[ -n "${DEVCONTAINER_REGISTRY_TOKEN:-}" && -n "${DEVCONTAINER_REGISTRY_USER:-}" && -n "${DEVCONTAINER_REGISTRY_ORG:-}" ]]; then
+    registry="${DEVCONTAINER_REGISTRY:-ghcr.io}"
+    mapped="${registry}/${DEVCONTAINER_REGISTRY_ORG}"
+    auth_user="$DEVCONTAINER_REGISTRY_USER"; auth_pw="$DEVCONTAINER_REGISTRY_TOKEN"
+  else
+    node_ip="$(hostname -I | awk '{print $1}')"
+    registry="${node_ip}:${REGISTRY_PORT}"
+    mapped="${registry}/devcontainers"
+    auth_user=""; auth_pw=""
+    deploy_local_registry "$registry" || return 1
+    insecure="$(jq -nc --arg r "$registry" '[$r]')"
+  fi
+  zz-log i "[vps-setup] Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
   kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
   kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
   values="$(mktemp)"
-  jq -n --arg reg "$registry" --arg user "$DEVCONTAINER_REGISTRY_USER" --arg tok "$DEVCONTAINER_REGISTRY_TOKEN" --arg org "$DEVCONTAINER_REGISTRY_ORG" \
+  jq -n --arg reg "$registry" --arg user "$auth_user" --arg tok "$auth_pw" --arg mapped "$mapped" --argjson insecure "$insecure" \
     '{buildkit: {deploy: {enabled: true}},
-      registryAuth: {registries: [{registry: $reg, username: $user, password: $tok}]},
-      registryMapping: {rules: [{hostMatch: "github.com", registry: ($reg + "/" + $org)}]}}' >"$values"
+      registryAuth: {registries: (if $user == "" then [] else [{registry: $reg, username: $user, password: $tok}] end)},
+      registryMapping: {rules: [{hostMatch: "github.com", registry: $mapped}]},
+      insecureRegistries: $insecure}' >"$values"
   run_with_progress devcontainer-builder "devcontainer-builder install" \
-    helm upgrade --install devcontainer-builder oci://ghcr.io/deepspacecartel/charts/devcontainer-builder \
-    --version "$DEVCONTAINER_BUILDER_VERSION" -n devcontainer-builder --values "$values" --wait --timeout 10m || rc=$?
+    helm upgrade --install devcontainer-builder "$chart" \
+    --version "$version" -n devcontainer-builder --values "$values" --wait --timeout 10m || rc=$?
   rm -f "$values"
   if [[ "$rc" -ne 0 ]]; then dump_diagnostics devcontainer-builder; return "$rc"; fi
-  # workspaces pull the built images from the (possibly private) registry
+  # workspaces pull the built images with this secret (a dummy login when the registry is anonymous)
   kubectl -n "$CODER_NAMESPACE" create secret docker-registry devcontainer-images \
-    --docker-server="$registry" --docker-username="$DEVCONTAINER_REGISTRY_USER" --docker-password="$DEVCONTAINER_REGISTRY_TOKEN" \
+    --docker-server="$registry" --docker-username="${auth_user:-anonymous}" --docker-password="${auth_pw:-anonymous}" \
     --dry-run=client -o yaml | kubectl apply -f -
+  BUILDER_READY=1
+  DEVCONTAINER_IMAGE_REGISTRY="$mapped"
 }
 
 # push_coder_template TOKEN KIND: pushes once (an existing template is left as is), from inside
@@ -189,6 +271,9 @@ if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAM
   exit 1
 fi
 
+# charts first: the platform comes up even if the admin/template steps below only warn
+install_devcontainer_builder || zz-log w "[vps-setup] devcontainer-builder / registry setup incomplete (see above); re-run: sudo vps-setup --only-vps-coder"
+
 ADMIN_EMAIL="${CODER_ADMIN_EMAIL:-admin@${WILDCARD:-coder.local}}"
 ADMIN_USER="${CODER_ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="$(vps_secret CODER_ADMIN_PASSWORD)"
@@ -225,6 +310,9 @@ summary() {
                        password: $(vps_secret CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF2
+  if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
+    echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$(summary_host):${REGISTRY_PORT}/v2/_catalog)"
+  fi
 }
 
 # bootstrap: re-run only the admin/template step (e.g. after fixing a warning above),
@@ -233,6 +321,7 @@ if [[ "${1:-}" == "bootstrap" ]]; then
   command_exists kubectl || { zz-log e "[vps-setup] kubectl not found."; exit 1; }
   pw="$(vps_secret CODER_ADMIN_PASSWORD)"
   [[ -n "$pw" ]] || { zz-log e "[vps-setup] No saved admin password: run the full step first (sudo vps-setup --only-vps-coder)."; exit 1; }
+  if kubectl -n devcontainer-builder get deploy/devcontainer-builder >/dev/null 2>&1; then BUILDER_READY=1; fi
   bootstrap_coder "$(vps_secret CODER_ADMIN_EMAIL)" "$(vps_secret CODER_ADMIN_USERNAME)" "$pw"
   exit
 fi

@@ -57,17 +57,17 @@
         "default": "10Gi"
       },
       "DEVCONTAINER_BUILDER_REF": {
-        "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required with the registry credentials)",
+        "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required for that template)",
         "required": false,
         "default": ""
       },
       "DEVCONTAINER_BUILDER_VERSION": {
-        "description": "Pinned devcontainer-builder Helm chart version (required with the registry credentials)",
+        "description": "devcontainer-builder Helm chart version (empty = latest, logged so you can pin it)",
         "required": false,
         "default": ""
       },
       "DEVCONTAINER_REGISTRY": {
-        "description": "Container registry devcontainer-builder pushes images to",
+        "description": "External registry host (with the token, user and org); default ghcr.io",
         "required": false,
         "default": "ghcr.io"
       },
@@ -77,7 +77,7 @@
         "default": ""
       },
       "DEVCONTAINER_REGISTRY_TOKEN": {
-        "description": "Registry token able to push and pull (GHCR: write:packages); with user, org and the two pins it enables devcontainer-builder, else the Envbuilder starter is used",
+        "description": "External registry token able to push and pull (GHCR: write:packages); with user and org it replaces the in-cluster registry",
         "required": false,
         "default": "",
         "secret": true
@@ -89,6 +89,13 @@
       }
     },
     "order": 8,
-    "outputs": {}
+    "outputs": {},
+    "ports": [
+      {
+        "name": "devcontainer_registry",
+        "port": 5000,
+        "access": "private"
+      }
+    ]
   }
 }

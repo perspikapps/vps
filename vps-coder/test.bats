@@ -68,12 +68,27 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q "d @-" "$DIR/run.sh" || grep -q -- '-d @-' "$DIR/run.sh"
 }
 
-@test "devcontainer-builder is third-party: pinned chart and template ref, enabled only with credentials and both pins" {
-    grep -q -- '--version "\$DEVCONTAINER_BUILDER_VERSION"' "$DIR/run.sh"
+@test "charts come first: the platform is installed before the admin/template step, which only warns" {
+    inst=$(grep -n '^install_devcontainer_builder ||' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    boot=$(grep -n '^bootstrap_coder "\$ADMIN_EMAIL"' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    [ -n "$inst" ] && [ -n "$boot" ] && [ "$inst" -lt "$boot" ]
+    grep -q 'incomplete (see above)' "$DIR/run.sh"
+}
+
+@test "devcontainer-builder is third-party: latest chart is resolved and logged, the template ref must be pinned, never a default branch" {
+    grep -q 'helm show chart' "$DIR/run.sh"
+    grep -q 'Pin it with DEVCONTAINER_BUILDER_VERSION' "$DIR/run.sh"
     grep -q 'fetch -q --depth 1 .* "\$DEVCONTAINER_BUILDER_REF"' "$DIR/run.sh"
-    grep -q 'DEVCONTAINER_BUILDER_VERSION:-}" =~' "$DIR/run.sh"
     ! grep -q 'git clone' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(i.DEVCONTAINER_REGISTRY_TOKEN.secret === true && ['DEVCONTAINER_BUILDER_VERSION','DEVCONTAINER_BUILDER_REF'].every(k => i[k] && i[k].required === false) ? 0 : 1)"
+    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(i.DEVCONTAINER_REGISTRY_TOKEN.secret === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+@test "in-cluster registry: anonymous registry:2 on a private port, with the builder told it is plain HTTP and containerd given a mirror" {
+    grep -q 'image: registry:2' "$DIR/run.sh"
+    grep -q 'insecureRegistries' "$DIR/run.sh"
+    grep -q '/etc/rancher/k3s/registries.yaml' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'devcontainer_registry'); process.exit(p && p.port === 5000 && p.access === 'private' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

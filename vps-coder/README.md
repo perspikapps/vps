@@ -46,20 +46,28 @@ Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/r
 
 Do not mount a Docker socket into the Coder pod: there is no Docker on this node. A host with Docker (`vps-dokploy`) is the other route, and it is exclusive with k3s.
 
-## Dev container templates
+## Dev container platform: devcontainer-builder and a registry
 
-After the admin exists, the step pushes one workspace template (once; an existing one is left as is):
+Right after Coder is ready (before the admin and template steps, so it comes up even if those only warn), the step installs the [devcontainer-builder](https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/) chart with its bundled BuildKit (namespace `devcontainer-builder`, labelled Pod Security `privileged`, which BuildKit requires) and the `devcontainer-images` pull secret in the `coder` namespace.
 
-- **`kubernetes-devcontainer` via [devcontainer-builder](https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/)**, when `DEVCONTAINER_REGISTRY_USER`, `DEVCONTAINER_REGISTRY_ORG`, `DEVCONTAINER_REGISTRY_TOKEN` **and both pins** are set. It installs the devcontainer-builder chart (with its own BuildKit, in a `devcontainer-builder` namespace labelled Pod Security `privileged`, which BuildKit requires) mapping `github.com` repos to `<DEVCONTAINER_REGISTRY>/<DEVCONTAINER_REGISTRY_ORG>`, creates the `devcontainer-images` pull secret in the `coder` namespace, then pushes that project's `templates/coder-kubernetes` with `namespace=coder`, the in-cluster builder endpoint and the pull secret. Developers then create a workspace from a git repository and branch.
+**Registry.** By default an **in-cluster registry** (`registry:2`, 20Gi volume, anonymous, plain HTTP) is deployed in that namespace on host port 5000, reachable as `<node ip>:5000` by BuildKit (pods) and by containerd (which cannot resolve cluster DNS names). Port 5000 is declared `private` (`devcontainer_registry`), so ufw and the FORWARD guard keep it off the internet. The builder maps `github.com` repos to `<node ip>:5000/devcontainers` and lists that host in `insecureRegistries`; if `/etc/rancher/k3s/registries.yaml` does not exist, the step creates it with an HTTP mirror for the registry and **restarts k3s once** (running pods keep running; an existing file is never edited, a warning says what to add). The final summary shows the registry address.
+
+To use an **external registry** instead, set `DEVCONTAINER_REGISTRY_USER`, `DEVCONTAINER_REGISTRY_ORG` and `DEVCONTAINER_REGISTRY_TOKEN` (and optionally `DEVCONTAINER_REGISTRY`, default `ghcr.io`; the token needs to push and pull, GHCR `write:packages`); nothing in-cluster is deployed then.
+
+**Chart version.** devcontainer-builder is third-party. With `DEVCONTAINER_BUILDER_VERSION` unset the latest chart is installed and its version is **logged** (`Pin it with DEVCONTAINER_BUILDER_VERSION=...`); set it to pin.
+
+## Workspace templates
+
+After the admin exists, one template is pushed (once; an existing one is left as is):
+
+- **`kubernetes-devcontainer`** from devcontainer-builder's `templates/coder-kubernetes`, when the platform above is up **and** `DEVCONTAINER_BUILDER_REF` (a tag or commit of that repository) is set; the template is third-party code, so it is never taken from a default branch. It is pushed with `namespace=coder`, the in-cluster builder endpoint and the pull secret. Developers create a workspace from a git repository and branch.
 - **`devcontainer` (Envbuilder starter)** otherwise, following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the starter embedded in the server's own `coder` binary, with `namespace=coder` and `use_kubeconfig=false`.
 
-devcontainer-builder is third-party code (a chart that runs a privileged BuildKit and holds the registry token, and a Terraform template), so it is **pinned**: `DEVCONTAINER_BUILDER_VERSION` is the chart version and `DEVCONTAINER_BUILDER_REF` the template repo's tag or commit. With credentials but no pins the step warns and uses the Envbuilder starter; nothing is taken from a default branch. The registry token needs to push and pull (GHCR: `write:packages`).
-
 ```bash
-sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_REGISTRY_USER=<user> DEVCONTAINER_REGISTRY_ORG=<org> \
-  DEVCONTAINER_REGISTRY_TOKEN=<token> DEVCONTAINER_BUILDER_VERSION=<chart-version> DEVCONTAINER_BUILDER_REF=<tag> \
-  zz-setup perspikapps/vps -o vps-coder
+sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_BUILDER_REF=<tag> zz-setup perspikapps/vps -o vps-coder
 ```
+
+**Known gap:** the builder's *own* BuildKit must also be told to push to a plain-HTTP registry (its `buildkitd.toml`, `http = true` for the registry host); the chart documentation does not say how to set that for the bundled BuildKit, so it is not done here. If builds fail pushing to `<node ip>:5000`, set it (via `buildkitBundled` values) or use an external HTTPS registry.
 
 Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, retry only this part with `sudo ZZ_SETUP_REF=<ref> bash /opt/vps/vps-coder/run.sh bootstrap` (uses the saved admin credentials), or run `coder templates push` by hand.
 
@@ -69,7 +77,7 @@ Private repositories need a Coder external auth provider with the ID `github` an
 sudo vps-setup --down-vps-coder
 ```
 
-Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords (devcontainer-builder and its namespace are left in place).
+Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords (devcontainer-builder, the registry and its images are left in place, with `/etc/rancher/k3s/registries.yaml`).
 
 ## Environment variables
 
@@ -80,11 +88,11 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
 | `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
-| `DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required with the registry credentials) |
-| `DEVCONTAINER_BUILDER_VERSION` | no | _(unset)_ | Pinned devcontainer-builder chart version (required with the registry credentials) |
-| `DEVCONTAINER_REGISTRY` | no | `ghcr.io` | Registry devcontainer-builder pushes images to |
-| `DEVCONTAINER_REGISTRY_ORG` | no | _(unset)_ | Registry org/user images are pushed under |
-| `DEVCONTAINER_REGISTRY_TOKEN` | no | _(unset)_ | Registry token able to push and pull (with user, org and the pins it enables devcontainer-builder) |
+| `DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required to push that template; else the Envbuilder starter) |
+| `DEVCONTAINER_BUILDER_VERSION` | no | _(latest, logged)_ | devcontainer-builder chart version |
+| `DEVCONTAINER_REGISTRY` | no | `ghcr.io` | External registry host (used with the user, org and token) |
+| `DEVCONTAINER_REGISTRY_ORG` | no | _(unset)_ | External registry org/user images are pushed under |
+| `DEVCONTAINER_REGISTRY_TOKEN` | no | _(unset)_ | External registry token able to push and pull; with user and org it replaces the in-cluster registry |
 | `DEVCONTAINER_REGISTRY_USER` | no | _(unset)_ | Registry username for the token |
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
