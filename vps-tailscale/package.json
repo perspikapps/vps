@@ -16,6 +16,9 @@
     "zz-setup": "*"
   },
   "config": {
+    "conflicts": [
+      "vps-cloudflare"
+    ],
     "order": 1,
     "default": true,
     "inputs": {

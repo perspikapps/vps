@@ -148,7 +148,9 @@
     "pattern": "^(main|develop){1}$|^(feature|bugfix|release|hotfix|support|copilot|claude)/.+$"
   },
   "workspaces": [
+    "vps-cloudflare",
     "vps-cockpit",
+    "vps-coder",
     "vps-common",
     "vps-dokploy",
     "vps-k3s",

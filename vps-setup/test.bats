@@ -55,7 +55,7 @@ teardown() {
 @test "the settings file is sourced (shell syntax, quotes and comments allowed)" {
     printf 'FOO_FROM_FILE="a b" # a comment\n' >"$STUBS/env"
     cp "$DIR/run.sh" "$STUBS/copy.sh"
-    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE="$STUBS/env" VPS_SETUP_REPO_REF=feat \
+    run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE="$STUBS/env" ZZ_SETUP_REF=feat \
         bash -c 'sed "s#^SCRIPT_DIR=.*#SCRIPT_DIR=/nonexistent#" "$0" > "$1" && bash "$1" -h; echo "foo=$FOO_FROM_FILE"' "$DIR/run.sh" "$STUBS/run2.sh"
     [[ "$output" == *"zz-setup perspikapps/vps@feat -h"* ]]
     [[ "$output" == *"foo=a b"* ]]
