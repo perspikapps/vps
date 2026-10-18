@@ -16,7 +16,7 @@ with the placeholders below, which you do not want) otherwise:
 
 | Value                      | Purpose                                                                                                                                                     |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `epinio.global.domain`     | Wildcard DNS domain pointed at your cluster's ingress IP. Epinio creates `epinio.<domain>`, `auth.<domain>`, and one hostname per `epinio push`ed app.      |
+| `global.domain`            | Wildcard DNS domain pointed at your cluster's ingress IP. Epinio creates `epinio.<domain>`, `auth.<domain>`, and one hostname per `epinio push`ed app.      |
 | `epinio.api.adminPassword` | Admin login password. This repo's old bash install generated and saved a random one; the Rancher UI install has no such step, so set a real value yourself. |
 
 Also review `epinio.global.tlsIssuer` and the three `ingressClassName`

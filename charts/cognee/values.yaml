@@ -50,9 +50,18 @@ resources:
         cpu: '2'
         memory: 4Gi
 
+# Server domain for the Ingress: apps are served at <app>.<global.domain>.
+# Left empty it is derived from Rancher's own server URL (global.cattle.url,
+# injected on install); a bare IP there becomes <ip>.nip.io.
+global:
+    domain: ''
+    cattle:
+        url: ''
+
 ingress:
-    enabled: false
+    enabled: true
     ingressClassName: traefik
-    hostname: cognee.example.com
+    # Override the generated <app>.<domain> host.
+    host: ''
     annotations: {}
     tls: false

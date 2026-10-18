@@ -13,7 +13,7 @@ metadata:
 spec:
     ingressClassName: {{ .Values.dashboard.ingress.className }}
     rules:
-        - host: {{ .Values.dashboard.ingress.host }}
+        - host: {{ include "hermes.host" . }}
           http:
               paths:
                   - path: /
@@ -26,7 +26,7 @@ spec:
     {{- if .Values.dashboard.ingress.tlsIssuer }}
     tls:
         - hosts:
-              - {{ .Values.dashboard.ingress.host }}
+              - {{ include "hermes.host" . }}
           secretName: {{ include "hermes.fullname" . }}-tls
     {{- end }}
 {{- end }}
