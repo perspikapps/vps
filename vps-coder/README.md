@@ -46,16 +46,22 @@ Coder runs as a pod on k3s (containerd), so there is no Docker daemon or `/var/r
 
 Do not mount a Docker socket into the Coder pod: there is no Docker on this node. A host with Docker (`vps-dokploy`) is the other route, and it is exclusive with k3s.
 
-## Envbuilder (dev container) template
+## Dev container templates
 
-The `devcontainer` template follows [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the Kubernetes dev container starter builds a workspace from a repo's `devcontainer.json` (the developer is asked for the repo URL). The step pushes it for you, as the admin it just created (see "What it does"), equivalent to:
+After the admin exists, the step pushes one workspace template (once; an existing one is left as is):
+
+- **`kubernetes-devcontainer` via [devcontainer-builder](https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/)**, when `DEVCONTAINER_REGISTRY_USER`, `DEVCONTAINER_REGISTRY_ORG`, `DEVCONTAINER_REGISTRY_TOKEN` **and both pins** are set. It installs the devcontainer-builder chart (with its own BuildKit, in a `devcontainer-builder` namespace labelled Pod Security `privileged`, which BuildKit requires) mapping `github.com` repos to `<DEVCONTAINER_REGISTRY>/<DEVCONTAINER_REGISTRY_ORG>`, creates the `devcontainer-images` pull secret in the `coder` namespace, then pushes that project's `templates/coder-kubernetes` with `namespace=coder`, the in-cluster builder endpoint and the pull secret. Developers then create a workspace from a git repository and branch.
+- **`devcontainer` (Envbuilder starter)** otherwise, following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the starter embedded in the server's own `coder` binary, with `namespace=coder` and `use_kubeconfig=false`.
+
+devcontainer-builder is third-party code (a chart that runs a privileged BuildKit and holds the registry token, and a Terraform template), so it is **pinned**: `DEVCONTAINER_BUILDER_VERSION` is the chart version and `DEVCONTAINER_BUILDER_REF` the template repo's tag or commit. With credentials but no pins the step warns and uses the Envbuilder starter; nothing is taken from a default branch. The registry token needs to push and pull (GHCR: `write:packages`).
 
 ```bash
-coder templates init --id kubernetes-devcontainer
-cd kubernetes-devcontainer && coder templates push --variable use_kubeconfig=false --variable namespace=coder
+sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_REGISTRY_USER=<user> DEVCONTAINER_REGISTRY_ORG=<org> \
+  DEVCONTAINER_REGISTRY_TOKEN=<token> DEVCONTAINER_BUILDER_VERSION=<chart-version> DEVCONTAINER_BUILDER_REF=<tag> \
+  zz-setup perspikapps/vps -o vps-coder
 ```
 
-If that push warns, run those two commands by hand. For faster starts, set the template's cache repository (see [Envbuilder security and caching](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/envbuilder-security-caching)).
+Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, run `coder templates push` by hand.
 
 ## Removing (`down`)
 
@@ -63,7 +69,7 @@ If that push warns, run those two commands by hand. For faster starts, set the t
 sudo vps-setup --down-vps-coder
 ```
 
-Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords.
+Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords (devcontainer-builder and its namespace are left in place).
 
 ## Environment variables
 
@@ -74,6 +80,12 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
 | `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
+| `DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required with the registry credentials) |
+| `DEVCONTAINER_BUILDER_VERSION` | no | _(unset)_ | Pinned devcontainer-builder chart version (required with the registry credentials) |
+| `DEVCONTAINER_REGISTRY` | no | `ghcr.io` | Registry devcontainer-builder pushes images to |
+| `DEVCONTAINER_REGISTRY_ORG` | no | _(unset)_ | Registry org/user images are pushed under |
+| `DEVCONTAINER_REGISTRY_TOKEN` | no | _(unset)_ | Registry token able to push and pull (with user, org and the pins it enables devcontainer-builder) |
+| `DEVCONTAINER_REGISTRY_USER` | no | _(unset)_ | Registry username for the token |
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
 
@@ -83,6 +95,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Not verified on a live host
 
+- The devcontainer-builder chart's value names (`buildkit.deploy.enabled`, `registryAuth`, `registryMapping`) and the `coder-kubernetes` template's variable names, both taken from its setup page and not read at source; the token's push/pull scope.
 - The admin and template bootstrap: the `/users/first` and `/users/login` API shapes, the `kubernetes-devcontainer` id, the `use_kubeconfig`/`namespace` variable names, and whether the template needs more (such as a cache repository).
 - The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
 - The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.

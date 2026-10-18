@@ -596,6 +596,7 @@ Each feature's README lists its own variables in full.
 | `CLOUDFLARE_TUNNEL_TOKEN`                  | unset                                | Tunnel token for `vps-cloudflare` (**required** when that opt-in step is selected)                                |
 | `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
 | `CODER_ADMIN_EMAIL` / `CODER_ADMIN_USERNAME`  | `admin@<wildcard domain>` / `admin`  | First Coder admin (`vps-coder`; password generated and saved)                                                     |
+| `DEVCONTAINER_REGISTRY_USER` / `_ORG` / `_TOKEN` | unset                          | Registry for `vps-coder`'s devcontainer-builder (needs `DEVCONTAINER_BUILDER_VERSION` + `_REF` pins); unset = Envbuilder starter |
 | `CODER_ACCESS_URL`                         | `http://coder.<wildcard domain>`     | URL of Coder (`vps-coder`, through Traefik)                                                                       |
 | `WILDCARD_DOMAIN`                          | unset (nip.io fallback)              | Wildcard DNS domain for apps needing subdomains, read by `vps-coder` (set in `vps-system`)                        |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |

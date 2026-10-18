@@ -55,6 +55,37 @@
         "description": "PostgreSQL volume size",
         "required": false,
         "default": "10Gi"
+      },
+      "DEVCONTAINER_BUILDER_REF": {
+        "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required with the registry credentials)",
+        "required": false,
+        "default": ""
+      },
+      "DEVCONTAINER_BUILDER_VERSION": {
+        "description": "Pinned devcontainer-builder Helm chart version (required with the registry credentials)",
+        "required": false,
+        "default": ""
+      },
+      "DEVCONTAINER_REGISTRY": {
+        "description": "Container registry devcontainer-builder pushes images to",
+        "required": false,
+        "default": "ghcr.io"
+      },
+      "DEVCONTAINER_REGISTRY_ORG": {
+        "description": "Registry org/user images are pushed under",
+        "required": false,
+        "default": ""
+      },
+      "DEVCONTAINER_REGISTRY_TOKEN": {
+        "description": "Registry token able to push and pull (GHCR: write:packages); with user, org and the two pins it enables devcontainer-builder, else the Envbuilder starter is used",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "DEVCONTAINER_REGISTRY_USER": {
+        "description": "Registry username for the token",
+        "required": false,
+        "default": ""
       }
     },
     "order": 8,

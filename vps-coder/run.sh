@@ -52,17 +52,71 @@ _coder_bootstrap_steps() {
     curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/login" 2>/dev/null | jq -r '.session_token // empty')" || true
   [[ -n "$token" ]] || { zz-log w "[vps-setup] Could not log in as '${email}' (password changed since?); skipping the template."; return 1; }
 
-  if curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -e '.[] | select(.name == "devcontainer")' >/dev/null; then
-    zz-log i "[vps-setup] Template 'devcontainer' already exists; leaving it as is."
+  if [[ -n "${DEVCONTAINER_REGISTRY_TOKEN:-}" && -n "${DEVCONTAINER_REGISTRY_USER:-}" && -n "${DEVCONTAINER_REGISTRY_ORG:-}" ]]; then
+    if [[ "${DEVCONTAINER_BUILDER_VERSION:-}" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ && "${DEVCONTAINER_BUILDER_REF:-}" =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ ]]; then
+      install_devcontainer_builder || return 1
+      push_coder_template "$token" kubernetes-devcontainer || return 1
+      return 0
+    fi
+    zz-log w "[vps-setup] Registry credentials are set but devcontainer-builder is third-party code and must be pinned: set DEVCONTAINER_BUILDER_VERSION (chart) and DEVCONTAINER_BUILDER_REF (template tag/commit). Using the Envbuilder starter instead."
+  fi
+  push_coder_template "$token" envbuilder || return 1
+}
+
+# devcontainer-builder (https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/):
+# the service that builds a repo's devcontainer.json into an image pushed to a registry, with
+# its own BuildKit (needs a privileged namespace). Third-party: the chart version is pinned.
+install_devcontainer_builder() {
+  local values rc=0 registry="${DEVCONTAINER_REGISTRY:-ghcr.io}"
+  zz-log i "[vps-setup] Installing devcontainer-builder chart ${DEVCONTAINER_BUILDER_VERSION} (registry ${registry}/${DEVCONTAINER_REGISTRY_ORG})..."
+  kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
+  kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
+  values="$(mktemp)"
+  jq -n --arg reg "$registry" --arg user "$DEVCONTAINER_REGISTRY_USER" --arg tok "$DEVCONTAINER_REGISTRY_TOKEN" --arg org "$DEVCONTAINER_REGISTRY_ORG" \
+    '{buildkit: {deploy: {enabled: true}},
+      registryAuth: {registries: [{registry: $reg, username: $user, password: $tok}]},
+      registryMapping: {rules: [{hostMatch: "github.com", registry: ($reg + "/" + $org)}]}}' >"$values"
+  run_with_progress devcontainer-builder "devcontainer-builder install" \
+    helm upgrade --install devcontainer-builder oci://ghcr.io/deepspacecartel/charts/devcontainer-builder \
+    --version "$DEVCONTAINER_BUILDER_VERSION" -n devcontainer-builder --values "$values" --wait --timeout 10m || rc=$?
+  rm -f "$values"
+  if [[ "$rc" -ne 0 ]]; then dump_diagnostics devcontainer-builder; return "$rc"; fi
+  # workspaces pull the built images from the (possibly private) registry
+  kubectl -n "$CODER_NAMESPACE" create secret docker-registry devcontainer-images \
+    --docker-server="$registry" --docker-username="$DEVCONTAINER_REGISTRY_USER" --docker-password="$DEVCONTAINER_REGISTRY_TOKEN" \
+    --dry-run=client -o yaml | kubectl apply -f -
+}
+
+# push_coder_template TOKEN KIND: pushes once (an existing template is left as is), from inside
+# the Coder pod (its `coder` CLI matches the server). Token goes in on stdin, not argv.
+push_coder_template() {
+  local token="$1" kind="$2" name vars src
+  if [[ "$kind" == "kubernetes-devcontainer" ]]; then name=kubernetes-devcontainer; else name=devcontainer; fi
+  if curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -e --arg n "$name" '.[] | select(.name == $n)' >/dev/null; then
+    zz-log i "[vps-setup] Template '${name}' already exists; leaving it as is."
     return 0
   fi
-  zz-log i "[vps-setup] Creating the 'devcontainer' template (Kubernetes + envbuilder starter)..."
-  # token via stdin, not argv; workspaces run as pods in this namespace with the pod's service account
-  printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c '
-    read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
-    coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
-    coder templates push devcontainer -d /tmp/devcontainer -y \
-      --var namespace='"$CODER_NAMESPACE"' --var use_kubeconfig=false'
+  zz-log i "[vps-setup] Creating the '${name}' template..."
+  if [[ "$kind" == "kubernetes-devcontainer" ]]; then
+    # the template repo at the pinned tag/commit, not its default branch
+    src="$(mktemp -d)"
+    { git -C "$src" init -q && git -C "$src" fetch -q --depth 1 https://github.com/DeepSpaceCartel/devcontainer-builder.git "$DEVCONTAINER_BUILDER_REF" \
+      && git -C "$src" checkout -q FETCH_HEAD; } >/dev/null 2>&1 \
+      || { rm -rf "$src"; zz-log w "[vps-setup] Could not fetch devcontainer-builder at ${DEVCONTAINER_BUILDER_REF}."; return 1; }
+    tar -C "$src/templates/coder-kubernetes" -cf - . |
+      kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c 'rm -rf /tmp/dcb && mkdir -p /tmp/dcb && tar -xf - -C /tmp/dcb'
+    rm -rf "$src"
+    vars="--var namespace=${CODER_NAMESPACE} --var devcontainer_builder_endpoint=http://devcontainer-builder.devcontainer-builder.svc.cluster.local:8080 --var image_pull_secret_name=devcontainer-images"
+    printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c "
+      read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
+      coder templates push kubernetes-devcontainer -d /tmp/dcb -y ${vars}"
+  else
+    printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c '
+      read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
+      coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
+      coder templates push devcontainer -d /tmp/devcontainer -y \
+        --var namespace='"$CODER_NAMESPACE"' --var use_kubeconfig=false'
+  fi
 }
 
 up() {
@@ -167,7 +221,7 @@ summary() {
  Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public)
                        user:     $(vps_secret CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')
                        password: $(vps_secret CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
-                       (saved to ${VPS_SECRETS_FILE}; template: devcontainer)
+                       (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF2
 }
 

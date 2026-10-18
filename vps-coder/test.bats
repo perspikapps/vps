@@ -67,3 +67,17 @@ DIR="$REPO_ROOT/vps-coder"
     ! grep -qE 'CODER_SESSION_TOKEN=\$' "$DIR/run.sh"
     grep -q "d @-" "$DIR/run.sh" || grep -q -- '-d @-' "$DIR/run.sh"
 }
+
+@test "devcontainer-builder is third-party: pinned chart and template ref, enabled only with credentials and both pins" {
+    grep -q -- '--version "\$DEVCONTAINER_BUILDER_VERSION"' "$DIR/run.sh"
+    grep -q 'fetch -q --depth 1 .* "\$DEVCONTAINER_BUILDER_REF"' "$DIR/run.sh"
+    grep -q 'DEVCONTAINER_BUILDER_VERSION:-}" =~' "$DIR/run.sh"
+    ! grep -q 'git clone' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(i.DEVCONTAINER_REGISTRY_TOKEN.secret === true && ['DEVCONTAINER_BUILDER_VERSION','DEVCONTAINER_BUILDER_REF'].every(k => i[k] && i[k].required === false) ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+@test "the registry token never appears on a command line (values file, stdin)" {
+    ! grep -q -- '--set .*password' "$DIR/run.sh"
+    grep -q 'registryAuth' "$DIR/run.sh"
+}
