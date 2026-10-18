@@ -17,9 +17,40 @@ declare -F wildcard_domain >/dev/null || {
 }
 
 CODER_NAMESPACE=coder
+# Where workspaces run: one namespace for the template's `namespace` variable, the pull secret and
+# the RBAC (the Coder chart's own permissions cover only its release namespace). The platform page's name.
+WORKSPACE_NAMESPACE="${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"
+[[ "$WORKSPACE_NAMESPACE" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] || { zz-log e "[vps-setup] CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')."; exit 1; }
 REGISTRY_PORT="$(net_port devcontainer_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
+
+# The workspace namespace, with rights for Coder's service account (coder:coder) to run workspaces in it:
+# the template creates a Deployment and a PVC (and the builder template reads pods/events).
+ensure_workspace_namespace() {
+  [[ "$WORKSPACE_NAMESPACE" != "$CODER_NAMESPACE" ]] || return 0
+  zz-log i "[vps-setup] Preparing the workspace namespace '${WORKSPACE_NAMESPACE}' (Coder's service account may manage workspaces there)..."
+  kubectl create namespace "$WORKSPACE_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl apply -n "$WORKSPACE_NAMESPACE" -f - <<EOF2
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: coder-workspaces}
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, persistentvolumeclaims, services, secrets, configmaps, events]
+    verbs: ["*"]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: coder-workspaces}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-workspaces}
+subjects:
+  - {kind: ServiceAccount, name: coder, namespace: ${CODER_NAMESPACE}}
+EOF2
+}
 
 # Creates the first admin (once) and the "devcontainer" template (once), through
 # a port-forward to the pod: Traefik and DNS are not needed, and the template
@@ -219,7 +250,7 @@ install_devcontainer_builder() {
   rm -f "$values"
   if [[ "$rc" -ne 0 ]]; then dump_diagnostics devcontainer-builder; return "$rc"; fi
   # workspaces pull the built images with this secret (a dummy login when the registry is anonymous)
-  kubectl -n "$CODER_NAMESPACE" create secret docker-registry devcontainer-images \
+  kubectl -n "$WORKSPACE_NAMESPACE" create secret docker-registry devcontainer-images \
     --docker-server="$registry" --docker-username="${auth_user:-anonymous}" --docker-password="${auth_pw:-anonymous}" \
     --dry-run=client -o yaml | kubectl apply -f -
   BUILDER_READY=1
@@ -231,9 +262,16 @@ install_devcontainer_builder() {
 push_coder_template() {
   local token="$1" kind="$2" name vars src
   if [[ "$kind" == "kubernetes-devcontainer" ]]; then name=kubernetes-devcontainer; else name=devcontainer; fi
-  if curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -e --arg n "$name" '.[] | select(.name == $n)' >/dev/null; then
-    zz-log i "[vps-setup] Template '${name}' already exists; leaving it as is."
-    return 0
+  local tpl ver cur
+  tpl="$(curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -c --arg n "$name" '.[] | select(.name == $n)')" || tpl=""
+  if [[ -n "$tpl" ]]; then
+    ver="$(jq -r '.active_version_id' <<<"$tpl")"
+    cur="$(curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templateversions/${ver}/variables" 2>/dev/null | jq -r '.[] | select(.name == "namespace") | .value // empty')" || cur=""
+    if [[ "$cur" == "$WORKSPACE_NAMESPACE" ]]; then
+      zz-log i "[vps-setup] Template '${name}' already exists (namespace ${cur}); leaving it as is."
+      return 0
+    fi
+    zz-log i "[vps-setup] Template '${name}' uses namespace '${cur:-unknown}', not '${WORKSPACE_NAMESPACE}': pushing a new version."
   fi
   zz-log i "[vps-setup] Creating the '${name}' template..."
   if [[ "$kind" == "kubernetes-devcontainer" ]]; then
@@ -245,7 +283,7 @@ push_coder_template() {
     tar -C "$src/templates/coder-kubernetes" -cf - . |
       kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c 'rm -rf /tmp/dcb && mkdir -p /tmp/dcb && tar -xf - -C /tmp/dcb'
     rm -rf "$src"
-    vars="--var namespace=${CODER_NAMESPACE} --var devcontainer_builder_endpoint=http://devcontainer-builder.devcontainer-builder.svc.cluster.local:8080 --var image_pull_secret_name=devcontainer-images"
+    vars="--var namespace=${WORKSPACE_NAMESPACE} --var devcontainer_builder_endpoint=http://devcontainer-builder.devcontainer-builder.svc.cluster.local:8080 --var image_pull_secret_name=devcontainer-images"
     printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c "
       read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
       coder templates push kubernetes-devcontainer -d /tmp/dcb -y ${vars}"
@@ -254,7 +292,7 @@ push_coder_template() {
       read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
       coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
       coder templates push devcontainer -d /tmp/devcontainer -y \
-        --var namespace='"$CODER_NAMESPACE"' --var use_kubeconfig=false'
+        --var namespace='"$WORKSPACE_NAMESPACE"' --var use_kubeconfig=false'
   fi
 }
 
@@ -326,6 +364,8 @@ if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAM
   exit 1
 fi
 
+ensure_workspace_namespace
+
 # charts first: the platform comes up even if the admin/template steps below only warn
 install_devcontainer_builder || zz-log w "[vps-setup] devcontainer-builder / registry setup incomplete (see above); re-run: sudo vps-setup --only-vps-coder"
 
@@ -376,6 +416,7 @@ if [[ "${1:-}" == "bootstrap" ]]; then
   command_exists kubectl || { zz-log e "[vps-setup] kubectl not found."; exit 1; }
   pw="$(vps_secret CODER_ADMIN_PASSWORD)"
   [[ -n "$pw" ]] || { zz-log e "[vps-setup] No saved admin password: run the full step first (sudo vps-setup --only-vps-coder)."; exit 1; }
+  ensure_workspace_namespace
   if kubectl -n devcontainer-builder get deploy/devcontainer-builder >/dev/null 2>&1; then BUILDER_READY=1; fi
   bootstrap_coder "$(vps_secret CODER_ADMIN_EMAIL)" "$(vps_secret CODER_ADMIN_USERNAME)" "$pw"
   exit

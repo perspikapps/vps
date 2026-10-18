@@ -56,6 +56,11 @@
         "required": false,
         "default": "10Gi"
       },
+      "CODER_WORKSPACE_NAMESPACE": {
+        "description": "Namespace workspaces run in (created, with rights for Coder's service account; used by the templates and the pull secret)",
+        "required": false,
+        "default": "coder-workspaces"
+      },
       "DEVCONTAINER_BUILDER_REF": {
         "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required for that template)",
         "required": false,

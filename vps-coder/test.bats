@@ -115,3 +115,15 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'delete secret -l owner=helm,name=devcontainer-builder' "$DIR/run.sh"
     ! grep -q 'helm uninstall devcontainer-builder' "$DIR/run.sh"
 }
+
+@test "one workspace namespace everywhere: RBAC for coder:coder, pull secret and both templates use it" {
+    grep -q 'WORKSPACE_NAMESPACE="\${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"' "$DIR/run.sh"
+    grep -q '^ensure_workspace_namespace() {' "$DIR/run.sh"
+    grep -q 'kind: Role' "$DIR/run.sh"
+    grep -q 'name: coder, namespace: \${CODER_NAMESPACE}' "$DIR/run.sh"
+    grep -q 'kubectl -n "\$WORKSPACE_NAMESPACE" create secret docker-registry devcontainer-images' "$DIR/run.sh"
+    ! grep -q -- '--var namespace=\${CODER_NAMESPACE}' "$DIR/run.sh"
+    ! grep -q "namespace='\"\$CODER_NAMESPACE\"'" "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs.CODER_WORKSPACE_NAMESPACE; process.exit(i && i.default === 'coder-workspaces' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}

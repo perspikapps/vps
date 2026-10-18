@@ -29,7 +29,7 @@ sudo bash vps-coder/run.sh down
 3. Creates the `coder-db-url` Secret the chart reads `CODER_PG_CONNECTION_URL` from.
 4. Installs the upstream `coder` chart behind an **Ingress on k3s's Traefik** (class `traefik`, ports 80/443): host `coder.<wildcard domain>` for the dashboard and `*.<wildcard domain>` for workspace apps. The domain is `vps-system`'s `WILDCARD_DOMAIN`, else nip.io (`coder.54-37-230-112.nip.io`).
 
-5. Waits for Coder, then (through a port-forward, so neither DNS nor Traefik is involved) creates the **first admin** and the **`devcontainer` template**, both once: the admin's password is generated and saved to `/root/.vps-secrets.env` (shown in the final summary), and the template is the Kubernetes + [envbuilder](https://github.com/coder/envbuilder) devcontainer starter embedded in the server's own `coder` binary (so it matches the installed version), pushed with `namespace=coder` and `use_kubeconfig=false`. Workspaces build their `devcontainer.json` repo in a pod, without Docker. A re-run keeps the admin and does not push the template again; if the admin's password was changed in the UI the template step is skipped with a warning. Both steps are best effort: on failure the install still succeeds and you finish in the UI.
+5. Waits for Coder, then (through a port-forward, so neither DNS nor Traefik is involved) creates the **first admin** and the **`devcontainer` template**, both once: the admin's password is generated and saved to `/root/.vps-secrets.env` (shown in the final summary), and the template is the Kubernetes + [envbuilder](https://github.com/coder/envbuilder) devcontainer starter embedded in the server's own `coder` binary (so it matches the installed version), pushed with `namespace=<workspace namespace>` and `use_kubeconfig=false`. Workspaces build their `devcontainer.json` repo in a pod, without Docker. A re-run keeps the admin and does not push the template again; if the admin's password was changed in the UI the template step is skipped with a warning. Both steps are best effort: on failure the install still succeeds and you finish in the UI.
 
 `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose: Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
@@ -56,12 +56,16 @@ To use an **external registry** instead, set `DEVCONTAINER_REGISTRY_USER`, `DEVC
 
 **Chart version.** devcontainer-builder is third-party. With `DEVCONTAINER_BUILDER_VERSION` unset the latest chart is installed and its version is **logged** (`Pin it with DEVCONTAINER_BUILDER_VERSION=...`); set it to pin.
 
+## Workspace namespace
+
+One namespace, `CODER_WORKSPACE_NAMESPACE` (default `coder-workspaces`, the platform page's name), is used consistently: the step creates it, grants Coder's service account (`coder:coder`) a namespaced Role there (pods, PVCs, services, secrets, configmaps, events, deployments, replicasets), creates the `devcontainer-images` pull secret in it, and pushes the template with `namespace=<it>`. The Coder chart's own workspace permissions only cover the release namespace `coder`, which is why a template aimed at another namespace fails with `persistentvolumeclaims is forbidden`. A template that already exists with a different `namespace` gets a new version pushed. Set `CODER_WORKSPACE_NAMESPACE=coder` to run workspaces beside Coder instead. `down` leaves this namespace (and its workspaces' volumes) alone.
+
 ## Workspace templates
 
 After the admin exists, one template is pushed (once; an existing one is left as is):
 
-- **`kubernetes-devcontainer`** from devcontainer-builder's `templates/coder-kubernetes`, when the platform above is up **and** `DEVCONTAINER_BUILDER_REF` (a tag or commit of that repository) is set; the template is third-party code, so it is never taken from a default branch. It is pushed with `namespace=coder`, the in-cluster builder endpoint and the pull secret. Developers create a workspace from a git repository and branch.
-- **`devcontainer` (Envbuilder starter)** otherwise, following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the starter embedded in the server's own `coder` binary, with `namespace=coder` and `use_kubeconfig=false`.
+- **`kubernetes-devcontainer`** from devcontainer-builder's `templates/coder-kubernetes`, when the platform above is up **and** `DEVCONTAINER_BUILDER_REF` (a tag or commit of that repository) is set; the template is third-party code, so it is never taken from a default branch. It is pushed with `namespace=<workspace namespace>`, the in-cluster builder endpoint and the pull secret. Developers create a workspace from a git repository and branch.
+- **`devcontainer` (Envbuilder starter)** otherwise, following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the starter embedded in the server's own `coder` binary, with `namespace=<workspace namespace>` and `use_kubeconfig=false`.
 
 ```bash
 sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_BUILDER_REF=<tag> zz-setup perspikapps/vps -o vps-coder
@@ -87,6 +91,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | `CODER_ADMIN_PASSWORD` | no | _(generated)_ | Password of the first Coder admin |
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
 | `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
+| `CODER_WORKSPACE_NAMESPACE` | no | `coder-workspaces` | Namespace workspaces run in (see below) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
 | `DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required to push that template; else the Envbuilder starter) |
 | `DEVCONTAINER_BUILDER_VERSION` | no | _(latest, logged)_ | devcontainer-builder chart version |
