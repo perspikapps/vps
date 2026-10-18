@@ -29,6 +29,8 @@ final summary read it, so they never mention Tailscale themselves; it is also wh
 this step runs before `vps-security`. See the root README's
 [Private access](../README.md#private-access).
 
+`vps-tailscale` and [`vps-cloudflare`](../vps-cloudflare/README.md) are **mutually exclusive** (`config.conflicts` on both sides): pick one private network per VPS.
+
 ## Removing (`down`)
 
 `down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `PURGE_TAILSCALE=true`.

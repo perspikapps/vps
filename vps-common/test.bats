@@ -170,6 +170,30 @@ EOF
     [ -z "$output" ]
 }
 
+@test "wildcard_domain: the environment wins, then the persisted file, else nip.io (or empty with no address)" {
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/wc.env'; WILDCARD_DOMAIN=apps.example.com wildcard_domain"
+    [ "$output" = "apps.example.com" ]
+    printf 'WILDCARD_DOMAIN=saved.example.org\n' >"$work/wc.env"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/wc.env'; wildcard_domain"
+    [ "$output" = "saved.example.org" ]
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/none.env'; wildcard_domain"
+    [ "$status" -eq 0 ]
+    [[ -z "$output" || "$output" =~ ^[0-9]+-[0-9]+-[0-9]+-[0-9]+\.nip\.io$ ]]
+}
+
+@test "wildcard_domain: the nip.io fallback uses the public address, never the private interface" {
+    mkdir -p "$work/bin"
+    printf '#!/bin/sh\necho 203.0.113.9\n' >"$work/bin/curl"
+    printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
+    chmod +x "$work/bin/curl" "$work/bin/ip"
+    # NAT'd default-route address -> asks the echo service; private interface set but ignored
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/none.env'; VPS_PRIVATE_INTERFACE=tailscale0; wildcard_domain"
+    [ "$output" = "203-0-113-9.nip.io" ]
+    printf '#!/bin/sh\necho "1.1.1.1 via 54.37.230.1 dev eth0 src 54.37.230.112"\n' >"$work/bin/ip"
+    run bash -c "export PATH='$work/bin':\$PATH; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_WILDCARD_FILE='$work/none.env'; wildcard_domain"
+    [ "$output" = "54-37-230-112.nip.io" ]
+}
+
 # kubectl stub printing a pod list: one ready, one still pulling its image.
 _stub_kubectl() {
     mkdir -p "$work/bin"
