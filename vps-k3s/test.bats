@@ -50,3 +50,8 @@ DIR="$REPO_ROOT/vps-k3s"
     grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
+
+@test "summary shows the public IP for the public Traefik ports, not the first local address" {
+    sed -n '/^summary() {/,/^}/p' "$DIR/run.sh" | grep -q 'public_ip'
+    ! sed -n '/^summary() {/,/^}/p' "$DIR/run.sh" | grep -q 'hostname -I'
+}
