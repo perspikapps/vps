@@ -1,0 +1,170 @@
+apiVersion: v1
+entries:
+  argocd:
+  - apiVersion: v2
+    appVersion: 3.x
+    created: "2026-10-19T05:30:00.593801618Z"
+    dependencies:
+    - name: argo-cd
+      repository: https://argoproj.github.io/argo-helm
+      version: '>=7.0.0'
+    description: ArgoCD for GitOps-managed deployments, wrapped for the Rancher Apps
+      & Marketplace catalog
+    digest: d6e9730bb32c68cf56620e85db110fc4579357898c0a60e314ac9e29b4836880
+    home: https://argo-cd.readthedocs.io/
+    icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+    keywords:
+    - gitops
+    - continuous-delivery
+    - kubernetes
+    name: argocd
+    sources:
+    - https://github.com/argoproj/argo-helm
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/argocd-1.1.0/argocd-1.1.0.tgz
+    version: 1.1.0
+  coder:
+  - apiVersion: v2
+    appVersion: 2.x
+    created: "2026-10-19T05:30:00.789927972Z"
+    dependencies:
+    - name: coder
+      repository: https://helm.coder.com/v2
+      version: '>=2.0.0'
+    description: Coder, a self-hosted platform for provisioning remote development
+      environments, wrapped for the Rancher Apps & Marketplace catalog
+    digest: 1e1dd0fe1cd107fcf237694e269509332f152f8f031e2a2057942230bbf7d04e
+    home: https://coder.com/
+    icon: https://coder.com/coder-logo-black.png
+    keywords:
+    - development-environments
+    - remote-development
+    - kubernetes
+    name: coder
+    sources:
+    - https://github.com/coder/coder
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/coder-1.1.0/coder-1.1.0.tgz
+    version: 1.1.0
+  cognee:
+  - apiVersion: v2
+    appVersion: main
+    created: "2026-10-19T05:30:01.070294753Z"
+    description: Cognee - AI memory engine (semantic/graph knowledge layer for LLM
+      apps) - wrapped for the Rancher Apps & Marketplace catalog
+    digest: 88a381cfa5fc6952ad0b4d028c23904c6cd5a1eb60cee84ed0c04a2b398ae0b7
+    home: https://github.com/topoteretes/cognee
+    icon: https://raw.githubusercontent.com/topoteretes/cognee/main/assets/cognee-logo-transparent.png
+    keywords:
+    - ai
+    - memory
+    - knowledge-graph
+    - rag
+    - llm
+    name: cognee
+    sources:
+    - https://github.com/topoteretes/cognee
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/cognee-1.1.0/cognee-1.1.0.tgz
+    version: 1.1.0
+  epinio:
+  - apiVersion: v2
+    appVersion: 1.x
+    created: "2026-10-19T05:30:01.302324465Z"
+    dependencies:
+    - name: epinio
+      repository: https://epinio.github.io/helm-charts/
+      version: '>=1.0.0'
+    description: Epinio - deploy apps straight from source - wrapped for the Rancher
+      Apps & Marketplace catalog
+    digest: 6732e13a77e7f9f5d044c2cb7bcb3f6fab49be575f4da68774fdd770391e062a
+    home: https://epinio.io
+    icon: https://epinio.io/images/epinio-social.png
+    keywords:
+    - paas
+    - deploy-from-source
+    - kubernetes
+    name: epinio
+    sources:
+    - https://github.com/epinio/helm-charts
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/epinio-1.1.0/epinio-1.1.0.tgz
+    version: 1.1.0
+  github-arc:
+  - apiVersion: v2
+    appVersion: 0.x
+    created: "2026-10-19T05:30:01.654772714Z"
+    dependencies:
+    - name: gha-runner-scale-set-controller
+      repository: oci://ghcr.io/actions/actions-runner-controller-charts
+      version: '>=0.9.0'
+    - name: gha-runner-scale-set
+      repository: oci://ghcr.io/actions/actions-runner-controller-charts
+      version: '>=0.9.0'
+    description: GitHub Actions Runner Controller (ARC), wrapped for the Rancher Apps
+      & Marketplace catalog
+    digest: 1abad891f6c4b7ac4497bcc28f637ca7db94e00703f3c4ff654f4eb5e670e2ab
+    home: https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/get-started
+    icon: https://raw.githubusercontent.com/actions/actions-runner-controller/master/docs/detailed-docs-header.png
+    keywords:
+    - ci-cd
+    - github-actions
+    - self-hosted-runners
+    - kubernetes
+    name: github-arc
+    sources:
+    - https://github.com/actions/actions-runner-controller
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/github-arc-1.0.0/github-arc-1.0.0.tgz
+    version: 1.0.0
+  hermes:
+  - apiVersion: v2
+    appVersion: latest
+    created: "2026-10-19T05:30:01.872749553Z"
+    description: Hermes Agent - self-improving AI agent harness, wrapped for the Rancher
+      Apps & Marketplace catalog
+    digest: 543602a993288e09f7a844f2c73f3044420c349e3f8f0f97c0b0e5250a37a125
+    home: https://github.com/NousResearch/hermes-agent
+    icon: https://hermes-agent.nousresearch.com/favicon.ico
+    keywords:
+    - ai
+    - agent
+    - llm
+    - automation
+    name: hermes
+    sources:
+    - https://github.com/NousResearch/hermes-agent
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/hermes-1.1.0/hermes-1.1.0.tgz
+    version: 1.1.0
+  infisical:
+  - apiVersion: v2
+    appVersion: 1.0.1
+    created: "2026-10-19T05:30:02.328749059Z"
+    dependencies:
+    - name: infisical-standalone
+      repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+      version: '>=1.10.0'
+    description: Infisical, an open-source secrets management platform, wrapped for
+      the Rancher Apps & Marketplace catalog
+    digest: 5c88b4ff0d78af33cd6142a4d49f0499f8bb4c73e69f54b22a318ef903455e11
+    home: https://infisical.com
+    icon: https://infisical.com/_next/static/media/logo-black.d3c236c0.png
+    keywords:
+    - secrets-management
+    - security
+    - kubernetes
+    name: infisical
+    sources:
+    - https://github.com/Infisical/infisical
+    type: application
+    urls:
+    - https://github.com/perspikapps/vps/releases/download/infisical-1.0.0/infisical-1.0.0.tgz
+    version: 1.0.0
+generated: "2026-10-19T05:30:02.328759008Z"
