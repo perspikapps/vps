@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.2.0 (2026-10-19)
+
+*Commits from: v4.1.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.1.0' into develop
+### 📦 vps-marketplace changes
+
+#### Bug Fixes
+
+- create .cr-index before cr index so the Helm index is pushed (#53)
+
 ## 4.1.0 (2026-10-19)
 
 *Commits from: v4.0.0..HEAD*
@@ -376,6 +391,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
