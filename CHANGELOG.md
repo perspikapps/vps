@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.3.0 (2026-10-19)
+
+*Commits from: v4.2.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.2.0' into develop
+### 📦 vps-security changes
+
+#### Bug Fixes
+
+- 🐛 restrict private ufw rules to the private IP (#55)
+
 ## 4.2.0 (2026-10-19)
 
 *Commits from: v4.1.0..HEAD*
@@ -391,6 +406,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
