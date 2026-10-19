@@ -65,4 +65,6 @@ jobs:
         run: |
           for chart in charts/*/; do cr package "$chart"; done
           cr upload --skip-existing
+          # cr index writes a temp file in .cr-index/ without creating it (chart-releaser 1.7.0)
+          mkdir -p .cr-index
           cr index --push
