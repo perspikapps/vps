@@ -20,6 +20,8 @@ command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.s
 
 RANCHER_HTTP_PORT="$(net_port rancher_http)"
 RANCHER_HTTPS_PORT="$(net_port rancher_https)"
+# Rancher's ports are private-only (ufw): default to the private address users connect to.
+RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(private_address)}"
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 
 RANCHER_BOOTSTRAP_PASSWORD="$(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"

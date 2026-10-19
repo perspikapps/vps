@@ -602,7 +602,7 @@ Each feature's README lists its own variables in full.
 | `WILDCARD_DOMAIN`                          | unset (nip.io fallback)              | Wildcard DNS domain for apps needing subdomains, read by `vps-coder` (set in `vps-system`)                        |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
-| `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |
+| `RANCHER_HOSTNAME`                         | private IP, else node IP             | Hostname used in Rancher's cert                                                                                   |
 | `RANCHER_BOOTSTRAP_PASSWORD`               | random                               | Rancher initial admin password                                                                                    |
 | `RANCHER_CHART_REPO_URL`                   | community `latest` channel           | Helm repository for the Rancher chart, e.g. SUSE Rancher Prime (`https://charts.rancher.com/server-charts/prime`) |
 | `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                                     |
