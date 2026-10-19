@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-coder",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Coder (remote development environments) with in-cluster PostgreSQL",
   "bin": {
     "vps-coder": "run.sh"

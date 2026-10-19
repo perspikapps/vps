@@ -1,5 +1,41 @@
 # Changelog
 
+## 4.0.0 (2026-10-19)
+
+*Commits from: v3.0.0..HEAD*
+
+### 💥 BREAKING CHANGES
+
+- vps-dockermanager is removed (folder, --only/--down flags,
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v3.0.0' into develop
+### 📦 ci changes
+
+#### Bug Fixes
+
+- bootstrap gh-pages and release all charts so the Helm repo index is published (#48)
+
+### 📦 vps-cloudflare changes
+
+#### Features
+
+- ✨ opt-in Cloudflare Tunnel, vps-coder platform, wildcard DNS (#50)
+
+### 📦 vps-marketplace changes
+
+#### Features
+
+- ✨ serve catalog apps on server-domain subdomains via ClusterIP + Ingress (#49)
+
+### 📦 vps-security changes
+
+#### Bug Fixes
+
+- keep private ports off the public interface for k3s and Docker
+
 ## 3.0.0 (2026-10-17)
 
 *Commits from: v2.11.0..HEAD*
@@ -342,5 +378,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-17 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-19 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
