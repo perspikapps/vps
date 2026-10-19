@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-tailscale",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Tailscale install",
   "bin": {
     "vps-tailscale": "run.sh"
