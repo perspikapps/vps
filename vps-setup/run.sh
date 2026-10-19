@@ -26,7 +26,7 @@ fi
 # --force: the steps that zz-setup runs fetch vps-common through zz-use's cache
 # (24h for a branch ref, one slot per repo+ref). Refreshing it here keeps the
 # helpers in step with the checkout zz-setup is about to run.
-zz-use --force "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-setup
+zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-setup
 # shellcheck disable=SC1091
 . vps-common
 
@@ -46,7 +46,7 @@ else
   export ZZ_SETUP_URL_BASE="${REPO_URL%/"$REPO_PATH"*}"
   export ZZ_SETUP_DIR="${ZZ_SETUP_DIR:-/opt}"
   CHECKOUT="$ZZ_SETUP_DIR/${REPO_PATH##*/}"
-  REPO="$REPO_PATH@${VPS_SETUP_REPO_REF:-main}"
+  REPO="$REPO_PATH@${ZZ_SETUP_REF:-main}"
 fi
 
 # Legacy flags -> zz-setup lists; anything else (e.g. -h) goes through as is.

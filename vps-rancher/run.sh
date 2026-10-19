@@ -2,12 +2,12 @@
 # Rancher on k3s. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}" zz-persist
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
 # steps come from the fresh checkout: an older cached copy lacks newer helpers.
-declare -F run_with_progress >/dev/null || {
+declare -F reapply_private_guard >/dev/null || {
   zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
        "sudo zz-use --force perspikapps/vps/vps-common"
   exit 1
@@ -41,6 +41,12 @@ helm repo add vps-rancher "$RANCHER_CHART_REPO_URL" --force-update >/dev/null ||
 }
 helm repo update vps-rancher >/dev/null || {
   zz-log e "[vps-setup] Could not fetch the chart index from ${RANCHER_CHART_REPO_URL} (check the URL and any access it needs)."
+  exit 1
+}
+
+# Bitnami charts (e.g. the databases some Marketplace apps depend on) resolve from this alias.
+helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null || {
+  zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami."
   exit 1
 }
 
@@ -99,6 +105,8 @@ if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system 
   zz-log e "[vps-setup] Rancher did not become ready in time (see the diagnostics above); re-run: sudo vps-setup --only-vps-rancher"
   exit 1
 fi
+
+reapply_private_guard
 
 ok "Rancher installed."
 ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"

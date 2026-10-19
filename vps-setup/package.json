@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-setup",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Interactive/flag-driven orchestrator: runs every step, then prints the final connection summary",
   "bin": {
     "vps-setup": "run.sh"

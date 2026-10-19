@@ -85,7 +85,7 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "a stale cached vps-common is reported with the command to refresh it" {
-    grep -q 'declare -F run_with_progress' "$DIR/run.sh"
+    grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
 
@@ -114,4 +114,11 @@ DIR="$REPO_ROOT/vps-rancher"
     grep -q 'http://\* | https://\*)' "$DIR/run.sh"
     grep -q 'must be an http(s) Helm repository URL' "$DIR/run.sh"
     [ "$(grep -n 'must be an http(s)' "$DIR/run.sh" | cut -d: -f1)" -lt "$(grep -n 'helm repo add' "$DIR/run.sh" | head -1 | cut -d: -f1)" ]
+}
+
+@test "the bitnami Helm repository is added as part of the install, before cert-manager" {
+    grep -q 'helm repo add bitnami https://charts.bitnami.com/bitnami' "$DIR/run.sh"
+    add_line=$(grep -n 'helm repo add bitnami' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    cm_line=$(grep -n '^ensure_cert_manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    [ "$add_line" -lt "$cm_line" ]
 }

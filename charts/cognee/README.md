@@ -29,8 +29,18 @@ for what it mirrors.
    if you haven't already (`https://perspikapps.github.io/vps/`).
 2. **Apps & Marketplace → Charts**, pick **cognee**, fill in `llmApiKey`,
    and install. Cognee's API comes up on the Service's port `8000`
-   (`ClusterIP` by default - enable `ingress.enabled` for a routable
-   hostname, or `service.type: LoadBalancer`/`NodePort` instead).
+   (`ClusterIP`, reachable through the Ingress at `cognee.<server
+   domain>` - see below; set `ingress.enabled: false` to skip it).
+
+**Server domain.**
+The chart serves the app on `<app>.<domain>` through a Traefik Ingress
+(`ClusterIP` Service, no LoadBalancer, so it never competes with Traefik
+for ports 80/443). `<domain>` is `global.domain` if set, otherwise the
+host of Rancher's own server URL (`global.cattle.url`, injected by
+Rancher on install); when that host is a bare IP the domain becomes
+`<ip>.nip.io`. Point a wildcard DNS record (`*.<domain>`) at the server
+for a real FQDN. `ingress.host` overrides the generated host.
+
 
 ## Notes
 

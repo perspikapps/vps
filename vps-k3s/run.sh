@@ -2,12 +2,12 @@
 # k3s, kubectl, helm, and Traefik as public ingress. Env vars: see README.
 
 set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${VPS_SETUP_REPO_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
 # steps come from the fresh checkout: an older cached copy lacks newer helpers.
-declare -F run_with_progress >/dev/null || {
+declare -F reapply_private_guard >/dev/null || {
   zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
        "sudo zz-use --force perspikapps/vps/vps-common"
   exit 1
@@ -125,6 +125,8 @@ for i in $(seq 1 30); do
 done
 run_with_progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m || \
   zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
+
+reapply_private_guard
 
 ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }

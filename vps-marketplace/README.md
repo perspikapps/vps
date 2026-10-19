@@ -29,6 +29,13 @@ sudo bash vps-marketplace/run.sh down
 sudo vps-setup --down-vps-marketplace
 ```
 
+## Environment variables
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `MARKETPLACE_REPO_NAME` | no | `perspikapps-vps` | Name of the Rancher ClusterRepo to register |
+| `MARKETPLACE_REPO_URL` | no | `https://perspikapps.github.io/vps/` | URL of the Helm chart catalog to register |
+
 ## Dependencies
 
 Step dependency: `vps-rancher` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)). Also `vps-common` (shared helpers).

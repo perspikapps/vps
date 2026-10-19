@@ -3,7 +3,7 @@ apiVersion: v2
 name: argocd
 description: ArgoCD for GitOps-managed deployments, wrapped for the Rancher Apps & Marketplace catalog
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: '3.x'
 icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
 keywords:

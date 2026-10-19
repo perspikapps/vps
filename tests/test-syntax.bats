@@ -57,7 +57,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     : >"$stubs/zz-colors"
     ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
-    for step in cockpit dockermanager k3s marketplace rancher security tailscale; do
+    for step in cockpit k3s marketplace rancher security tailscale; do
         run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
         [ "$status" -eq 0 ]
         [ -n "$output" ]
@@ -65,17 +65,37 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     rm -rf "$stubs"
 }
 
-@test "steps without something to report (system) print nothing for summary" {
+@test "steps without something to report (system, an opt-in step not installed) print nothing for summary" {
     stubs=$(mktemp -d)
     printf '#!/bin/sh\nexit 0\n' >"$stubs/zz-use"
     printf '#!/bin/sh\nshift; echo "$*"\n' >"$stubs/zz-log"
     : >"$stubs/zz-colors"
     ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
-    run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-system/run.sh" summary
+    for step in system dokploy cloudflare coder; do
+        run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
+        [ "$status" -eq 0 ]
+        [ -z "$output" ]
+    done
     rm -rf "$stubs"
+}
+
+@test "every step has its own config.order (the install order is a total order)" {
+    run node -e "
+        const fs = require('fs');
+        const orders = fs.readdirSync('$REPO_ROOT').filter(d => fs.existsSync('$REPO_ROOT/' + d + '/package.json'))
+            .map(d => require('$REPO_ROOT/' + d + '/package.json'))
+            .filter(p => p.engines && p.engines['zz-setup']).map(p => p.config.order);
+        process.exit(new Set(orders).size === orders.length ? 0 : 1)"
     [ "$status" -eq 0 ]
-    [ -z "$output" ]
+}
+
+@test "every input a package.json declares is documented in that folder's README" {
+    for d in "$REPO_ROOT"/vps-*/; do
+        for v in $(jq -r '(.config.inputs // {}) | keys[]' "$d/package.json"); do
+            grep -q "\`$v\`" "$d/README.md"
+        done
+    done
 }
 
 @test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {

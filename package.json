@@ -1,6 +1,6 @@
 {
   "name": "vps-setup",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "config": {
     "commitizen": {
       "path": "@commitlint/cz-commitlint"
@@ -148,9 +148,11 @@
     "pattern": "^(main|develop){1}$|^(feature|bugfix|release|hotfix|support|copilot|claude)/.+$"
   },
   "workspaces": [
+    "vps-cloudflare",
     "vps-cockpit",
+    "vps-coder",
     "vps-common",
-    "vps-dockermanager",
+    "vps-dokploy",
     "vps-k3s",
     "vps-marketplace",
     "vps-rancher",

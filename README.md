@@ -72,7 +72,7 @@ plus the Ubuntu/root checks, the legacy flags below (translated to
 A `zz-use perspikapps/vps/vps-setup` only fetches the `vps-setup/` folder, so
 `zz-setup` clones/updates a full checkout into `/opt/vps` on every run (run from
 inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
-`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF` select the fork/branch - see
+`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF` select the fork/branch - see
 [Running from a non-standard branch or fork](#running-from-a-non-standard-branch-or-fork).
 
 > [!NOTE]
@@ -87,9 +87,10 @@ inside a full local checkout, `vps-setup/run.sh` uses that checkout as-is).
 `vps-setup` runs eight feature folders in the order of each one's
 `config.order` (see [One folder per feature](#one-folder-per-feature)):
 `vps-system`, `vps-tailscale`, `vps-security`, `vps-cockpit`, `vps-k3s`
-(includes Traefik configuration), `vps-rancher`, `vps-dockermanager` and
-`vps-marketplace`. All run by default; a step that sets `config.default: false`
-is opt-in. Three flag families choose which run:
+(includes Traefik configuration), `vps-rancher`, `vps-dokploy` and
+`vps-marketplace`. All run by default except `vps-dokploy`, which is opt-in
+(`config.default: false`) because it is an alternative to the k3s stack, not an
+addition to it - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). Three flag families choose which run:
 
 - **`--skip-<step>`** - run everything _except_ the named step(s).
 - **`--with-<step>`** - turn on an opt-in step (a no-op on one already on).
@@ -100,8 +101,8 @@ is opt-in. Three flag families choose which run:
 # Re-run just Rancher after changing RANCHER_HOSTNAME:
 sudo RANCHER_HOSTNAME=new.example.com vps-setup --only-vps-rancher
 
-# Cockpit and the dockermanager plugin together:
-sudo vps-setup --only-vps-cockpit --only-vps-dockermanager
+# Dokploy instead of the k3s/Rancher stack:
+sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
 
 # Everything except Kubernetes:
 sudo vps-setup --skip-vps-rancher --skip-vps-k3s
@@ -115,7 +116,7 @@ final summary. Re-running one step to pick up a changed variable is safe.
 
 A feature's `package.json` `dependencies` field is the single source of truth
 for what it needs: `vps-rancher` depends on `vps-k3s`, `vps-marketplace` on
-`vps-rancher`, `vps-dockermanager` on `vps-cockpit`. `vps-setup` resolves it
+`vps-rancher`. `vps-setup` resolves it
 transitively, so enabling `vps-marketplace` also enables `vps-rancher` and
 `vps-k3s`:
 
@@ -178,7 +179,7 @@ Pass `--down-<step>` to uninstall one step without touching the rest:
 
 ```bash
 sudo vps-setup --down-vps-marketplace
-sudo vps-setup --down-vps-marketplace --down-vps-dockermanager
+sudo vps-setup --down-vps-marketplace --down-vps-dokploy
 ```
 
 A step whose dependent is still enabled refuses to come down:
@@ -198,10 +199,10 @@ Either bring the dependents down in the same run (`--down-vps-k3s
 | `vps-system`        | _(no down action - a base upgrade, nothing to undo)_                                                    | everything                                                         |
 | `vps-security`      | ufw rules (disables ufw), sshd hardening, fail2ban jail                                                 | the admin user/password `up` created, if any                       |
 | `vps-tailscale`     | logs out of the tailnet, disables `tailscaled`                                                          | the `tailscale` package (`PURGE_TAILSCALE=true` removes it too)    |
-| `vps-cockpit`       | the Cockpit packages and socket config - **refused while `vps-dockermanager` is enabled**               | -                                                                  |
+| `vps-cockpit`       | the Cockpit packages (incl. packagekit, files) and socket config                                        | -                                                                  |
 | `vps-k3s`           | k3s itself - **takes Rancher and every Marketplace app (ArgoCD, Epinio, GitHub ARC, ...) down with it** | -                                                                  |
 | `vps-rancher`       | the Helm release and its namespace                                                                      | cert-manager, apps installed via Apps & Marketplace                |
-| `vps-dockermanager` | cockpit-dockermanager, cockpit-packagekit, cockpit-files                                                | Docker itself (`REMOVE_DOCKER=true` removes it too)                |
+| `vps-dokploy`       | Dokploy, **every app it deployed** (swarm services, volumes), the swarm and `/etc/dokploy`              | Docker itself (`REMOVE_DOCKER=true` removes it too)                |
 | `vps-marketplace`   | the `ClusterRepo` catalog registration only                                                             | apps already installed from it (uninstall those from Rancher's UI) |
 
 Every feature's `run.sh` also takes the action directly (`up` is the default):
@@ -251,32 +252,32 @@ instruction instead of failing mid-install.
 
 Two fetches must agree: `zz-use`'s fetch of the `vps-setup` folder (`@<ref>`),
 and `vps-setup`'s internal clone of the full repo
-(`VPS_SETUP_REPO_URL`/`VPS_SETUP_REPO_REF`):
+(`VPS_SETUP_REPO_URL`/`ZZ_SETUP_REF`):
 
 ```bash
 BRANCH=my-feature
 
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
 zz-use "perspikapps/vps/vps-setup@${BRANCH}"
-sudo VPS_SETUP_REPO_REF="$BRANCH" vps-setup
+sudo ZZ_SETUP_REF="$BRANCH" vps-setup
 ```
 
 | Variable             | Default                                  | Purpose                             |
 | -------------------- | ---------------------------------------- | ----------------------------------- |
 | `VPS_SETUP_REPO_URL` | `https://github.com/perspikapps/vps.git` | Clone a fork instead                |
-| `VPS_SETUP_REPO_REF` | `main`                                   | Branch, tag, or commit to check out |
+| `ZZ_SETUP_REF`       | `main`                                   | Branch, tag, or commit to check out |
 
 For a fork, set both and fetch `vps-setup` from the fork too:
 
 ```bash
 zz-use "<you>/vps/vps-setup@my-feature"
 sudo VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git \
-    VPS_SETUP_REPO_REF=my-feature \
+    ZZ_SETUP_REF=my-feature \
     vps-setup
 ```
 
 > [!WARNING]
-> `export VPS_SETUP_REPO_REF=...` then `sudo vps-setup` does **not** work: `sudo`
+> `export ZZ_SETUP_REF=...` then `sudo vps-setup` does **not** work: `sudo`
 > resets the environment, so `vps-setup` silently falls back to `main`. Put the
 > assignment on the `sudo` line (as above) or use `sudo -E` (if sudoers allows).
 
@@ -333,10 +334,12 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
 | `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
 | `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
-| `vps-cockpit/`        | Installs Cockpit on ports 9080/9083.                                                                                                                         |
+| `vps-cloudflare/`     | Opt-in Cloudflare Tunnel + WARP private routes as the private network; mutually exclusive with `vps-tailscale` - see [Private access](#private-access). |
+| `vps-cockpit/`        | Installs Cockpit (plus packagekit and files modules) on ports 9080/9083.                                                                                                                         |
 | `vps-k3s/`            | k3s (Traefik enabled), kubectl, Helm; Traefik as public ingress - see [Traefik](#traefik-ingress-lets-encrypt-and-the-dashboard).                            |
 | `vps-rancher/`        | cert-manager and Rancher via Helm on ports 7080/7083. Depends on `vps-k3s`.                                                                                  |
-| `vps-dockermanager/`  | cockpit-packagekit, cockpit-files, Docker and [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager). Depends on `vps-cockpit`.      |
+| `vps-dokploy/`        | Opt-in [Dokploy](https://dokploy.com) (Docker, Swarm, Traefik) via its official installer; an alternative to `vps-k3s` - see [Dokploy instead of k3s](#dokploy-instead-of-k3s). |
+| `vps-coder/`          | Opt-in [Coder](https://coder.com) via helm, following its [Rancher guide](https://coder.com/docs/install/server/rancher): Bitnami PostgreSQL, the upstream chart exposed through Traefik (public). Depends on `vps-rancher`. |
 | `vps-marketplace/`    | Registers `charts/` as a Rancher `ClusterRepo` - see [Rancher Marketplace](#rancher-marketplace). Depends on `vps-rancher`.                                  |
 | `charts/`             | Helm charts for apps that run on the cluster (ArgoCD, Epinio, Cognee, Coder, Hermes Agent, Infisical, GitHub ARC). No `run.sh`; installed from Rancher's UI. |
 | `cloud-init/`         | First-boot user-data - see [cloud-init](#provisioning-via-cloud-init--kairos).                                                                               |
@@ -447,6 +450,15 @@ by default `tailscale0`, so you must join the same tailnet. Apps installed from
 the Marketplace manage their own exposure: check each chart's `README.md` under
 [`charts/`](charts/) first.
 
+ufw alone does not hold that line for ports that k3s (ServiceLB: Rancher, the
+Traefik dashboard) or Docker (the Dokploy UI) publish: they are DNAT-ed through
+the FORWARD chain, which both accept ahead of ufw. `vps-security` therefore also
+installs `vps-private-ports-guard.service`, which drops DNAT-ed connections to
+every `access: private` port arriving on the default-route interface (unless
+that interface is the private one). `vps-k3s`, `vps-rancher` and `vps-dokploy`
+re-apply it once they are up. IPv4 only. To verify, from outside the private
+network: `curl -m 5 http://<public-ip>:<private-port>` must time out.
+
 HTTP/HTTPS are public unconditionally: Traefik is the VPS's real ingress, and
 Let's Encrypt's HTTP-01 challenge needs port 80 reachable to issue certificates.
 
@@ -464,6 +476,13 @@ ports are `"access": "private"` and which interface carries the private network:
   It runs before `vps-security` for that reason.
 - `vps-security` opens every private port on that interface only, and the final
   summary shows its address. With no interface, private ports stay closed.
+- `vps-cloudflare` (opt-in) is the alternative provider: it persists
+  `VPS_PRIVATE_INTERFACE=vpscf0`, a dummy interface holding the address WARP
+  clients reach through a Cloudflare Tunnel private network route. It is
+  **mutually exclusive** with `vps-tailscale` (`config.conflicts` on both sides,
+  and `up` refuses on a host already set up with Tailscale):
+  `sudo vps-setup --skip-vps-tailscale --with-vps-cloudflare`. See
+  [`vps-cloudflare`](vps-cloudflare/README.md).
 - For another network (WireGuard, a LAN NIC...) skip the Tailscale step and set
   the variable yourself: `sudo VPS_PRIVATE_INTERFACE=wg0 vps-setup
 --skip-vps-tailscale`. It also works as a menu input and from
@@ -495,6 +514,26 @@ letsencrypt` and point real DNS at the VPS. Each hostname gets its own cert on
   login of its own, which is acceptable only because it is gated to the tailnet;
   never put it on a public port.
 
+## Dokploy instead of k3s
+
+`vps-dokploy` (opt-in) installs [Dokploy](https://dokploy.com) with its official
+installer: Docker, a single-node Swarm, Postgres and Dokploy's own Traefik.
+`vps-k3s` and `vps-dokploy` are **mutually exclusive on one host**, both want
+Traefik on ports 80/443, so pick one ingress per VPS:
+
+```bash
+sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
+```
+
+Selecting both aborts `zz-setup` before any step runs (`config.conflicts`), and
+`vps-dokploy` also refuses to run while k3s is installed (the installer's own port
+check cannot see k3s's ServiceLB rules) and while the host is in a swarm that is
+not Dokploy's (the installer starts with `docker swarm leave --force`).
+
+The admin UI (port 3000) is `private`, enforced by the same
+[FORWARD guard](#security-model) as Rancher and the Traefik dashboard - see
+[`vps-dokploy`](vps-dokploy/README.md#access-and-security).
+
 ## Cockpit and Rancher logins
 
 - **Cockpit** authenticates through PAM against a real Linux account, separate
@@ -519,8 +558,8 @@ Repositories**. Install or remove apps from **Apps & Marketplace → Charts** li
 any catalog app; `charts/<name>/README.md` lists the required values.
 `vps-marketplace down` removes only the registration.
 
-**Why the split.** `vps-cockpit` and `vps-dockermanager` configure the host (apt
-packages, systemd), which a chart cannot do. The cluster apps are ordinary
+**Why the split.** `vps-cockpit` and `vps-dokploy` configure the host (apt
+packages, systemd, Docker), which a chart cannot do. The cluster apps are ordinary
 Kubernetes workloads, so a Rancher-native catalog gives install/upgrade/values
 UI, version pinning and easy removal for free.
 
@@ -554,14 +593,23 @@ Each feature's README lists its own variables in full.
 | `SSH_PORT`                                 | `22`                                 | SSH port kept open publicly                                                                                       |
 | `TAILSCALE_AUTHKEY`                        | unset                                | Auto-join a tailnet (**required** unless `--skip-vps-tailscale`)                                                  |
 | `TAILSCALE_EXTRA_ARGS`                     | unset                                | Extra flags appended to `tailscale up`                                                                            |
+| `CLOUDFLARE_TUNNEL_TOKEN`                  | unset                                | Tunnel token for `vps-cloudflare` (**required** when that opt-in step is selected)                                |
+| `CLOUDFLARE_PRIVATE_IP`                    | `10.254.254.1`                       | Address WARP clients use to reach the VPS through the tunnel                                                      |
+| `CODER_ADMIN_EMAIL` / `CODER_ADMIN_USERNAME`  | `admin@<wildcard domain>` / `admin`  | First Coder admin (`vps-coder`; password generated and saved)                                                     |
+| `DEVCONTAINER_REGISTRY_USER` / `_ORG` / `_TOKEN` | unset                          | External registry for `vps-coder`'s devcontainer-builder; unset = in-cluster registry |
+| `CODER_WORKSPACE_NAMESPACE`                | `coder-workspaces`                   | Namespace Coder workspaces run in (`vps-coder` creates it and grants Coder rights there)                          |
+| `CODER_ACCESS_URL`                         | `http://coder.<wildcard domain>`     | URL of Coder (`vps-coder`, through Traefik)                                                                       |
+| `WILDCARD_DOMAIN`                          | unset (nip.io fallback)              | Wildcard DNS domain for apps needing subdomains, read by `vps-coder` (set in `vps-system`)                        |
 | `COCKPIT_HTTP_PORT` / `COCKPIT_HTTPS_PORT` | `9080` / `9083`                      | Cockpit ports                                                                                                     |
 | `RANCHER_HTTP_PORT` / `RANCHER_HTTPS_PORT` | `7080` / `7083`                      | Rancher ports                                                                                                     |
 | `RANCHER_HOSTNAME`                         | node IP                              | Hostname used in Rancher's cert                                                                                   |
 | `RANCHER_BOOTSTRAP_PASSWORD`               | random                               | Rancher initial admin password                                                                                    |
 | `RANCHER_CHART_REPO_URL`                   | community `latest` channel           | Helm repository for the Rancher chart, e.g. SUSE Rancher Prime (`https://charts.rancher.com/server-charts/prime`) |
 | `CERT_MANAGER_VERSION`                     | latest                               | Pin cert-manager's chart version (installed by `vps-rancher`)                                                     |
-| `INSTALL_DOCKER`                           | `true`                               | Install `docker.io` for cockpit-dockermanager to manage                                                           |
-| `COCKPIT_DOCKERMANAGER_VERSION`            | `latest`                             | [cockpit-dockermanager](https://github.com/chrisjbawden/cockpit-dockermanager) release tag to install             |
+| `DOKPLOY_VERSION`                          | latest stable                        | Dokploy release tag to install (`vps-dokploy`)                                                                    |
+| `ADVERTISE_ADDR`                           | host's first IPv4                    | Address Docker Swarm advertises (`vps-dokploy`)                                                                   |
+| `DOCKER_SWARM_INIT_ARGS`                   | unset                                | Extra `docker swarm init` flags, e.g. a non-clashing `--default-addr-pool` (`vps-dokploy`)                        |
+| `REMOVE_DOCKER`                            | `false`                              | Also remove Docker itself when `vps-dokploy` comes down                                                           |
 | `TRAEFIK_ACME_EMAIL`                       | placeholder                          | Let's Encrypt contact email - set a real address                                                                  |
 | `TRAEFIK_ACME_STAGING`                     | `true`                               | Let's Encrypt staging (untrusted, no rate limit) vs. production certs                                             |
 | `TRAEFIK_DASHBOARD_PORT`                   | `8088`                               | Traefik dashboard port (private-access)                                                                           |
