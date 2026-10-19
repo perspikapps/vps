@@ -92,7 +92,17 @@ systemctl enable --now fail2ban
 systemctl restart fail2ban
 
 zz-log i "[vps-setup] Configuring ufw from every feature's package.json..."
-ufw --force reset >/dev/null
+# Upsert, no window without rules: every rule goes through fw(), which records its
+# spec; rules recorded by the previous run but not wanted now are deleted after the
+# new ones are in. No record yet (first run, or a host set up by an older version
+# that reset and rebuilt): one reset to start clean.
+UFW_STATE=/var/lib/vps-security-ufw.rules
+[[ -f "$UFW_STATE" ]] || ufw --force reset >/dev/null
+WANTED="$(mktemp)"
+fw() {
+  ufw allow "$@"
+  printf '%s\n' "$*" >>"$WANTED"
+}
 ufw default deny incoming
 ufw default allow outgoing
 
@@ -107,16 +117,24 @@ fi
 while IFS=$'\t' read -r name port access note; do
   case "$access" in
     public)
-      ufw allow "${port}/tcp" comment "${note:-$name}"
+      fw "${port}/tcp" comment "${note:-$name}"
       ;;
     private)
-      [[ -z "$PRIVATE_IP" ]] || ufw allow in on "$PRIVATE_IFACE" to "$PRIVATE_IP" port "$port" proto tcp comment "vps-setup: private-only (${name})" || true
+      [[ -z "$PRIVATE_IP" ]] || fw in on "$PRIVATE_IFACE" to "$PRIVATE_IP" port "$port" proto tcp comment "vps-setup: private-only (${name})" || true
       ;;
     *)
       zz-log w "[vps-setup] unknown access '${access}' for port '${name}' - skipping."
       ;;
   esac
 done < <(all_network_ports)
+
+if [[ -f "$UFW_STATE" ]]; then
+  # shellcheck disable=SC2046
+  while IFS= read -r spec; do
+    grep -qxF "$spec" "$WANTED" || ufw --force delete allow ${spec%% comment *} || true
+  done <"$UFW_STATE"
+fi
+mv "$WANTED" "$UFW_STATE"
 
 ufw --force enable
 ok "ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${PRIVATE_IP:-<no private address>} (${PRIVATE_IFACE:-no private interface})."
@@ -195,6 +213,7 @@ down() {
 
   zz-log i "[vps-setup] Disabling ufw..."
   ufw --force disable || true
+  rm -f /var/lib/vps-security-ufw.rules
 
   zz-log w "[vps-setup] Security hardening reverted: ufw is disabled (no firewall at all) and" \
        "sshd/fail2ban are back to distro defaults. The admin user/password" \

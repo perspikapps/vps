@@ -106,3 +106,10 @@ guard_setup() {
     grep -q 'to "\$PRIVATE_IP" port' "$DIR/run.sh"
     ! grep -q 'ufw allow in on "\$PRIVATE_IFACE" comment' "$DIR/run.sh"
 }
+
+@test "ufw rules are upserted via fw(), not rebuilt after a reset on every run" {
+    grep -q '^fw() {' "$DIR/run.sh"
+    grep -q 'UFW_STATE" \]\] || ufw --force reset' "$DIR/run.sh"
+    ! grep -q '^ufw --force reset' "$DIR/run.sh"
+    ! grep -qE '^\s+ufw allow ' "$DIR/run.sh"
+}
