@@ -143,8 +143,10 @@ down() {
 }
 
 summary() {
+  local host
+  host="$(public_ip)"
   cat <<EOF
- Traefik (k3s):       public: http://$(hostname -I | awk '{print $1}') and https://$(hostname -I | awk '{print $1}')
+ Traefik (k3s):       public: http://${host:-<public-ip>} and https://${host:-<public-ip>}
                        (a "letsencrypt" certResolver is configured and
                        ready to use - it won't issue anything until you
                        add the router.tls.certresolver annotation to your

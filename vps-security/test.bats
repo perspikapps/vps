@@ -100,3 +100,16 @@ guard_setup() {
     grep -q 'install_private_guard "\${PRIVATE_IFACE:--}" "\$(all_network_ports | awk' "$DIR/run.sh"
     grep -q '"\$GUARD_BIN" del -' "$DIR/run.sh"
 }
+
+@test "private ports are opened only to the private address, with no blanket allow on the interface" {
+    grep -q 'PRIVATE_IP="\$(private_address)"' "$DIR/run.sh"
+    grep -q 'to "\$PRIVATE_IP" port' "$DIR/run.sh"
+    ! grep -q 'ufw allow in on "\$PRIVATE_IFACE" comment' "$DIR/run.sh"
+}
+
+@test "ufw rules are upserted via fw(), not rebuilt after a reset on every run" {
+    grep -q '^fw() {' "$DIR/run.sh"
+    grep -q 'UFW_STATE" \]\] || ufw --force reset' "$DIR/run.sh"
+    ! grep -q '^ufw --force reset' "$DIR/run.sh"
+    ! grep -qE '^\s+ufw allow ' "$DIR/run.sh"
+}
