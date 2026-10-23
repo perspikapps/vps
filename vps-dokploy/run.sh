@@ -76,7 +76,7 @@ down() {
         zz-log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
-        apt_purge docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
+        remove_packages docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
     fi
     ok "Dokploy removed."
 }

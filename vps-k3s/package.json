@@ -37,11 +37,6 @@
         "description": "Use Let's Encrypt's staging environment (true/false)",
         "required": false,
         "default": "true"
-      },
-      "TRAEFIK_DASHBOARD_PORT": {
-        "description": "Traefik dashboard port (private access only)",
-        "required": false,
-        "default": "8088"
       }
     },
     "order": 4,
@@ -69,6 +64,7 @@
         "port": 8088,
         "access": "private"
       }
-    ]
+    ],
+    "summary": true
   }
 }

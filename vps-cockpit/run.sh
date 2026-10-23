@@ -40,7 +40,7 @@ down() {
     rm -rf /etc/systemd/system/cockpit.socket.d
     systemctl daemon-reload
     zz-log i "[vps-setup] Removing Cockpit packages..."
-    apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
+    remove_packages cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
     ok "Cockpit removed."
 }
 

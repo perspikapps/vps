@@ -19,7 +19,6 @@
     "conflicts": [
       "vps-tailscale"
     ],
-    "order": 1.5,
     "default": false,
     "inputs": {
       "CLOUDFLARE_PRIVATE_IP": {
@@ -39,6 +38,8 @@
         "default": "false"
       }
     },
-    "outputs": {}
+    "order": 1.5,
+    "outputs": {},
+    "summary": true
   }
 }

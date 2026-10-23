@@ -84,24 +84,16 @@ done
 
 zz-setup "$repo" "$@"
 
-# vps-common's feature_dirs reads every feature's package.json from here.
-VPS_SETUP_ROOT="$checkout"
-
 # --- summary
 # Final connection info, printed after every run (also callable on its own
-# afterwards - see README's "Running vps-setup" section). Each step prints its
-# own block (its `summary` action), in config.order; none of it depends on what
-# this run just did versus a previous one.
+# afterwards - see README's "Running vps-setup" section). zz-setup -m asks each
+# step that declares config.summary for its block (its `summary` action), in
+# config.order; none of it depends on what this run just did versus a previous one.
 cat <<'EOF'
 
 ======================================================================
  VPS setup complete
 ======================================================================
 EOF
-while IFS= read -r dir; do
-    out="$(sh "$dir/run.sh" summary)" || true
-    [ -z "$out" ] || printf '%s\n\n' "$out"
-done <<EOF
-$(feature_dirs)
-EOF
+zz-setup "$repo" -m
 printf '======================================================================\n'

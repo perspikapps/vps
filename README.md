@@ -398,6 +398,7 @@ vps-rancher/
 | `bin`              | `{"<folder>": "run.sh"}`. With `engines.zz-setup`, it makes the folder a runnable step: `zz-setup` runs the bin with `up` or `down`.                                                                                       |
 | `engines.zz-setup` | Marks the package runnable by `zz-setup` (any value, `"*"` by convention). `vps-setup` and `vps-common` omit it, so they are never proposed as steps.                                                                      |
 | `config`           | Optional settings: `order` (install order, an integer), `default` (`false` = opt-in), `inputs` (see [Interactive menu](#interactive-menu)), `ports` (see [Network config](#network-config-each-features-own-packagejson)). |
+| `config.summary`   | `true` when the bin answers a `summary` action (the connection info it prints); `zz-setup <repo> -m` collects them, which is how `vps-setup` prints its final block. |
 | `dependencies`     | Always includes `@tomgrv/vps-common`, plus any other step it needs. Only keys naming a real step folder count, so an ordinary npm dependency is never auto-enabled.                                                        |
 
 Folder names carry no ordering (`vps-rancher/`, not `05-vps-rancher/`); order is

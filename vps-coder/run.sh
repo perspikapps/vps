@@ -248,11 +248,7 @@ up() {
 
     # --- PostgreSQL (helm/postgresql-values.yaml)
     # alphanumeric only, so it can sit in the connection URL unescaped
-    db_password="$(vps_secret CODER_DB_PASSWORD)"
-    if [ -z "$db_password" ]; then
-        db_password="$(random_password 24)"
-        vps_secret_set CODER_DB_PASSWORD "$db_password"
-    fi
+    db_password="$(vps_secret_ensure CODER_DB_PASSWORD)"
     db_storage="${CODER_DB_STORAGE:-10Gi}"
 
     zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
@@ -313,11 +309,7 @@ up() {
     # --- admin user and template
     admin_email="${CODER_ADMIN_EMAIL:-admin@${wildcard:-coder.local}}"
     admin_user="${CODER_ADMIN_USERNAME:-admin}"
-    admin_password="$(vps_secret CODER_ADMIN_PASSWORD)"
-    if [ -z "$admin_password" ]; then
-        admin_password="$(random_password 24)"
-        vps_secret_set CODER_ADMIN_PASSWORD "$admin_password"
-    fi
+    admin_password="$(vps_secret_ensure CODER_ADMIN_PASSWORD)"
     vps_secret_set CODER_ADMIN_EMAIL "$admin_email"
     vps_secret_set CODER_ADMIN_USERNAME "$admin_user"
     bootstrap_coder "$admin_email" "$admin_user" "$admin_password"

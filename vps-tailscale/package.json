@@ -19,7 +19,6 @@
     "conflicts": [
       "vps-cloudflare"
     ],
-    "order": 1,
     "default": true,
     "inputs": {
       "PURGE_TAILSCALE": {
@@ -39,6 +38,8 @@
         "default": ""
       }
     },
-    "outputs": {}
+    "order": 1,
+    "outputs": {},
+    "summary": true
   }
 }

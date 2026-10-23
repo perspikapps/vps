@@ -6,7 +6,7 @@ set -eu
 # shellcheck disable=SC3040
 (set -o pipefail) 2>/dev/null && set -o pipefail
 
-zz-use zz-colors zz-log yaml-render zz-install zz-workspaces
+zz-use zz-colors zz-log yaml-render zz-install zz-workspaces zz-persist
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -56,9 +56,14 @@ install_packages() {
     done
 }
 
+# remove_packages <package>...: remove (purge) system packages through zz-install -r.
 # Best effort: the caller decides what a package that is not there means.
-apt_purge() {
-    apt-get purge -y "$@" 2>/dev/null
+remove_packages() {
+    local package
+
+    for package in "$@"; do
+        zz-install -r "$package"
+    done
 }
 
 # Cockpit picks up new modules / socket settings on a socket restart.
@@ -239,9 +244,7 @@ vps_secret() {
     local key="$1" legacy="${2:-}" value
 
     value="$(get_env "$key")"
-    if [ -z "$value" ] && [ -f "$VPS_SECRETS_FILE" ]; then
-        value="$(sed -n "s/^${key}=//p" "$VPS_SECRETS_FILE" | tail -n1)"
-    fi
+    [ -n "$value" ] || value="$(zz-persist -f "$VPS_SECRETS_FILE" -r "$key")"
     if [ -z "$value" ] && [ -n "$legacy" ] && [ -f "$legacy" ]; then
         value="$(cat "$legacy")"
     fi
@@ -254,9 +257,19 @@ vps_secret_set() {
     [ -z "${3:-}" ] || rm -f "$3"
 }
 
+# vps_secret_ensure KEY [legacy-file [value]]: the secret's value - the given one, else
+# vps_secret's - or, when there is none, 24 generated letters/digits; stored either way.
+vps_secret_ensure() {
+    local key="$1" legacy="${2:-}" value
+
+    value="${3:-$(vps_secret "$key" "$legacy")}"
+    zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 "$key" "$value"
+    [ -z "$legacy" ] || rm -f "$legacy"
+}
+
 # vps_secret_unset KEY [legacy-file]
 vps_secret_unset() {
-    [ ! -f "$VPS_SECRETS_FILE" ] || sed -i "/^${1}=/d" "$VPS_SECRETS_FILE"
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u "$1"
     [ -z "${2:-}" ] || rm -f "$2"
 }
 
@@ -270,12 +283,6 @@ download_run() {
     "$shell" "$f" || rc=$?
     rm -f "$f"
     return "$rc"
-}
-
-# || true: head closing early sends tr a SIGPIPE that set -o pipefail
-# would otherwise report as failure despite correct output.
-random_password() {
-    tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${1:-24}" || true
 }
 
 ensure_line() {

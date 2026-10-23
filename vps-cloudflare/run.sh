@@ -101,7 +101,7 @@ down() {
     [ ! -f "$VPS_PRIVATE_ACCESS_FILE" ] || sed -i "/^VPS_PRIVATE_INTERFACE=${IFACE}\$/d" "$VPS_PRIVATE_ACCESS_FILE"
     if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
-        apt_purge cloudflared || true
+        remove_packages cloudflared || true
         rm -f /etc/apt/sources.list.d/cloudflared.list /usr/share/keyrings/cloudflare-main.gpg
     fi
     zz-log w "[vps-setup] The tunnel is down. Cockpit, Rancher, the Traefik" \

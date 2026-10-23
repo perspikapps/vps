@@ -59,10 +59,8 @@ up() {
 
     # --- Cockpit login
     cockpit_user="${VPS_ADMIN_USER:-root}"
-    cockpit_password="${VPS_ADMIN_PASSWORD:-$(vps_secret COCKPIT_ADMIN_PASSWORD /root/.cockpit-admin-password)}"
-    [ -n "$cockpit_password" ] || cockpit_password="$(random_password 24)"
+    cockpit_password="$(vps_secret_ensure COCKPIT_ADMIN_PASSWORD /root/.cockpit-admin-password "${VPS_ADMIN_PASSWORD:-}")"
     echo "${cockpit_user}:${cockpit_password}" | chpasswd
-    vps_secret_set COCKPIT_ADMIN_PASSWORD "$cockpit_password" /root/.cockpit-admin-password
     vps_secret_set COCKPIT_ADMIN_USER "$cockpit_user" /root/.cockpit-admin-user
     ok "Cockpit login set: user=${cockpit_user} (password saved to ${VPS_SECRETS_FILE})."
 

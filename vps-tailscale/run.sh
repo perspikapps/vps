@@ -49,7 +49,7 @@ down() {
     [ ! -f "$VPS_PRIVATE_ACCESS_FILE" ] || sed -i '/^VPS_PRIVATE_INTERFACE=tailscale0$/d' "$VPS_PRIVATE_ACCESS_FILE"
     if [ "${PURGE_TAILSCALE:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
-        apt_purge tailscale || true
+        remove_packages tailscale || true
     fi
     zz-log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
         "dashboard, and the k3s API (all private-access) are now unreachable" \

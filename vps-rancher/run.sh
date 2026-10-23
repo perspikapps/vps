@@ -42,9 +42,7 @@ up() {
     host="${RANCHER_HOSTNAME:-${ingress_host:-$(private_address)}}"
     host="${host:-$(hostname -I | awk '{print $1}')}"
 
-    password="$(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
-    [ -n "$password" ] || password="$(random_password 24)"
-    vps_secret_set RANCHER_BOOTSTRAP_PASSWORD "$password" /root/.rancher-bootstrap-password
+    password="$(vps_secret_ensure RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
 
     # --- chart repositories
     # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
