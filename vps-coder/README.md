@@ -15,7 +15,7 @@ sudo vps-setup --with-vps-coder
 sudo vps-setup --only-vps-coder   # just this step, on a host that already has Rancher
 ```
 
-Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
+Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
 sudo zz-setup ./ -o vps-coder

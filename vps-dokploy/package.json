@@ -17,7 +17,6 @@
       "vps-k3s"
     ],
     "default": false,
-    "functions": true,
     "inputs": {
       "ADVERTISE_ADDR": {
         "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",

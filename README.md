@@ -359,10 +359,9 @@ sudo vps-rancher up
 ```
 
 `zz-use` downloads this repo (cached per origin/ref) and links
-`vps-rancher/run.sh` onto `PATH`. Its bin only defines `up()`, `down()` and
-`summary()` (`config.functions`), so it is run by `zz-setup`, not directly: inside
-a checkout, `sudo RANCHER_HOSTNAME=... zz-setup ./ -o vps-rancher` (`-d` to bring it
-down). That skips the menu but keeps dependency auto-enable, requirements and inputs.
+`vps-rancher/run.sh` onto `PATH`, where `sudo vps-rancher up` runs it. Inside a
+checkout, `sudo RANCHER_HOSTNAME=... zz-setup ./ -o vps-rancher` (`-d` to bring it
+down) skips the menu but keeps dependency auto-enable, requirements and inputs.
 
 ## One folder per feature
 
@@ -371,7 +370,7 @@ Each feature is a small npm workspace package. All of these are required here:
 ```
 vps-rancher/
   package.json   # see below
-  run.sh         # up(), down() and summary() functions only; zz-setup sources it and calls one
+  run.sh         # up(), down() (and summary()) functions, dispatched on the first argument
   test.bats      # syntax + shape checks
   README.md      # env vars, up/down usage, dependencies
 ```
@@ -384,7 +383,7 @@ vps-rancher/
   "description": "Rancher install",
   "bin": { "vps-rancher": "run.sh" },
   "engines": { "zz-setup": "*" },
-  "config": { "order": 5, "default": true, "functions": true, "requires": { "root": true, "os": "ubuntu" } },
+  "config": { "order": 5, "default": true, "requires": { "root": true, "os": "ubuntu" } },
   "dependencies": { "@tomgrv/vps-k3s": "*" }
 }
 ```
@@ -396,7 +395,6 @@ vps-rancher/
 | `engines.zz-setup` | Marks the package runnable by `zz-setup` (any value, `"*"` by convention). `vps-setup`, `vps-network` and `vps-cert-manager` omit it, so they are never proposed as steps.                                                                      |
 | `config`           | Optional settings: `order` (install order, an integer), `default` (`false` = opt-in), `inputs` (see [Interactive menu](#interactive-menu)), `ports` (see [Network config](#network-config-each-features-own-packagejson)). |
 | `config.summary`   | `true` when the bin answers a `summary` action (the connection info it prints); `zz-setup <repo> -m` collects them, which is how `vps-setup` prints its final block. |
-| `config.functions` | `true`: the bin only defines `up()`, `down()` and `summary()`; `zz-setup` sources it from its own directory and calls the one asked. No dispatch code, nothing sourced but `zz-colors`. |
 | `config.requires`  | What the host must offer, checked before the first step runs: `{"root": true, "os": "ubuntu"}`. |
 | `dependencies`     | Any other step it needs. Only keys naming a real step folder count, so an ordinary npm dependency is never auto-enabled.                                                        |
 

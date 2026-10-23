@@ -21,10 +21,9 @@ DIR="$REPO_ROOT/vps-dokploy"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and is a config.functions step" {
+@test "defines up() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
-    [ "$status" -eq 0 ]
+    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
     ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 

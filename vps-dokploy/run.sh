@@ -85,3 +85,9 @@ summary() {
                        Apps are served by Dokploy's own Traefik on 80/443)
 EOF
 }
+
+case "${1:-}" in
+    up | down) "$1" ;;
+    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
+    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
+esac
