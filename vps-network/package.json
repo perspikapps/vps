@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-network",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "Network facts and state of the VPS: addresses, private interface, wildcard domain, ports",
   "bin": {
     "vps-network": "run.sh"
