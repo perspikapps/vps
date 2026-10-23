@@ -17,7 +17,6 @@
       "vps-cloudflare"
     ],
     "default": true,
-    "functions": true,
     "inputs": {
       "PURGE_TAILSCALE": {
         "description": "Also remove the tailscale package on down (true/false)",

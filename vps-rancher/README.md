@@ -14,7 +14,7 @@ Runs as one step of a full `vps-setup` install/removal, or on its own through `z
 sudo vps-setup --only-vps-rancher
 ```
 
-Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
+Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
 sudo zz-setup ./ -o vps-rancher
@@ -121,4 +121,4 @@ Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabl
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).

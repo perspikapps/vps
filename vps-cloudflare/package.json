@@ -17,7 +17,6 @@
       "vps-tailscale"
     ],
     "default": false,
-    "functions": true,
     "inputs": {
       "CLOUDFLARE_PRIVATE_IP": {
         "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",

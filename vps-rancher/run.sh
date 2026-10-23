@@ -1,8 +1,7 @@
 #!/bin/sh
 # Rancher on k3s. Env vars: see README.
 # A zz-setup step: configured by environment inputs (package.json config.inputs),
-# so there is no zz-args block; zz-setup sources this file (config.functions) and calls
-# up(), down() or summary().
+# so there is no zz-args block; run with up, down or summary as its first argument.
 
 set -eu
 zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown kube-service-port
@@ -148,3 +147,9 @@ summary() {
                        be prompted to change it on first login)
 EOF
 }
+
+case "${1:-}" in
+    up | down) "$1" ;;
+    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
+    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
+esac

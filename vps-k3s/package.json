@@ -14,7 +14,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",

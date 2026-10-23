@@ -14,7 +14,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "VPS_ADMIN_PASSWORD": {
         "description": "Cockpit/console login password for VPS_ADMIN_USER (or root if unset)",

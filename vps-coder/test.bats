@@ -15,11 +15,10 @@ DIR="$REPO_ROOT/vps-coder"
     [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
-@test "defines up(), down() and is a config.functions step" {
+@test "defines up(), down() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
-    [ "$status" -eq 0 ]
+    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
     ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 

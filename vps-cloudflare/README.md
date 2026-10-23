@@ -14,7 +14,7 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 sudo CLOUDFLARE_TUNNEL_TOKEN=eyJ... vps-setup --skip-vps-tailscale --with-vps-cloudflare
 ```
 
-Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
+Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
 sudo zz-setup ./ -o vps-cloudflare

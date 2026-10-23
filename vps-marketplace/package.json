@@ -17,7 +17,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "MARKETPLACE_REPO_NAME": {
         "description": "Name of the Rancher ClusterRepo to register",

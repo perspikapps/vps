@@ -17,7 +17,6 @@
   },
   "config": {
     "default": false,
-    "functions": true,
     "inputs": {
       "CODER_ACCESS_URL": {
         "description": "Externally reachable URL of Coder (default: http://coder.<wildcard domain>)",

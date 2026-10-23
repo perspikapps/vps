@@ -20,7 +20,7 @@ sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-v
 sudo vps-setup --only-vps-dokploy
 ```
 
-Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
+Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
 sudo zz-setup ./ -o vps-dokploy
@@ -67,4 +67,4 @@ It needs no other step, and conflicts with `vps-k3s` (see above).
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced), the k3s and foreign-swarm guards, the `package.json` `bin`/`engines`/`config` shape and its declared ports. The install itself needs a live root Ubuntu box with Docker, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced), the k3s and foreign-swarm guards, the `package.json` `bin`/`engines`/`config` shape and its declared ports. The install itself needs a live root Ubuntu box with Docker, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
