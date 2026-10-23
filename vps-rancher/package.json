@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-rancher",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "Rancher install",
   "bin": {
     "vps-rancher": "run.sh"

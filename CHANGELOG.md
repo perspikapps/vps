@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.4.0 (2026-10-23)
+
+*Commits from: v4.3.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.3.0' into develop
+### 📦 vps-rancher changes
+
+#### Features
+
+- ✨ serve the dashboard through Traefik; POSIX sh and helm/ yaml for every step (#57)
+
 ## 4.3.0 (2026-10-19)
 
 *Commits from: v4.2.0..HEAD*
@@ -427,5 +442,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-19 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-23 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
