@@ -27,6 +27,8 @@ A script whose later arguments depend on earlier work (a second `zz-args` call a
 
 Prompt with `zz-prompt` (confirmations: `zz-prompt -c Yn "Q?"`; secrets: `zz-prompt -s`, persisted with `zz-persist -s`), install with `zz-install`, pick a bin dir with `zz-bindir`, fetch repos with `zz-fetch`, choose with `zz-menu`.
 
+Never write inline `apt-get`/`apk`/`sudo` branching. Install system packages with `zz-use zz-install` then `zz-install <pkg> apk=<alt> brew=<alt>` (see `src/gitutils/install-gitflow.sh`).
+
 ### Logging
 
 - Script messages go through `zz-log <level>`; the caller sets `ZZ_LOG_STEP` (current step) and raises `ZZ_LOG_INDENT` by 2 for a nested child.
@@ -40,7 +42,7 @@ Write `#!/bin/sh` scripts that run under dash and busybox. No bashisms:
 - Arithmetic: `$((a + 1))`, never `expr`.
 - Input: pipe or here-doc (`printf '%s\n' "$json" | jq …`), never `<<<`.
 - No arrays, `${var//x/y}`, `$'…'`, `PIPESTATUS`, `source` or `function`. Use `sed`/`tr`, `.`, and a captured `$?` instead.
-- Declare every variable a function sets with `local` (dash and busybox support it), so it cannot leak into the caller or be clobbered by a recursive call. Never fake scope with a leading underscore (`_var`).
+- `local` is allowed (dash and busybox support it); declare every function variable with it.
 
 ### Functions
 
@@ -70,9 +72,8 @@ Write `#!/bin/sh` scripts that run under dash and busybox. No bashisms:
 ### Naming
 
 - Script folders are `kebab-case`, `<domain>-<action>` (`json-validate`, `git-fix-up`). Shared helpers take the `zz-` prefix. The entry point is always `run.sh`.
-- Functions are `snake_case`, verb first: `is_*` and `has_*` answer yes or no, `get_*` prints a value, other verbs act (`install_package`).
+- Functions are `snake_case`, verb first: `is_*` and `has_*` answer yes or no, `get_*` prints a value, other verbs act (`install_package`). A helper that is not the script's purpose may take a leading `_` (`_collect`).
 - A function that mirrors a name from the domain keeps that name's case: `oneOf_rule` matches the JSON Schema keyword `oneOf`.
-- Variable and function names never start with an underscore. A function-scoped variable is declared with `local`; a script-wide one is a plain lowercase name; a helper function takes a verb-first name like any other (`collect_files`).
 - Variables are lowercase and short, named for what they hold: a singular noun for one value (`json`, `schema`, `path`), a plural for a list (`props`, `items`). Say what a flag means, not how it is stored: `allow`, not `flag1`.
 - An option's long name equals its variable (`-s schema` fills `$schema`). Its short flag is the first letter, or the next free one.
 - Colour variables from `zz-colors` are Capitalised (`Yellow`, `None`). Environment variables are `UPPER_SNAKE` with the `ZZ_` prefix (`ZZ_LOG_STEP`).
