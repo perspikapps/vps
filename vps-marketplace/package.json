@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-marketplace",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Rancher Apps & Marketplace catalog registration",
   "bin": {
     "vps-marketplace": "run.sh"
@@ -17,7 +17,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "MARKETPLACE_REPO_NAME": {
         "description": "Name of the Rancher ClusterRepo to register",

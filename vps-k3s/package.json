@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-k3s",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "k3s / kubectl / helm install (includes Traefik configuration)",
   "bin": {
     "vps-k3s": "run.sh"
@@ -14,7 +14,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",

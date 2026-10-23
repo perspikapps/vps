@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-cockpit",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Cockpit install",
   "bin": {
     "vps-cockpit": "run.sh"
@@ -14,7 +14,6 @@
   },
   "config": {
     "default": true,
-    "functions": true,
     "inputs": {
       "VPS_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",

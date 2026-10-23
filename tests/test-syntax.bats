@@ -50,10 +50,10 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/vps-*/run.sh
 }
 
-# run_summary <step> <path with stubs>: source the step the way zz-setup does (from its
-# own directory, as ./run.sh) and call its summary(), when it has one.
+# run_summary <step> <path with stubs>: run the step's summary action the way zz-setup does
+# (from its own directory, as ./run.sh).
 run_summary() {
-    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && . "$0" && if command -v summary >/dev/null 2>&1; then summary; fi' ./run.sh "$REPO_ROOT/vps-$1"
+    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$REPO_ROOT/vps-$1"
 }
 
 @test "every step's summary action runs and prints its block" {
@@ -128,14 +128,12 @@ shift; echo "$*"
     done
 }
 
-@test "steps are config.functions workspaces; vps-network and vps-cert-manager are scripts, not steps" {
+@test "steps dispatch up/down/summary; vps-network and vps-cert-manager are scripts, not steps" {
     for d in "$REPO_ROOT"/vps-*/; do
         run node -e "
             const p = require('$d/package.json');
-            const step = !!(p.engines && p.engines['zz-setup']);
-            const fn = !!(p.config && p.config.functions);
-            process.exit(step ? (fn ? 0 : 1) : 0)"
-        [ "$status" -eq 0 ]
+            process.exit(p.engines && p.engines['zz-setup'] ? 0 : 1)"
+        [ "$status" -ne 0 ] || grep -q '^case "${1:-}" in' "$d/run.sh"
     done
     for s in network cert-manager; do
         run node -e "const p = require('$REPO_ROOT/vps-$s/package.json'); process.exit(p.bin['vps-$s'] && !p.engines ? 0 : 1)"

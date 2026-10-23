@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.5.0 (2026-10-23)
+
+*Commits from: v4.4.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.4.0' into develop
+### 📦 vps-setup changes
+
+#### Other changes
+
+- ♻️ remove config.functions; steps are plain scripts run with up, down or summary (#60)
+
 ## 4.4.0 (2026-10-23)
 
 *Commits from: v4.3.0..HEAD*
@@ -421,6 +436,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 

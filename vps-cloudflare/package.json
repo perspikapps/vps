@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-cloudflare",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Cloudflare Tunnel as the private network (alternative to Tailscale)",
   "bin": {
     "vps-cloudflare": "run.sh"
@@ -17,7 +17,6 @@
       "vps-tailscale"
     ],
     "default": false,
-    "functions": true,
     "inputs": {
       "CLOUDFLARE_PRIVATE_IP": {
         "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",

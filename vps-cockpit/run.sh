@@ -58,3 +58,9 @@ summary() {
                        from SSH, which stays key-only)
 EOF2
 }
+
+case "${1:-}" in
+    up | down) "$1" ;;
+    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
+    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
+esac
