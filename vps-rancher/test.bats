@@ -136,7 +136,7 @@ DIR="$REPO_ROOT/vps-rancher"
     [ -f "$DIR/helm/values.yaml" ]
     [ -f "$DIR/helm/ingress.yaml" ]
     grep -q -- '--values "\${dir}/helm/values.yaml"' "$DIR/run.sh"
-    grep -q 'render_yaml "\${dir}/helm/ingress.yaml" INGRESS_HOST' "$DIR/run.sh"
+    grep -q 'helm-render "\${dir}/helm/ingress.yaml" INGRESS_HOST=' "$DIR/run.sh"
     ! grep -q -- '--set ' "$DIR/run.sh"
     ! grep -q '^kind: Ingress' "$DIR/run.sh"
 }

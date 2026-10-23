@@ -93,7 +93,7 @@ up() {
     fi
 
     zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-    render_yaml "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT TRAEFIK_ACME_EMAIL TRAEFIK_ACME_CASERVER | kubectl apply -f -
+    helm-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do

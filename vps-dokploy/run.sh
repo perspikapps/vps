@@ -2,7 +2,7 @@
 # Dokploy (Docker Swarm + Traefik PaaS) through its official installer. Env vars: see README.
 
 set -eu
-zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
+zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-install
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
@@ -41,10 +41,7 @@ up() {
                 "Run 'docker swarm leave --force' yourself if that is what you want, then re-run." && exit 1
         fi
         # The installer calls openssl unconditionally and installs Docker itself when missing.
-        if ! command_exists openssl; then
-            apt_update_once
-            apt_install openssl
-        fi
+        command_exists openssl || zz-install openssl
         # Upstream variable names: the installer reads them from its environment.
         export ADVERTISE_ADDR="${ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
         export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${DOCKER_SWARM_INIT_ARGS:-}"

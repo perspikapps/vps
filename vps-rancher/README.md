@@ -50,7 +50,7 @@ versions involved first.
 The Helm values and the Traefik Ingress are YAML files in the `helm/` subfolder, not heredocs:
 `helm/values.yaml` (fixed chart values, passed with `--values`; `hostname` and
 `bootstrapPassword` still go in a generated second values file) and `helm/ingress.yaml`
-(`${INGRESS_HOST}` is filled in by `render_yaml` from `vps-common`).
+(`${INGRESS_HOST}` is filled in by [`helm-render`](https://github.com/tomgrv/scripts/tree/main/helm-render)).
 
 ## Progress
 

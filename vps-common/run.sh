@@ -6,7 +6,7 @@ set -eu
 # shellcheck disable=SC3040
 (set -o pipefail) 2>/dev/null && set -o pipefail
 
-zz-use zz-colors zz-log
+zz-use zz-colors zz-log helm-render
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -93,21 +93,6 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # Value of the environment variable named $1 (empty when unset).
 get_env() { eval "printf '%s' \"\${$1:-}\""; }
-
-# render_yaml <file> <NAME>...: prints the YAML file with each ${NAME} replaced
-# by the value of the variable NAME. Only the listed names are touched, so the
-# file can hold other ${...} text. Chart values and manifests live in .yaml
-# files beside the step's run.sh, not in heredocs.
-render_yaml() {
-    local file="$1" name value script=""
-
-    shift
-    for name in "$@"; do
-        value="$(get_env "$name" | sed 's/[\&|]/\\&/g')"
-        script="${script}s|\\\${${name}}|${value}|g;"
-    done
-    sed "$script" "$file"
-}
 
 # Upper-cases stdin.
 to_upper() { tr '[:lower:]' '[:upper:]'; }

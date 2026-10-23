@@ -132,13 +132,19 @@ DIR="$REPO_ROOT/vps-coder"
 
 @test "every helm/*.yaml renders to valid YAML with its placeholders filled" {
     python3 -c 'import yaml' 2>/dev/null || skip "python3 yaml not installed"
+    command -v helm-render >/dev/null || skip "helm-render not installed"
     for f in "$DIR"/helm/*.yaml; do
         names=$(grep -o '\${[a-z_]*}' "$f" | tr -d '${}' | sort -u | tr '\n' ' ')
-        out=$(dash -c ". '$REPO_ROOT/vps-common/run.sh' 2>/dev/null
-            coder_namespace=coder registry_port=5000 config_sha=abc db_password=12345 db_storage=10Gi
-            access_url=http://coder.example.com host=coder.example.com wildcard_host='*.example.com'
-            mapped=ghcr.io/org registry_auth='[]' insecure_registries='[]'
-            render_yaml '$f' $names")
+        args=""
+        for n in $names; do
+            case "$n" in
+                registry_auth | insecure_registries) args="$args $n=[]" ;;
+                wildcard_host) args="$args $n=*.example.com" ;;
+                *) args="$args $n=example" ;;
+            esac
+        done
+        # shellcheck disable=SC2086
+        out=$(set -f; helm-render "$f" $args)
         [ -z "$(printf '%s' "$out" | grep '\${')" ]
         printf '%s' "$out" | python3 -c 'import sys, yaml; list(yaml.safe_load_all(sys.stdin))'
     done

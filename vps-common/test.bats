@@ -278,11 +278,3 @@ EOF
     ! grep -q DEMO_PW "$VPS_SECRETS_FILE"
     grep -qx 'KEEP=me' "$VPS_SECRETS_FILE"
 }
-
-@test "render_yaml: fills only the listed \${NAME}s, with values holding / & |" {
-    printf 'a: ${X}\nb: ${KEEP}\n' >"$BATS_TEST_TMPDIR/t.yaml"
-    run dash -c ". '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; X='h/o&s|t'; render_yaml '$BATS_TEST_TMPDIR/t.yaml' X"
-    [ "$status" -eq 0 ]
-    [ "${lines[0]}" = 'a: h/o&s|t' ]
-    [ "${lines[1]}" = 'b: ${KEEP}' ]
-}

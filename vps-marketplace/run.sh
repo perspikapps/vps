@@ -18,7 +18,7 @@ up() {
         "Apps & Marketplace once Rancher is up."
 
     zz-log i "[vps-setup] Registering the ${MARKETPLACE_REPO_NAME} catalog (${MARKETPLACE_REPO_URL})..."
-    render_yaml "$(dirname "$0")/helm/clusterrepo.yaml" MARKETPLACE_REPO_NAME MARKETPLACE_REPO_URL | kubectl apply -f -
+    helm-render "$(dirname "$0")/helm/clusterrepo.yaml" MARKETPLACE_REPO_NAME="$MARKETPLACE_REPO_NAME" MARKETPLACE_REPO_URL="$MARKETPLACE_REPO_URL" | kubectl apply -f -
 
     ok "Catalog '${MARKETPLACE_REPO_NAME}' registered."
     ok "In Rancher: Apps & Marketplace -> Repositories, it should show up there" \
