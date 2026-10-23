@@ -4,6 +4,9 @@
 
 set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
+# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
+# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
+grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 
@@ -33,9 +36,9 @@ up() {
         install -m 0755 -d /usr/share/keyrings
         retry curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
         echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' >/etc/apt/sources.list.d/cloudflared.list
-        # not apt_update_once: an earlier step may already have used its one update
+        # zz-install would skip the update (the index is under an hour old), but this repo is new
         apt-get update -y
-        apt_install cloudflared
+        apt-get install -y --no-install-recommends cloudflared
     fi
 
     # --- private interface unit

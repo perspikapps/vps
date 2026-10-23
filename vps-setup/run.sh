@@ -102,6 +102,6 @@ while IFS= read -r dir; do
     out="$(sh "$dir/run.sh" summary)" || true
     [ -z "$out" ] || printf '%s\n\n' "$out"
 done <<EOF
-$(ordered_feature_dirs)
+$(feature_dirs)
 EOF
 printf '======================================================================\n'

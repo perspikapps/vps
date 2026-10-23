@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Moved from ../tests/ to live alongside vps-common/run.sh, matching every
 # other folder's <name>/test.bats convention (see README's "Tests" section).
-# Covers vps-common/run.sh's pure logic (net_port/all_network_ports/ordered_feature_dirs/
+# Covers vps-common/run.sh's pure logic (net_port/all_network_ports/feature_dirs/
 # feature_package_json/dispatch_action) against a small fixture tree, since
 # the rest of vps-common/run.sh (apt helpers, cert-manager, Helm teardown) needs
 # a live root/Ubuntu/k3s environment this suite doesn't have.
@@ -16,16 +16,19 @@ setup() {
     # one too, even though nothing here executes it.
     : >"$work/alpha/run.sh"
     : >"$work/beta/run.sh"
+    # zz-workspaces reads the root package.json's "workspaces"
+    echo '{"workspaces":["alpha","beta","gamma","lib"]}' >"$work/package.json"
+    # zz-workspaces lists a folder only when its bin file exists and engines.zz-setup is set
     cat >"$work/alpha/package.json" <<'EOF'
 {
     "name": "@tomgrv/alpha",
-    "engines": { "zz-setup": "*" }, "config": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] }
+    "bin": { "alpha": "run.sh" }, "engines": { "zz-setup": "*" }, "config": { "ports": [{ "name": "alpha_http", "port": 1111, "access": "public", "note": "n1" }] }
 }
 EOF
     cat >"$work/beta/package.json" <<'EOF'
 {
     "name": "@tomgrv/beta",
-    "engines": { "zz-setup": "*" }, "config": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] }
+    "bin": { "beta": "run.sh" }, "engines": { "zz-setup": "*" }, "config": { "ports": [{ "name": "beta_http", "port": 2222, "access": "private" }] }
 }
 EOF
 }
@@ -55,14 +58,14 @@ _load_common() {
     [[ "$output" == *$'alpha_http\t1111\tpublic\tn1'* ]]
 }
 
-@test "ordered_feature_dirs: installable steps (with an engines.zz-setup field) in its order, others left out" {
+@test "feature_dirs: installable steps (with an engines.zz-setup field) in its order, others left out" {
     mkdir -p "$work/gamma" "$work/lib"
     : >"$work/gamma/run.sh"; : >"$work/lib/run.sh"
-    echo '{"name":"@tomgrv/gamma","engines":{"zz-setup":"*"},"config": {"order":1}}' >"$work/gamma/package.json"
+    echo '{"name":"@tomgrv/gamma","bin":{"gamma":"run.sh"},"engines":{"zz-setup":"*"},"config": {"order":1}}' >"$work/gamma/package.json"
     echo '{"name":"@tomgrv/lib"}' >"$work/lib/package.json"
-    echo '{"name":"@tomgrv/alpha","engines":{"zz-setup":"*"},"config": {"order":5}}' >"$work/alpha/package.json"
-    echo '{"name":"@tomgrv/beta","engines":{"zz-setup":"*"},"config": {"order":3}}' >"$work/beta/package.json"
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; ordered_feature_dirs"
+    echo '{"name":"@tomgrv/alpha","bin":{"alpha":"run.sh"},"engines":{"zz-setup":"*"},"config": {"order":5}}' >"$work/alpha/package.json"
+    echo '{"name":"@tomgrv/beta","bin":{"beta":"run.sh"},"engines":{"zz-setup":"*"},"config": {"order":3}}' >"$work/beta/package.json"
+    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; feature_dirs"
     [ "$status" -eq 0 ]
     [ "$output" = "$work/gamma"$'\n'"$work/beta"$'\n'"$work/alpha" ]
 }

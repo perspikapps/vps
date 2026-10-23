@@ -3,6 +3,9 @@
 
 set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
+# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
+# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
+grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 
@@ -23,12 +26,10 @@ up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
     local name port access note tab spec private_iface private_ip
 
-    apt_update_once
-
     ssh_port="$(net_port ssh)"
 
     zz-log i "[vps-setup] Installing ufw and fail2ban..."
-    apt_install ufw fail2ban
+    install_packages ufw fail2ban
 
     # --- admin user and SSH key
     if [ -n "${VPS_ADMIN_USER:-}" ]; then

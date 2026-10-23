@@ -132,7 +132,7 @@ DIR="$REPO_ROOT/vps-coder"
 
 @test "every helm/*.yaml renders to valid YAML with its placeholders filled" {
     python3 -c 'import yaml' 2>/dev/null || skip "python3 yaml not installed"
-    command -v helm-render >/dev/null || skip "helm-render not installed"
+    command -v yaml-render >/dev/null || skip "yaml-render not installed"
     for f in "$DIR"/helm/*.yaml; do
         names=$(grep -o '\${[a-z_]*}' "$f" | tr -d '${}' | sort -u | tr '\n' ' ')
         args=""
@@ -144,7 +144,7 @@ DIR="$REPO_ROOT/vps-coder"
             esac
         done
         # shellcheck disable=SC2086
-        out=$(set -f; helm-render "$f" $args)
+        out=$(set -f; yaml-render "$f" $args)
         [ -z "$(printf '%s' "$out" | grep '\${')" ]
         printf '%s' "$out" | python3 -c 'import sys, yaml; list(yaml.safe_load_all(sys.stdin))'
     done

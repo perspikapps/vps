@@ -3,6 +3,9 @@
 
 set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
+# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
+# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
+grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
@@ -61,8 +64,7 @@ up() {
         zz-log i "[vps-setup] Helm already installed ($(helm version --short))."
     else
         zz-log i "[vps-setup] Installing Helm..."
-        # The official installer needs bash.
-        download_run https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 bash
+        zz-use helm
     fi
 
     ok "k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
@@ -93,7 +95,7 @@ up() {
     fi
 
     zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-    helm-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do

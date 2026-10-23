@@ -6,7 +6,7 @@ set -eu
 # shellcheck disable=SC3040
 (set -o pipefail) 2>/dev/null && set -o pipefail
 
-zz-use zz-colors zz-log helm-render
+zz-use zz-colors zz-log yaml-render zz-install zz-workspaces
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -45,8 +45,15 @@ require_ubuntu() {
 
 export DEBIAN_FRONTEND=noninteractive
 
-apt_install() {
-    apt-get install -y --no-install-recommends "$@"
+# install_packages <package>...: system packages through zz-install (whichever
+# package manager is there, sudo when needed; it refreshes the apt index at most
+# hourly), without the recommended extras.
+install_packages() {
+    local package
+
+    for package in "$@"; do
+        zz-install -m "$package"
+    done
 }
 
 # Best effort: the caller decides what a package that is not there means.
@@ -64,14 +71,6 @@ cockpit_refresh() {
 # once k3s or Docker is up (best effort: the unit exists only after vps-security).
 reapply_private_guard() {
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
-}
-
-apt_update_once() {
-    if [ -z "${VPS_SETUP_APT_UPDATED:-}" ]; then
-        zz-log i "[vps-setup] Running apt-get update..."
-        apt-get update -y
-        export VPS_SETUP_APT_UPDATED=1
-    fi
 }
 
 retry() {
@@ -101,42 +100,26 @@ to_upper() { tr '[:lower:]' '[:upper:]'; }
 # reinstalls vps-common/run.sh under its own bin dir rather than reusing a checkout.
 VPS_SETUP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Real feature folders: run.sh alongside package.json. Skips node_modules/*
-# (and any other non-feature directory) instead of jq-parsing every
-# package.json under the checkout.
+# Folders of this repo's installable steps (zz-workspaces: a bin file and an
+# engines.zz-setup field), in config.order. Library folders (vps-common) and
+# node_modules/* are left out.
 feature_dirs() {
-    local d
+    local root tab
 
-    for d in "$VPS_SETUP_ROOT"/*/; do
-        if [ -f "${d}run.sh" ] && [ -f "${d}package.json" ]; then
-            printf '%s\n' "${d%/}"
-        fi
-    done
+    root="$VPS_SETUP_ROOT"
+    tab="$(printf '\037')"
+    zz-workspaces "$root" | cut -d "$tab" -f3 | sed "s|^|${root}/|"
 }
 
 # Path of the package.json of feature $1 (the name without the @tomgrv/ scope).
 feature_package_json() {
     local feature="$1" d
 
-    while IFS= read -r d; do
-        if jq -e --arg n "@tomgrv/${feature}" '.name == $n' "${d}/package.json" >/dev/null 2>&1; then
-            printf '%s' "${d}/package.json"
-            return 0
-        fi
-    done <<EOF
-$(feature_dirs)
-EOF
-    zz-log e "[vps-setup] Unknown feature '${feature}' (no */package.json with name @tomgrv/${feature})."
-    exit 1
-}
-
-# Feature folders that are installable steps (have an engines.zz-setup field), in config.order.
-ordered_feature_dirs() {
-    local d
-
-    feature_dirs | while IFS= read -r d; do
-        jq -r --arg d "$d" 'select(.engines["zz-setup"] != null) | [(.config.order // 999), $d] | @tsv' "${d}/package.json"
-    done | sort -n | cut -f2
+    d="$(zz-workspaces "$VPS_SETUP_ROOT" | awk -F "$(printf '\037')" -v n="$feature" '$2 == n { print $3; exit }')"
+    if [ -z "$d" ]; then
+        zz-log e "[vps-setup] Unknown feature '${feature}' (no installable step named ${feature})." && exit 1
+    fi
+    printf '%s' "${VPS_SETUP_ROOT}/${d}/package.json"
 }
 
 # Port <name> of <feature> (default: the calling step's own package.json). An

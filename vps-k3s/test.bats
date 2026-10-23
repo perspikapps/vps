@@ -59,6 +59,6 @@ DIR="$REPO_ROOT/vps-k3s"
 @test "Traefik's chart values live in traefik-config.yaml, rendered by run.sh" {
     [ -f "$DIR/helm/traefik-config.yaml" ]
     grep -q 'kind: HelmChartConfig' "$DIR/helm/traefik-config.yaml"
-    grep -q 'helm-render "\$(dirname "\$0")/helm/traefik-config.yaml"' "$DIR/run.sh"
+    grep -q 'yaml-render "\$(dirname "\$0")/helm/traefik-config.yaml"' "$DIR/run.sh"
     ! grep -q 'kind: HelmChartConfig' "$DIR/run.sh"
 }

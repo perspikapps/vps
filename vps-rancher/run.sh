@@ -5,6 +5,9 @@
 
 set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
+# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
+# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
+grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 # vps-common comes from zz-use's download cache (24h for a branch), while the
@@ -120,7 +123,7 @@ up() {
     # --- public dashboard, through k3s's Traefik (see ingress.yaml)
     if [ -n "$ingress_host" ]; then
         zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host}..."
-        helm-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" | kubectl apply -f -
+        yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" | kubectl apply -f -
     else
         kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
     fi

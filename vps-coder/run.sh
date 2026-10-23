@@ -5,6 +5,9 @@
 
 set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
+# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
+# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
+grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 
@@ -24,7 +27,7 @@ printf '%s\n' "$WORKSPACE_NAMESPACE" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
 REGISTRY_PORT="$(net_port devcontainer_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
-# Chart values and manifests, rendered with helm-render (see helm/).
+# Chart values and manifests, rendered with yaml-render (see helm/).
 HELM_DIR="$(cd "$(dirname "$0")" && pwd)/helm"
 
 # The workspace namespace, with rights for Coder's service account (coder:coder) to run workspaces in it:
@@ -35,7 +38,7 @@ ensure_workspace_namespace() {
     [ "$WORKSPACE_NAMESPACE" != "$CODER_NAMESPACE" ] || return 0
     zz-log i "[vps-setup] Preparing the workspace namespace '${WORKSPACE_NAMESPACE}' (Coder's service account may manage workspaces there)..."
     kubectl create namespace "$WORKSPACE_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-    helm-render "$HELM_DIR/workspace-rbac.yaml" coder_namespace="$coder_namespace" | kubectl apply -n "$WORKSPACE_NAMESPACE" -f -
+    yaml-render "$HELM_DIR/workspace-rbac.yaml" coder_namespace="$coder_namespace" | kubectl apply -n "$WORKSPACE_NAMESPACE" -f -
 }
 
 # Creates the first admin (once) and the "devcontainer" template (once), through
@@ -97,7 +100,7 @@ deploy_local_registry() {
     zz-log i "[vps-setup] Deploying the in-cluster image registry at ${addr}..."
     kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
-    helm-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
+    yaml-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
     kubectl -n devcontainer-builder rollout status deploy/registry --timeout=5m
     reapply_private_guard
     if [ ! -f "$cfg" ]; then
@@ -124,7 +127,7 @@ deploy_buildkit() {
     config_sha="$(printf '%s' "$toml" | sha256sum | cut -c1-16)"
     kubectl -n devcontainer-builder create configmap buildkitd-config --from-literal=buildkitd.toml="$toml" \
         --dry-run=client -o yaml | kubectl apply -f -
-    helm-render "$HELM_DIR/buildkit.yaml" config_sha="$config_sha" | kubectl apply -n devcontainer-builder -f -
+    yaml-render "$HELM_DIR/buildkit.yaml" config_sha="$config_sha" | kubectl apply -n devcontainer-builder -f -
     kubectl -n devcontainer-builder rollout status deploy/buildkit --timeout=5m
 }
 
@@ -172,7 +175,7 @@ install_devcontainer_builder() {
     registry_auth="$(jq -nc --arg reg "$registry" --arg user "$auth_user" --arg tok "$auth_pw" \
         'if $user == "" then [] else [{registry: $reg, username: $user, password: $tok}] end')"
     values="$(mktemp)"
-    helm-render "$HELM_DIR/devcontainer-builder-values.yaml" mapped="$mapped" registry_auth="$registry_auth" insecure_registries="$insecure_registries" >"$values"
+    yaml-render "$HELM_DIR/devcontainer-builder-values.yaml" mapped="$mapped" registry_auth="$registry_auth" insecure_registries="$insecure_registries" >"$values"
     run_with_progress devcontainer-builder "devcontainer-builder install" \
         helm upgrade --install devcontainer-builder "$chart" \
         --version "$version" -n devcontainer-builder --values "$values" --wait --timeout 10m || rc=$?
@@ -254,7 +257,7 @@ up() {
 
     zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
     db_values="$(mktemp)"
-    helm-render "$HELM_DIR/postgresql-values.yaml" db_password="$db_password" db_storage="$db_storage" >"$db_values"
+    yaml-render "$HELM_DIR/postgresql-values.yaml" db_password="$db_password" db_storage="$db_storage" >"$db_values"
     run_with_progress "$CODER_NAMESPACE" "Coder PostgreSQL" \
         helm upgrade --install coder-db bitnami/postgresql -n "$CODER_NAMESPACE" --values "$db_values" --wait --timeout 10m || rc=$?
     rm -f "$db_values"
@@ -279,9 +282,9 @@ up() {
     values_file="$(mktemp)"
     if [ -n "$wildcard" ]; then
         wildcard_host="*.${wildcard}"
-        helm-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" >"$values_file"
+        yaml-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" >"$values_file"
     else
-        helm-render "$HELM_DIR/coder-values.yaml" access_url="$access_url" host="$host" >"$values_file"
+        yaml-render "$HELM_DIR/coder-values.yaml" access_url="$access_url" host="$host" >"$values_file"
     fi
     chart_version="${CODER_CHART_VERSION:+--version ${CODER_CHART_VERSION}}"
 

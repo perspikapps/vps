@@ -54,6 +54,6 @@ DIR="$REPO_ROOT/vps-marketplace"
 @test "the ClusterRepo manifest lives in helm/clusterrepo.yaml, rendered by run.sh" {
     [ -f "$DIR/helm/clusterrepo.yaml" ]
     grep -q 'kind: ClusterRepo' "$DIR/helm/clusterrepo.yaml"
-    grep -q 'helm-render "\$(dirname "\$0")/helm/clusterrepo.yaml"' "$DIR/run.sh"
+    grep -q 'yaml-render "\$(dirname "\$0")/helm/clusterrepo.yaml"' "$DIR/run.sh"
     ! grep -q 'kind: ClusterRepo' "$DIR/run.sh"
 }
