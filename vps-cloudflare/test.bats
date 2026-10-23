@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-cloudflare"
 
 @test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -41,7 +41,7 @@ DIR="$REPO_ROOT/vps-cloudflare"
 
 @test "up refuses on a host where Tailscale is already the private network" {
     grep -q 'is-active --quiet tailscaled' "$DIR/run.sh"
-    grep -q '== "tailscale0"' "$DIR/run.sh"
+    grep -q '= "tailscale0"' "$DIR/run.sh"
 }
 
 @test "the tunnel token goes in an owner-only env file, never on the unit's command line" {
