@@ -108,10 +108,43 @@ if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system 
   exit 1
 fi
 
+# Public dashboard through k3s's Traefik at rancher.<wildcard domain> (same domain
+# source as Coder). The backend is the Service's "http" port by name, so it
+# survives the private-port rebind above; Traefik terminates TLS (Let's Encrypt)
+# and sends X-Forwarded-Proto, which keeps Rancher from redirecting to https again.
+RANCHER_INGRESS_HOST="${RANCHER_INGRESS_HOST:-rancher.$(wildcard_domain)}"
+[[ "$RANCHER_INGRESS_HOST" != "rancher." ]] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN."; exit 1; }
+zz-log i "[vps-setup] Exposing Rancher through Traefik at ${RANCHER_INGRESS_HOST}..."
+kubectl apply -f - <<EOF2
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rancher-traefik
+  namespace: cattle-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: ["${RANCHER_INGRESS_HOST}"]
+  rules:
+    - host: ${RANCHER_INGRESS_HOST}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rancher
+                port:
+                  name: http
+EOF2
+
 reapply_private_guard
 
 ok "Rancher installed."
-ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
+ok "UI: https://${RANCHER_INGRESS_HOST} (via Traefik, public); private: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
 ok "Bootstrap password saved to ${VPS_SECRETS_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
@@ -125,7 +158,8 @@ down() {
 
 summary() {
   cat <<EOF
- Rancher:             https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
+ Rancher:             https://${RANCHER_INGRESS_HOST:-rancher.$(wildcard_domain)} (through Traefik - public)
+                       private: https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
                        (also on plain port $(net_port rancher_http))
                        user:     admin
                        password: $(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password | grep . || echo 'not set - run vps-rancher/run.sh')

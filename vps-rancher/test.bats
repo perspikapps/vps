@@ -122,3 +122,11 @@ DIR="$REPO_ROOT/vps-rancher"
     cm_line=$(grep -n '^ensure_cert_manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$add_line" -lt "$cm_line" ]
 }
+
+@test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
+    grep -q 'RANCHER_INGRESS_HOST:-rancher.\$(wildcard_domain)' "$DIR/run.sh"
+    grep -q 'ingressClassName: traefik' "$DIR/run.sh"
+    grep -q 'name: http$' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
