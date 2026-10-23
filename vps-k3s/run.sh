@@ -85,38 +85,14 @@ if [[ "$TRAEFIK_ACME_STAGING" == "true" ]]; then
        "avoid iterating against it)."
 fi
 
-STAGING_CASERVER_LINE=""
+# Let's Encrypt production unless staging was asked for (see above).
+TRAEFIK_ACME_CASERVER="https://acme-v02.api.letsencrypt.org/directory"
 if [[ "$TRAEFIK_ACME_STAGING" == "true" ]]; then
-  STAGING_CASERVER_LINE='      - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"'
+  TRAEFIK_ACME_CASERVER="https://acme-staging-v02.api.letsencrypt.org/directory"
 fi
 
 zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-cat <<EOF | kubectl apply -f -
-apiVersion: helm.cattle.io/v1
-kind: HelmChartConfig
-metadata:
-  name: traefik
-  namespace: kube-system
-spec:
-  valuesContent: |-
-    ports:
-      traefik:
-        port: 9000
-        expose:
-          default: true
-        exposedPort: ${TRAEFIK_DASHBOARD_PORT}
-    api:
-      dashboard: true
-      insecure: true
-    persistence:
-      enabled: true
-      size: 128Mi
-    additionalArguments:
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-${STAGING_CASERVER_LINE}
-EOF
+render_yaml "$(dirname "$0")/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT TRAEFIK_ACME_EMAIL TRAEFIK_ACME_CASERVER | kubectl apply -f -
 
 zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
 for i in $(seq 1 30); do

@@ -2,7 +2,7 @@
 
 # vps-common
 
-Shared bash helpers sourced by every feature's `run.sh` (and by
+Shared POSIX sh helpers sourced by every feature's `run.sh` (and by
 `vps-setup/run.sh`): the `ok` helper and leveled logging through
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-log`,
 an `ERR` trap that prints the failing command/file/line, apt helpers

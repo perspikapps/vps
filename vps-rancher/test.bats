@@ -6,8 +6,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-rancher"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh (dash)" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -54,7 +54,7 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "hostname and bootstrapPassword are passed as strings via a values file, not --set" {
     ! grep -q -- '--set bootstrapPassword' "$DIR/run.sh"
     ! grep -q -- '--set hostname' "$DIR/run.sh"
-    grep -q -- '--values "\$VALUES_FILE"' "$DIR/run.sh"
+    grep -q -- '--values "\$values_file"' "$DIR/run.sh"
 }
 
 @test "a numeric-looking bootstrap password stays a string in the values file" {
@@ -85,7 +85,7 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "a stale cached vps-common is reported with the command to refresh it" {
-    grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
+    grep -q 'command -v reapply_private_guard' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
 
@@ -119,15 +119,24 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "the bitnami Helm repository is added as part of the install, before cert-manager" {
     grep -q 'helm repo add bitnami https://charts.bitnami.com/bitnami' "$DIR/run.sh"
     add_line=$(grep -n 'helm repo add bitnami' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    cm_line=$(grep -n '^ensure_cert_manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    cm_line=$(grep -n '^    ensure_cert_manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$add_line" -lt "$cm_line" ]
 }
 
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
     grep -q 'rancher.\$(wildcard_domain)' "$DIR/run.sh"
     grep -q 'RANCHER_INGRESS:-true' "$DIR/run.sh"
-    grep -q 'ingressClassName: traefik' "$DIR/run.sh"
-    grep -q 'name: http$' "$DIR/run.sh"
+    grep -q 'ingressClassName: traefik' "$DIR/ingress.yaml"
+    grep -q 'name: http$' "$DIR/ingress.yaml"
     run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "chart values and the Traefik Ingress live in yaml files beside run.sh, not in heredocs or --set" {
+    [ -f "$DIR/values.yaml" ]
+    [ -f "$DIR/ingress.yaml" ]
+    grep -q -- '--values "\${dir}/values.yaml"' "$DIR/run.sh"
+    grep -q 'render_yaml "\${dir}/ingress.yaml" INGRESS_HOST' "$DIR/run.sh"
+    ! grep -q -- '--set ' "$DIR/run.sh"
+    ! grep -q '^kind: Ingress' "$DIR/run.sh"
 }

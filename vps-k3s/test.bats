@@ -55,3 +55,10 @@ DIR="$REPO_ROOT/vps-k3s"
     sed -n '/^summary() {/,/^}/p' "$DIR/run.sh" | grep -q 'public_ip'
     ! sed -n '/^summary() {/,/^}/p' "$DIR/run.sh" | grep -q 'hostname -I'
 }
+
+@test "Traefik's chart values live in traefik-config.yaml, rendered by run.sh" {
+    [ -f "$DIR/traefik-config.yaml" ]
+    grep -q 'kind: HelmChartConfig' "$DIR/traefik-config.yaml"
+    grep -q 'render_yaml "\$(dirname "\$0")/traefik-config.yaml"' "$DIR/run.sh"
+    ! grep -q 'kind: HelmChartConfig' "$DIR/run.sh"
+}

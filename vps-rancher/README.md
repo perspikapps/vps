@@ -45,6 +45,13 @@ chart comes from. Switching an already-running community Rancher over by re-runn
 step is an in-place `helm upgrade` to the Prime chart; check SUSE's upgrade notes for the
 versions involved first.
 
+## Chart files
+
+The Helm values and the Traefik Ingress are YAML files beside `run.sh`, not heredocs:
+`values.yaml` (fixed chart values, passed with `--values`; `hostname` and
+`bootstrapPassword` still go in a generated second values file) and `ingress.yaml`
+(`${INGRESS_HOST}` is filled in by `render_yaml` from `vps-common`).
+
 ## Progress
 
 The install is mostly waiting (chart download, then Rancher's images being pulled,
