@@ -42,7 +42,7 @@ up() {
     host="${RANCHER_HOSTNAME:-${ingress_host:-$(private_address)}}"
     host="${host:-$(hostname -I | awk '{print $1}')}"
 
-    password="$(vps_secret_ensure RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
+    password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
 
     # --- chart repositories
     # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
@@ -128,18 +128,18 @@ up() {
 
     reapply_private_guard
 
-    ok "Rancher installed."
-    [ -z "$ingress_host" ] || ok "UI: https://${ingress_host} (via Traefik, public)"
-    ok "UI (private): https://$(summary_host):${https_port} (also plain-port ${http_port})"
-    ok "Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
+    zz-log s "[vps-setup] Rancher installed."
+    [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, public)"
+    zz-log s "[vps-setup] UI (private): https://$(summary_host):${https_port} (also plain-port ${http_port})"
+    zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
 
 down() {
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     helm_teardown cattle-system rancher
-    vps_secret_unset RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password
-    ok "Rancher removed."
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
+    zz-log s "[vps-setup] Rancher removed."
 }
 
 summary() {
@@ -148,7 +148,7 @@ summary() {
                        private: https://$(summary_host):$(net_port rancher_https)
                        (also on plain port $(net_port rancher_http))
                        user:     admin
-                       password: $(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password | grep . || echo 'not set - run vps-rancher/run.sh')
+                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; you'll
                        be prompted to change it on first login)
 EOF

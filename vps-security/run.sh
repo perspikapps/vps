@@ -29,7 +29,7 @@ up() {
     ssh_port="$(net_port ssh)"
 
     zz-log i "[vps-setup] Installing ufw and fail2ban..."
-    install_packages ufw fail2ban
+    zz-install -m  ufw fail2ban
 
     # --- admin user and SSH key
     if [ -n "${VPS_ADMIN_USER:-}" ]; then
@@ -59,10 +59,10 @@ up() {
 
     # --- Cockpit login
     cockpit_user="${VPS_ADMIN_USER:-root}"
-    cockpit_password="$(vps_secret_ensure COCKPIT_ADMIN_PASSWORD /root/.cockpit-admin-password "${VPS_ADMIN_PASSWORD:-}")"
+    cockpit_password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 COCKPIT_ADMIN_PASSWORD "${VPS_ADMIN_PASSWORD:-}")"
     echo "${cockpit_user}:${cockpit_password}" | chpasswd
-    vps_secret_set COCKPIT_ADMIN_USER "$cockpit_user" /root/.cockpit-admin-user
-    ok "Cockpit login set: user=${cockpit_user} (password saved to ${VPS_SECRETS_FILE})."
+    zz-persist -s -f "$VPS_SECRETS_FILE" COCKPIT_ADMIN_USER "$cockpit_user"
+    zz-log s "[vps-setup] Cockpit login set: user=${cockpit_user} (password saved to ${VPS_SECRETS_FILE})."
 
     for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
         if [ -s "$f" ]; then has_key=1; fi
@@ -80,7 +80,7 @@ up() {
 
     if [ "$has_key" -eq 1 ]; then
         echo "PasswordAuthentication no" >>"$sshd_dropin"
-        ok "SSH key detected: disabling password authentication."
+        zz-log s "[vps-setup] SSH key detected: disabling password authentication."
     else
         zz-log w "[vps-setup] No SSH key provided (VPS_ADMIN_SSH_KEY unset): leaving password authentication enabled."
     fi
@@ -88,7 +88,7 @@ up() {
     sshd -t -f /etc/ssh/sshd_config
     if systemctl is-active --quiet ssh.service; then
         systemctl reload ssh
-        ok "sshd hardened and reloaded."
+        zz-log s "[vps-setup] sshd hardened and reloaded."
     else
         zz-log w "[vps-setup] ssh.service is not active: sshd config written but not reloaded (it applies on next start)."
     fi
@@ -152,7 +152,7 @@ EOF
     mv "$wanted" "$ufw_state"
 
     ufw --force enable
-    ok "ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
+    zz-log s "[vps-setup] ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
 
     install_private_guard "${private_iface:--}" "$(all_network_ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
@@ -236,7 +236,7 @@ down() {
         "created by 'up' (if any) were left in place. Re-run this step's" \
         "'up' action, or configure your own firewall, before exposing this" \
         "VPS again."
-    ok "Security hardening removed."
+    zz-log s "[vps-setup] Security hardening removed."
 }
 
 summary() {

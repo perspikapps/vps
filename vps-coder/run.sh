@@ -248,7 +248,7 @@ up() {
 
     # --- PostgreSQL (helm/postgresql-values.yaml)
     # alphanumeric only, so it can sit in the connection URL unescaped
-    db_password="$(vps_secret_ensure CODER_DB_PASSWORD)"
+    db_password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
     db_storage="${CODER_DB_STORAGE:-10Gi}"
 
     zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
@@ -309,23 +309,23 @@ up() {
     # --- admin user and template
     admin_email="${CODER_ADMIN_EMAIL:-admin@${wildcard:-coder.local}}"
     admin_user="${CODER_ADMIN_USERNAME:-admin}"
-    admin_password="$(vps_secret_ensure CODER_ADMIN_PASSWORD)"
-    vps_secret_set CODER_ADMIN_EMAIL "$admin_email"
-    vps_secret_set CODER_ADMIN_USERNAME "$admin_user"
+    admin_password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD "${CODER_ADMIN_PASSWORD:-}")"
+    zz-persist -s -f "$VPS_SECRETS_FILE" CODER_ADMIN_EMAIL "$admin_email"
+    zz-persist -s -f "$VPS_SECRETS_FILE" CODER_ADMIN_USERNAME "$admin_user"
     bootstrap_coder "$admin_email" "$admin_user" "$admin_password"
 
-    ok "Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${VPS_SECRETS_FILE}."
+    zz-log s "[vps-setup] Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${VPS_SECRETS_FILE}."
 }
 
 down() {
     command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
     helm_teardown "$CODER_NAMESPACE" coder
-    vps_secret_unset CODER_DB_PASSWORD
-    vps_secret_unset CODER_ADMIN_PASSWORD
-    vps_secret_unset CODER_ADMIN_EMAIL
-    vps_secret_unset CODER_ADMIN_USERNAME
-    ok "Coder removed."
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_DB_PASSWORD
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_EMAIL
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_USERNAME
+    zz-log s "[vps-setup] Coder removed."
 }
 
 summary() {
@@ -336,8 +336,8 @@ summary() {
     host="$(kubectl -n "$CODER_NAMESPACE" get ingress coder -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
     cat <<EOF
  Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public)
-                       user:     $(vps_secret CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')
-                       password: $(vps_secret CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
+                       user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')
+                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF
     if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
@@ -349,11 +349,11 @@ EOF
 # with the admin credentials the install saved.
 if [ "${1:-}" = "bootstrap" ]; then
     command_exists kubectl || { zz-log e "[vps-setup] kubectl not found." && exit 1; }
-    pw="$(vps_secret CODER_ADMIN_PASSWORD)"
+    pw="$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD)"
     [ -n "$pw" ] || { zz-log e "[vps-setup] No saved admin password: run the full step first (sudo vps-setup --only-vps-coder)." && exit 1; }
     ensure_workspace_namespace
     if kubectl -n devcontainer-builder get deploy/devcontainer-builder >/dev/null 2>&1; then BUILDER_READY=1; fi
-    bootstrap_coder "$(vps_secret CODER_ADMIN_EMAIL)" "$(vps_secret CODER_ADMIN_USERNAME)" "$pw"
+    bootstrap_coder "$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL)" "$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_USERNAME)" "$pw"
     exit
 fi
 

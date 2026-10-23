@@ -10,8 +10,6 @@ zz-use zz-colors zz-log yaml-render zz-install zz-workspaces zz-persist
 # shellcheck disable=SC1091
 . zz-colors
 
-ok() { zz-log s "[vps-setup] $*"; }
-
 # Reports an unguarded failure under set -e (which otherwise fails silently).
 # POSIX sh has no ERR trap, so this runs on exit; a step that logged its own
 # error and then exits is reported once more with its status.
@@ -44,27 +42,6 @@ require_ubuntu() {
 }
 
 export DEBIAN_FRONTEND=noninteractive
-
-# install_packages <package>...: system packages through zz-install (whichever
-# package manager is there, sudo when needed; it refreshes the apt index at most
-# hourly), without the recommended extras.
-install_packages() {
-    local package
-
-    for package in "$@"; do
-        zz-install -m "$package"
-    done
-}
-
-# remove_packages <package>...: remove (purge) system packages through zz-install -r.
-# Best effort: the caller decides what a package that is not there means.
-remove_packages() {
-    local package
-
-    for package in "$@"; do
-        zz-install -r "$package"
-    done
-}
 
 # Cockpit picks up new modules / socket settings on a socket restart.
 cockpit_refresh() {
@@ -234,44 +211,9 @@ wildcard_domain() {
 }
 
 # Credentials generated or chosen by the steps (Cockpit login, Rancher bootstrap
-# password) live as KEY=VALUE lines in one owner-only env file, written with
-# zz-persist (-s) - a step that stores one declares `zz-use ... zz-persist`.
+# password) live as KEY=VALUE lines in this owner-only env file; the steps use
+# zz-persist on it directly (-s -g to create, -r to read, -u to remove).
 VPS_SECRETS_FILE="${VPS_SECRETS_FILE:-/root/.vps-secrets.env}"
-
-# vps_secret KEY [legacy-file]: the environment wins, then the secrets file,
-# then (hosts set up by an older version) the legacy one-value file.
-vps_secret() {
-    local key="$1" legacy="${2:-}" value
-
-    value="$(get_env "$key")"
-    [ -n "$value" ] || value="$(zz-persist -f "$VPS_SECRETS_FILE" -r "$key")"
-    if [ -z "$value" ] && [ -n "$legacy" ] && [ -f "$legacy" ]; then
-        value="$(cat "$legacy")"
-    fi
-    printf '%s' "$value"
-}
-
-# vps_secret_set KEY VALUE [legacy-file]: store it, and migrate away the legacy file.
-vps_secret_set() {
-    zz-persist -s -f "$VPS_SECRETS_FILE" "$1" "$2"
-    [ -z "${3:-}" ] || rm -f "$3"
-}
-
-# vps_secret_ensure KEY [legacy-file [value]]: the secret's value - the given one, else
-# vps_secret's - or, when there is none, 24 generated letters/digits; stored either way.
-vps_secret_ensure() {
-    local key="$1" legacy="${2:-}" value
-
-    value="${3:-$(vps_secret "$key" "$legacy")}"
-    zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 "$key" "$value"
-    [ -z "$legacy" ] || rm -f "$legacy"
-}
-
-# vps_secret_unset KEY [legacy-file]
-vps_secret_unset() {
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u "$1"
-    [ -z "${2:-}" ] || rm -f "$2"
-}
 
 # Fetch an installer script and run it with <shell> (default sh), via a
 # private temp file instead of a predictable /tmp path.

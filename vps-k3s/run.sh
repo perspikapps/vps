@@ -67,7 +67,7 @@ up() {
         zz-use helm
     fi
 
-    ok "k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
+    zz-log s "[vps-setup] k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
 
     # --- Traefik
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
@@ -107,7 +107,7 @@ up() {
 
     reapply_private_guard
 
-    ok "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
+    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
@@ -118,7 +118,7 @@ down() {
         zz-log w "[vps-setup] k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."
     fi
     rm -f /usr/local/bin/kubectl /etc/profile.d/k3s-kubeconfig.sh
-    ok "k3s removed."
+    zz-log s "[vps-setup] k3s removed."
 }
 
 summary() {

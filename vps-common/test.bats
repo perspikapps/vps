@@ -252,32 +252,3 @@ EOF
     [[ "$output" == *"end of diagnostics"* ]]
 }
 
-@test "vps_secret: the environment wins, then the secrets file, then the legacy file" {
-    export VPS_SECRETS_FILE="$work/secrets.env"
-    printf 'OTHER=x\nDEMO_PW=from-file\n' >"$VPS_SECRETS_FILE"
-    printf 'from-legacy\n' >"$work/legacy"
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; DEMO_PW=from-env vps_secret DEMO_PW '$work/legacy'"
-    [ "$output" = "from-env" ]
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; vps_secret DEMO_PW '$work/legacy'"
-    [ "$output" = "from-file" ]
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; vps_secret NOT_THERE '$work/legacy'"
-    [ "$output" = "from-legacy" ]
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; vps_secret NOT_THERE"
-    [ -z "$output" ]
-}
-
-@test "vps_secret_set stores through zz-persist -s and drops the legacy file; vps_secret_unset removes the key" {
-    bin=$(mktemp -d)
-    printf '#!/bin/sh\n[ "$1" = -s ] && [ "$2" = -f ] && echo "$4=$5" >>"$3"\n' >"$bin/zz-persist"
-    chmod +x "$bin/zz-persist"
-    export VPS_SECRETS_FILE="$work/secrets.env"
-    echo old >"$work/legacy"
-    run env PATH="$bin:$PATH" bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; vps_secret_set DEMO_PW s3cret '$work/legacy'; vps_secret_set KEEP me"
-    [ "$status" -eq 0 ]
-    [ ! -e "$work/legacy" ]
-    grep -qx 'DEMO_PW=s3cret' "$VPS_SECRETS_FILE"
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; vps_secret_unset DEMO_PW"
-    rm -rf "$bin"
-    ! grep -q DEMO_PW "$VPS_SECRETS_FILE"
-    grep -qx 'KEEP=me' "$VPS_SECRETS_FILE"
-}

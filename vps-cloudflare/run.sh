@@ -86,7 +86,7 @@ UNIT
     systemctl enable --now vps-cloudflare-private.service
     systemctl enable --now cloudflared.service
     systemctl is-active --quiet cloudflared || { zz-log e "[vps-setup] cloudflared is not active after 'systemctl enable --now cloudflared' (check the token)." && exit 1; }
-    ok "cloudflared is running as a service; private address ${private_ip} on ${IFACE}."
+    zz-log s "[vps-setup] cloudflared is running as a service; private address ${private_ip} on ${IFACE}."
 
     # Tell the other steps which interface carries the private network (ufw rules
     # for access:"private" ports, the final summary); see vps-common's private_interface.
@@ -101,13 +101,13 @@ down() {
     [ ! -f "$VPS_PRIVATE_ACCESS_FILE" ] || sed -i "/^VPS_PRIVATE_INTERFACE=${IFACE}\$/d" "$VPS_PRIVATE_ACCESS_FILE"
     if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
-        remove_packages cloudflared || true
+        zz-install -r cloudflared || true
         rm -f /etc/apt/sources.list.d/cloudflared.list /usr/share/keyrings/cloudflare-main.gpg
     fi
     zz-log w "[vps-setup] The tunnel is down. Cockpit, Rancher, the Traefik" \
         "dashboard, and the k3s API (all private-access) are now unreachable" \
         "until you re-run this step's 'up' action."
-    ok "Cloudflare tunnel brought down."
+    zz-log s "[vps-setup] Cloudflare tunnel brought down."
 }
 
 summary() {
@@ -130,7 +130,7 @@ verify() {
             zz-log e "[vps-setup] ${name} (${port}) answers on ${ip}: private port is exposed."
             bad=1
         else
-            ok "${name} (${port}) is closed on ${ip}."
+            zz-log s "[vps-setup] ${name} (${port}) is closed on ${ip}."
         fi
     done <<EOF
 $(all_network_ports)

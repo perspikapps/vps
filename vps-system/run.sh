@@ -17,7 +17,7 @@ up() {
     apt-get upgrade -y
 
     zz-log i "[vps-setup] Installing base utilities..."
-    install_packages \
+    zz-install -m \
         ca-certificates \
         curl \
         wget \
@@ -56,7 +56,7 @@ EOF
         zz-log i "[vps-setup] No WILDCARD_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."
     fi
 
-    ok "Base system is up to date."
+    zz-log s "[vps-setup] Base system is up to date."
 }
 
 dispatch_action "$@"

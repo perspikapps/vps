@@ -23,8 +23,8 @@ up() {
     zz-log i "[vps-setup] Registering the ${MARKETPLACE_REPO_NAME} catalog (${MARKETPLACE_REPO_URL})..."
     yaml-render "$(dirname "$0")/helm/clusterrepo.yaml" MARKETPLACE_REPO_NAME="$MARKETPLACE_REPO_NAME" MARKETPLACE_REPO_URL="$MARKETPLACE_REPO_URL" | kubectl apply -f -
 
-    ok "Catalog '${MARKETPLACE_REPO_NAME}' registered."
-    ok "In Rancher: Apps & Marketplace -> Repositories, it should show up there" \
+    zz-log s "[vps-setup] Catalog '${MARKETPLACE_REPO_NAME}' registered."
+    zz-log s "[vps-setup] In Rancher: Apps & Marketplace -> Repositories, it should show up there" \
         "(may take a minute to sync). Install ArgoCD / Epinio from" \
         "Apps & Marketplace -> Charts once it does."
 }
@@ -33,7 +33,7 @@ down() {
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     kubectl delete clusterrepo "$MARKETPLACE_REPO_NAME" --ignore-not-found
-    ok "Catalog '${MARKETPLACE_REPO_NAME}' removed (apps already installed from it are untouched)."
+    zz-log s "[vps-setup] Catalog '${MARKETPLACE_REPO_NAME}' removed (apps already installed from it are untouched)."
 }
 
 summary() {

@@ -8,7 +8,7 @@
 # What stays here: the Ubuntu/root checks, the legacy --skip-<step> /
 # --with-<step> / --only-<step> / --down-<step> / --force-down flags
 # (translated to zz-setup's -s/-w/-o/-d/-F lists), the shell-syntax settings
-# file (VPS_SETUP_ENV_FILE) and the summary.
+# file (VPS_SETUP_ENV_FILE).
 
 set -eu
 
@@ -82,18 +82,6 @@ done
 [ -z "$only" ] || set -- "$@" -o "$only"
 [ -z "$down" ] || set -- "$@" -d "$down"
 
+# zz-setup prints the summary of every step declaring config.summary (the
+# connection info) after the last step.
 zz-setup "$repo" "$@"
-
-# --- summary
-# Final connection info, printed after every run (also callable on its own
-# afterwards - see README's "Running vps-setup" section). zz-setup -m asks each
-# step that declares config.summary for its block (its `summary` action), in
-# config.order; none of it depends on what this run just did versus a previous one.
-cat <<'EOF'
-
-======================================================================
- VPS setup complete
-======================================================================
-EOF
-zz-setup "$repo" -m
-printf '======================================================================\n'

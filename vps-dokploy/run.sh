@@ -56,7 +56,7 @@ up() {
 
     # Docker publishes the admin UI past ufw: vps-security's FORWARD guard covers it.
     reapply_private_guard
-    ok "Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
+    zz-log s "[vps-setup] Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
 }
 
 down() {
@@ -76,9 +76,9 @@ down() {
         zz-log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
-        remove_packages docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
+        zz-install -r docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
     fi
-    ok "Dokploy removed."
+    zz-log s "[vps-setup] Dokploy removed."
 }
 
 summary() {
