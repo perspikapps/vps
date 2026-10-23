@@ -16,7 +16,7 @@
 #   reapply-guard                   re-insert the FORWARD guard of vps-security's private ports
 
 set -eu
-zz-use zz-colors zz-log zz-args zz-persist zz-workspaces
+zz-use zz-colors zz-log zz-args zz-persist ws-list
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -101,11 +101,10 @@ get_wildcard_domain() {
 # list_ports: every step's ports as TSV (name, port, access, note); the port
 # honours the same environment override as get_port.
 list_ports() {
-    local row dir name port access note value tab us
+    local row dir name port access note value tab
 
     tab="$(printf '\t')"
-    us="$(printf '\037')"
-    zz-workspaces "$root" | cut -d "$us" -f3 | while IFS= read -r dir; do
+    ws-list -b -e zz-setup "$root" | while IFS= read -r dir; do
         jq -r '(.config.ports // [])[] | [.name, .port, .access, (.note // "")] | @tsv' "$root/$dir/package.json"
     done | while IFS="$tab" read -r name port access note; do
         value="$(get_port_override "$name")"
