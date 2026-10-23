@@ -6,14 +6,14 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-system"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -21,9 +21,11 @@ DIR="$REPO_ROOT/vps-system"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and dispatches via dispatch_action" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "has no down() - a one-shot upgrade, nothing to undo" {
@@ -40,14 +42,10 @@ DIR="$REPO_ROOT/vps-system"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 
-@test "WILDCARD_DOMAIN is validated, persisted for vps-common's wildcard_domain, and optional" {
-    grep -q 'zz-persist -f "\$VPS_WILDCARD_FILE" WILDCARD_DOMAIN' "$DIR/run.sh"
+@test "WILDCARD_DOMAIN is validated, persisted for vps-network's wildcard-domain, and optional" {
+    grep -q '"\$vps_network" set-wildcard-domain' "$DIR/run.sh"
     grep -q 'nip.io' "$DIR/run.sh"
     run node -e "const i = require('$DIR/package.json').config.inputs.WILDCARD_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]

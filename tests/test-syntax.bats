@@ -46,19 +46,28 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "installer scripts are fetched with download_run, not through a predictable /tmp path" {
+@test "installer scripts are fetched with zz-install -x, not through a predictable /tmp path" {
     ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/vps-*/run.sh
+}
+
+# run_summary <step> <path with stubs>: source the step the way zz-setup does (from its
+# own directory, as ./run.sh) and call its summary(), when it has one.
+run_summary() {
+    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && . "$0" && if command -v summary >/dev/null 2>&1; then summary; fi' ./run.sh "$REPO_ROOT/vps-$1"
 }
 
 @test "every step's summary action runs and prints its block" {
     stubs=$(mktemp -d)
-    printf '#!/bin/sh\nexit 0\n' >"$stubs/zz-use"
-    printf '#!/bin/sh\nshift; echo "$*"\n' >"$stubs/zz-log"
+    printf '#!/bin/sh
+exit 0
+' >"$stubs/zz-use"
+    printf '#!/bin/sh
+shift; echo "$*"
+' >"$stubs/zz-log"
     : >"$stubs/zz-colors"
-    ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
     for step in cockpit k3s marketplace rancher security tailscale; do
-        run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
+        run_summary "$step" "$stubs"
         [ "$status" -eq 0 ]
         [ -n "$output" ]
     done
@@ -67,13 +76,16 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 
 @test "steps without something to report (system, an opt-in step not installed) print nothing for summary" {
     stubs=$(mktemp -d)
-    printf '#!/bin/sh\nexit 0\n' >"$stubs/zz-use"
-    printf '#!/bin/sh\nshift; echo "$*"\n' >"$stubs/zz-log"
+    printf '#!/bin/sh
+exit 0
+' >"$stubs/zz-use"
+    printf '#!/bin/sh
+shift; echo "$*"
+' >"$stubs/zz-log"
     : >"$stubs/zz-colors"
-    ln -s "$REPO_ROOT/vps-common/run.sh" "$stubs/vps-common"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
     for step in system dokploy cloudflare coder; do
-        run env PATH="$stubs:$PATH" bash "$REPO_ROOT/vps-$step/run.sh" summary
+        run_summary "$step" "$stubs"
         [ "$status" -eq 0 ]
         [ -z "$output" ]
     done
@@ -100,4 +112,33 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 
 @test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
     ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/vps-*/run.sh | grep -v 'vps_secret'
+}
+
+@test "every run.sh is POSIX sh: #!/bin/sh and parses with dash (zz-setup conventions)" {
+    for f in "$REPO_ROOT"/*/run.sh; do
+        [ "$(head -n1 "$f")" = "#!/bin/sh" ]
+        dash -n "$f"
+    done
+}
+
+@test "a managed script sources nothing but zz-* scripts (shared logic is called, not sourced)" {
+    for f in "$REPO_ROOT"/vps-*/run.sh; do
+        # the settings file of vps-setup is data in shell syntax (read under a comment saying so)
+        [ -z "$(grep -E '^\s*(\.|source) ' "$f" | grep -v '\. zz-' | grep -v '\. "\$env_file"')" ]
+    done
+}
+
+@test "steps are config.functions workspaces; vps-network and vps-cert-manager are scripts, not steps" {
+    for d in "$REPO_ROOT"/vps-*/; do
+        run node -e "
+            const p = require('$d/package.json');
+            const step = !!(p.engines && p.engines['zz-setup']);
+            const fn = !!(p.config && p.config.functions);
+            process.exit(step ? (fn ? 0 : 1) : 0)"
+        [ "$status" -eq 0 ]
+    done
+    for s in network cert-manager; do
+        run node -e "const p = require('$REPO_ROOT/vps-$s/package.json'); process.exit(p.bin['vps-$s'] && !p.engines ? 0 : 1)"
+        [ "$status" -eq 0 ]
+    done
 }

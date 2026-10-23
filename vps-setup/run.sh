@@ -1,91 +1,74 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Thin wrapper around zz-setup: runs every step of this repo in order (or just
 # the ones asked for) - feature discovery, the skip/up/down menu, dependency
 # resolution, input prompts and persistence are zz-setup's - then prints the
 # final connection summary. Installed and invoked as `vps-setup` - see
 # README's "Running vps-setup" section.
 #
-# What stays here: the Ubuntu/root checks, the legacy --skip-<step> /
+# What stays here: the legacy --skip-<step> /
 # --with-<step> / --only-<step> / --down-<step> / --force-down flags
 # (translated to zz-setup's -s/-w/-o/-d/-F lists), the shell-syntax settings
-# file (VPS_SETUP_ENV_FILE) and the summary.
+# file (VPS_SETUP_ENV_FILE).
 
-set -euo pipefail
+set -eu
 
-# Settings file written at provisioning time (cloud-init): shell syntax, so it
-# is sourced here, never rewritten. zz-setup keeps its own plain-text state
-# for answers typed in the menu.
-ENV_FILE="${VPS_SETUP_ENV_FILE:-/etc/vps-setup.env}"
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
+# --- settings file
+# Written at provisioning time (cloud-init): shell syntax, so it is sourced
+# here, never rewritten. zz-setup keeps its own plain-text state for answers
+# typed in the menu.
+env_file="${VPS_SETUP_ENV_FILE:-/etc/vps-setup.env}"
+if [ -f "$env_file" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$env_file"
+    set +a
 fi
 
-# --force: the steps that zz-setup runs fetch vps-common through zz-use's cache
-# (24h for a branch ref, one slot per repo+ref). Refreshing it here keeps the
-# helpers in step with the checkout zz-setup is about to run.
-zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-setup
-# shellcheck disable=SC1091
-. vps-common
+# --- zz-setup
+# The steps check what they need (root, Ubuntu) themselves, from their package.json.
+zz-use zz-setup
 
-# -h only prints zz-setup's help, which needs neither.
-[[ " $* " == *" -h "* ]] || { require_root; require_ubuntu; }
+# --- checkout
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-if [[ -f "$SCRIPT_DIR/../vps-common/run.sh" ]]; then
-  # Full local checkout (dev clone, `bash vps-setup/run.sh`): used in place.
-  CHECKOUT="$(cd "$SCRIPT_DIR/.." && pwd)"
-  REPO="$CHECKOUT"
+if [ -f "$script_dir/../vps-network/run.sh" ]; then
+    # Full local checkout (dev clone, `sh vps-setup/run.sh`): used in place.
+    checkout="$(cd "$script_dir/.." && pwd)"
+    repo="$checkout"
 else
-  # Standalone zz-use install: zz-setup fetches the whole repo into /opt/<repo>.
-  REPO_URL="${VPS_SETUP_REPO_URL:-https://github.com/perspikapps/vps.git}"
-  REPO_PATH="$(printf '%s' "$REPO_URL" | sed -E 's#^[A-Za-z+]+://[^/]+/##; s#\.git$##')"
-  export ZZ_SETUP_URL_BASE="${REPO_URL%/"$REPO_PATH"*}"
-  export ZZ_SETUP_DIR="${ZZ_SETUP_DIR:-/opt}"
-  CHECKOUT="$ZZ_SETUP_DIR/${REPO_PATH##*/}"
-  REPO="$REPO_PATH@${ZZ_SETUP_REF:-main}"
+    # Standalone zz-use install: zz-setup fetches the whole repo into /opt/<repo>.
+    repo_url="${VPS_SETUP_REPO_URL:-https://github.com/perspikapps/vps.git}"
+    repo_path="$(printf '%s' "$repo_url" | sed -E 's#^[A-Za-z+]+://[^/]+/##; s#\.git$##')"
+    export ZZ_SETUP_URL_BASE="${repo_url%/"$repo_path"*}"
+    export ZZ_SETUP_DIR="${ZZ_SETUP_DIR:-/opt}"
+    checkout="$ZZ_SETUP_DIR/${repo_path##*/}"
+    repo="$repo_path@${ZZ_SETUP_REF:-main}"
 fi
 
-# Legacy flags -> zz-setup lists; anything else (e.g. -h) goes through as is.
-skip=() with=() only=() down=() opts=()
-for arg in "$@"; do
-  case "$arg" in
-    --skip-*) skip+=("${arg#--skip-}") ;;
-    --with-*) with+=("${arg#--with-}") ;;
-    --only-*) only+=("${arg#--only-}") ;;
-    --down-*) down+=("${arg#--down-}") ;;
-    --force-down) opts+=(-F) ;;
-    *) opts+=("$arg") ;;
-  esac
+# --- legacy flags
+# Translated to zz-setup lists (comma-joined names); anything else (e.g. -h)
+# goes through as is, in order. The arguments are rotated through "$@" so each
+# keeps its quoting.
+skip="" with="" only="" down=""
+count=$#
+while [ "$count" -gt 0 ]; do
+    arg="$1"
+    shift
+    count=$((count - 1))
+    case "$arg" in
+        --skip-*) skip="${skip:+$skip,}${arg#--skip-}" ;;
+        --with-*) with="${with:+$with,}${arg#--with-}" ;;
+        --only-*) only="${only:+$only,}${arg#--only-}" ;;
+        --down-*) down="${down:+$down,}${arg#--down-}" ;;
+        --force-down) set -- "$@" -F ;;
+        *) set -- "$@" "$arg" ;;
+    esac
 done
-join() { local IFS=,; printf '%s' "$*"; }
-[[ ${#skip[@]} -eq 0 ]] || opts+=(-s "$(join "${skip[@]}")")
-[[ ${#with[@]} -eq 0 ]] || opts+=(-w "$(join "${with[@]}")")
-[[ ${#only[@]} -eq 0 ]] || opts+=(-o "$(join "${only[@]}")")
-[[ ${#down[@]} -eq 0 ]] || opts+=(-d "$(join "${down[@]}")")
+[ -z "$skip" ] || set -- "$@" -s "$skip"
+[ -z "$with" ] || set -- "$@" -w "$with"
+[ -z "$only" ] || set -- "$@" -o "$only"
+[ -z "$down" ] || set -- "$@" -d "$down"
 
-zz-setup "$REPO" "${opts[@]}"
-
-# vps-common's feature_dirs reads every feature's package.json from here.
-VPS_SETUP_ROOT="$CHECKOUT"
-
-# --- summary: final connection info, printed after every run (also
-# callable on its own afterwards - see README's "Running vps-setup"
-# section). Each step prints its own block (its `summary` action), in
-# vps.order; none of it depends on what this run just did versus a
-# previous one.
-
-cat <<'EOF'
-
-======================================================================
- VPS setup complete
-======================================================================
-EOF
-while IFS= read -r dir; do
-  out="$(bash "$dir/run.sh" summary)" || true
-  [[ -z "$out" ]] || printf '%s\n\n' "$out"
-done < <(ordered_feature_dirs)
-printf '======================================================================\n'
+# zz-setup prints the summary of every step declaring config.summary (the
+# connection info) after the last step.
+zz-setup "$repo" "$@"

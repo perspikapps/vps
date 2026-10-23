@@ -1,137 +1,150 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Rancher on k3s. Env vars: see README.
+# A zz-setup step: configured by environment inputs (package.json config.inputs),
+# so there is no zz-args block; zz-setup sources this file (config.functions) and calls
+# up(), down() or summary().
 
-set -euo pipefail
-zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
+set -eu
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown kube-service-port
 # shellcheck disable=SC1091
-. vps-common
-# vps-common comes from zz-use's download cache (24h for a branch), while the
-# steps come from the fresh checkout: an older cached copy lacks newer helpers.
-declare -F reapply_private_guard >/dev/null || {
-  zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
-       "sudo zz-use --force perspikapps/vps/vps-common"
-  exit 1
-}
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
+vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
 
 up() {
-export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first."; exit 1; }
-command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first."; exit 1; }
+    local http_port https_port ingress_host host password values_file chart_version dir rc=0
 
-RANCHER_HTTP_PORT="$(net_port rancher_http)"
-RANCHER_HTTPS_PORT="$(net_port rancher_https)"
-# Rancher's ports are private-only (ufw): default to the private address users connect to.
-RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(private_address)}"
-RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
+    export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+    dir="$(cd "$(dirname "$0")" && pwd)"
+    command -v kubectl >/dev/null 2>&1 || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
+    command -v helm >/dev/null 2>&1 || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first." && exit 1; }
 
-RANCHER_BOOTSTRAP_PASSWORD="$(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
-[[ -n "$RANCHER_BOOTSTRAP_PASSWORD" ]] || RANCHER_BOOTSTRAP_PASSWORD="$(random_password 24)"
-vps_secret_set RANCHER_BOOTSTRAP_PASSWORD "$RANCHER_BOOTSTRAP_PASSWORD" /root/.rancher-bootstrap-password
+    # --- parameters: ports, public dashboard host, server URL, bootstrap password
+    http_port="$("$vps_network" port rancher_http)"
+    https_port="$("$vps_network" port rancher_https)"
+    # Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
+    # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
+    ingress_host=""
+    if [ "${RANCHER_INGRESS:-true}" = "true" ]; then
+        ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" wildcard-domain)}"
+        case "$ingress_host" in
+            *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
+        esac
+        [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN." && exit 1; }
+    fi
+    # Rancher's server URL follows the public host; without one, the private address.
+    host="${RANCHER_HOSTNAME:-${ingress_host:-$("$vps_network" private-address)}}"
+    host="${host:-$(hostname -I | awk '{print $1}')}"
 
-# Chart repository: the community "latest" channel by default; RANCHER_CHART_REPO_URL
-# selects another, e.g. SUSE Rancher Prime (https://charts.rancher.com/server-charts/prime).
-# --force-update lets a changed URL replace the alias from a previous run.
-RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
-case "$RANCHER_CHART_REPO_URL" in
-  http://* | https://*) ;;
-  *) zz-log e "[vps-setup] RANCHER_CHART_REPO_URL must be an http(s) Helm repository URL (got '${RANCHER_CHART_REPO_URL}')."; exit 1 ;;
-esac
-zz-log i "[vps-setup] Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
-helm repo add vps-rancher "$RANCHER_CHART_REPO_URL" --force-update >/dev/null || {
-  zz-log e "[vps-setup] Could not add the Helm repository ${RANCHER_CHART_REPO_URL}."
-  exit 1
-}
-helm repo update vps-rancher >/dev/null || {
-  zz-log e "[vps-setup] Could not fetch the chart index from ${RANCHER_CHART_REPO_URL} (check the URL and any access it needs)."
-  exit 1
-}
+    password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
 
-# Bitnami charts (e.g. the databases some Marketplace apps depend on) resolve from this alias.
-helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null || {
-  zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami."
-  exit 1
-}
+    # --- chart repositories
+    # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
+    # another, e.g. SUSE Rancher Prime (https://charts.rancher.com/server-charts/prime).
+    # --force-update lets a changed URL replace the alias from a previous run.
+    RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
+    case "$RANCHER_CHART_REPO_URL" in
+        http://* | https://*) ;;
+        *) zz-log e "[vps-setup] RANCHER_CHART_REPO_URL must be an http(s) Helm repository URL (got '${RANCHER_CHART_REPO_URL}')." && exit 1 ;;
+    esac
+    zz-log i "[vps-setup] Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
+    helm repo add vps-rancher "$RANCHER_CHART_REPO_URL" --force-update >/dev/null ||
+        { zz-log e "[vps-setup] Could not add the Helm repository ${RANCHER_CHART_REPO_URL}." && exit 1; }
+    helm repo update vps-rancher >/dev/null ||
+        { zz-log e "[vps-setup] Could not fetch the chart index from ${RANCHER_CHART_REPO_URL} (check the URL and any access it needs)." && exit 1; }
 
-ensure_cert_manager
+    # Bitnami charts (e.g. the databases some Marketplace apps depend on) resolve from this alias.
+    helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null ||
+        { zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami." && exit 1; }
 
-kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
+    "$vps_cert_manager"
 
-CHART_VERSION_ARG=()
-[[ -n "${RANCHER_CHART_VERSION:-}" ]] && CHART_VERSION_ARG=(--version "$RANCHER_CHART_VERSION")
+    kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
 
-zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${RANCHER_HOSTNAME}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
-# hostname and bootstrapPassword go through a values file with JSON-quoted
-# strings, not --set: helm parses --set bootstrapPassword=12345678 as an
-# integer and the chart's b64enc then fails ("wrong type for value; expected
-# string; got int64"); --set also splits on commas and shows in `ps`.
-VALUES_FILE="$(mktemp)"
-jq -n --arg hostname "$RANCHER_HOSTNAME" --arg bootstrapPassword "$RANCHER_BOOTSTRAP_PASSWORD" \
-  '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' > "$VALUES_FILE"
-# No --wait here: helm would wait for the LoadBalancer Service to get an
-# address, but k3s's ServiceLB cannot place it while Traefik holds host ports
-# 80/443, and it is the rebind below that frees them - waiting first deadlocks
-# ("UPGRADE FAILED: context deadline exceeded"). The rollout wait below does
-# the waiting, once the Service is on its own ports.
-# A re-run finds the Service already rebound (7080/7083 below): helm would merge
-# the chart's 80/http and 443/https into it and the API rejects the duplicate
-# port names ("spec.ports[2].name: Duplicate value: http"). Remove it so helm
-# recreates it from the chart; it is rebound again right after. Pods keep running.
-if kubectl -n cattle-system get service rancher >/dev/null 2>&1; then
-  zz-log i "[vps-setup] Removing the already-rebound rancher Service so helm can recreate it (rebound again below)..."
-  kubectl -n cattle-system delete service rancher --wait=true
-fi
+    # --- Rancher release
+    # shortcut: the unquoted version splits on spaces, a chart version has none.
+    chart_version="${RANCHER_CHART_VERSION:+--version ${RANCHER_CHART_VERSION}}"
 
-rc=0
-run_with_progress cattle-system "Rancher install" \
-  helm upgrade --install rancher vps-rancher/rancher \
-  --namespace cattle-system \
-  --values "$VALUES_FILE" \
-  --set ingress.enabled=false \
-  --set service.type=LoadBalancer \
-  --set replicas=1 \
-  "${CHART_VERSION_ARG[@]}" \
-  --timeout 10m || rc=$?
-rm -f "$VALUES_FILE"
-if [[ "$rc" -ne 0 ]]; then
-  dump_diagnostics cattle-system
-  exit "$rc"
-fi
+    zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${host}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
+    # hostname and bootstrapPassword go through a values file with JSON-quoted
+    # strings, not --set: helm parses --set bootstrapPassword=12345678 as an
+    # integer and the chart's b64enc then fails ("wrong type for value; expected
+    # string; got int64"); --set also splits on commas and shows in `ps`.
+    values_file="$(mktemp)"
+    jq -n --arg hostname "$host" --arg bootstrapPassword "$password" \
+        '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' >"$values_file"
+    # No --wait here: helm would wait for the LoadBalancer Service to get an
+    # address, but k3s's ServiceLB cannot place it while Traefik holds host ports
+    # 80/443, and it is the rebind below that frees them - waiting first deadlocks
+    # ("UPGRADE FAILED: context deadline exceeded"). The rollout wait below does
+    # the waiting, once the Service is on its own ports.
+    # A re-run finds the Service already rebound (7080/7083 below): helm would merge
+    # the chart's 80/http and 443/https into it and the API rejects the duplicate
+    # port names ("spec.ports[2].name: Duplicate value: http"). Remove it so helm
+    # recreates it from the chart; it is rebound again right after. Pods keep running.
+    if kubectl -n cattle-system get service rancher >/dev/null 2>&1; then
+        zz-log i "[vps-setup] Removing the already-rebound rancher Service so helm can recreate it (rebound again below)..."
+        kubectl -n cattle-system delete service rancher --wait=true
+    fi
 
-zz-log i "[vps-setup] Rebinding the rancher Service to ports ${RANCHER_HTTP_PORT}/${RANCHER_HTTPS_PORT}..."
-patch_service_port cattle-system rancher http "$RANCHER_HTTP_PORT" || true
-patch_service_port cattle-system rancher https "$RANCHER_HTTPS_PORT" || true
+    # shellcheck disable=SC2086
+    kube-progress cattle-system "Rancher install" \
+        helm upgrade --install rancher vps-rancher/rancher \
+        --namespace cattle-system \
+        --values "${dir}/helm/values.yaml" \
+        --values "$values_file" \
+        $chart_version \
+        --timeout 10m || rc=$?
+    rm -f "$values_file"
+    if [ "$rc" -ne 0 ]; then
+        kube-diagnose cattle-system
+        exit "$rc"
+    fi
 
-zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
-if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
-  dump_diagnostics cattle-system
-  zz-log e "[vps-setup] Rancher did not become ready in time (see the diagnostics above); re-run: sudo vps-setup --only-vps-rancher"
-  exit 1
-fi
+    # --- private ports and rollout
+    zz-log i "[vps-setup] Rebinding the rancher Service to ports ${http_port}/${https_port}..."
+    kube-service-port cattle-system rancher http "$http_port" || true
+    kube-service-port cattle-system rancher https "$https_port" || true
 
-reapply_private_guard
+    zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
+    if ! kube-progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
+        kube-diagnose cattle-system
+        zz-log e "[vps-setup] Rancher did not become ready in time (see the diagnostics above); re-run: sudo vps-setup --only-vps-rancher" && exit 1
+    fi
 
-ok "Rancher installed."
-ok "UI: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
-ok "Bootstrap password saved to ${VPS_SECRETS_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
+    # --- public dashboard, through k3s's Traefik (see ingress.yaml)
+    if [ -n "$ingress_host" ]; then
+        zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host}..."
+        yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" | kubectl apply -f -
+    else
+        kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
+    fi
+
+    "$vps_network" reapply-guard
+
+    zz-log s "[vps-setup] Rancher installed."
+    [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, public)"
+    zz-log s "[vps-setup] UI (private): https://$("$vps_network" summary-host):${https_port} (also plain-port ${http_port})"
+    zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
 
 down() {
-  export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-  command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove."; return; }
-  helm_teardown cattle-system rancher
-  vps_secret_unset RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password
-  ok "Rancher removed."
+    export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+    command -v kubectl >/dev/null 2>&1 || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
+    kube-teardown cattle-system rancher
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
+    zz-log s "[vps-setup] Rancher removed."
 }
 
 summary() {
-  cat <<EOF
- Rancher:             https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
-                       (also on plain port $(net_port rancher_http))
+    cat <<EOF
+ Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo '(no public route)')
+                       private: https://$("$vps_network" summary-host):$("$vps_network" port rancher_https)
+                       (also on plain port $("$vps_network" port rancher_http))
                        user:     admin
-                       password: $(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password | grep . || echo 'not set - run vps-rancher/run.sh')
+                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; you'll
                        be prompted to change it on first login)
 EOF
 }
-
-dispatch_action "$@"

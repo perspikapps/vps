@@ -1,0 +1,15 @@
+# Bitnami PostgreSQL for Coder. bitnamilegacy/postgresql is the image the Coder doc
+# uses; recent Bitnami charts refuse a non-Bitnami image unless allowInsecureImages
+# is set. ${db_password} (alphanumeric, quoted so it stays a string) and
+# ${db_storage} are filled in by run.sh.
+image:
+    repository: bitnamilegacy/postgresql
+global:
+    security:
+        allowInsecureImages: true
+auth:
+    username: coder
+    password: '${db_password}'
+    database: coder
+persistence:
+    size: '${db_storage}'

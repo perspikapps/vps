@@ -8,18 +8,27 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
 sudo vps-setup --only-vps-rancher
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo bash vps-rancher/run.sh up
-sudo bash vps-rancher/run.sh down
+sudo zz-setup ./ -o vps-rancher
+sudo zz-setup ./ -d vps-rancher
 ```
+
+## Public dashboard through Traefik
+
+The dashboard is also served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
+the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
+`WILDCARD_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
+Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
+This makes the admin UI publicly reachable (the `RANCHER_HTTP(S)_PORT` ports stay private-only),
+so change the bootstrap password on first login.
 
 ## Installing from SUSE Rancher Prime
 
@@ -36,6 +45,13 @@ chart comes from. Switching an already-running community Rancher over by re-runn
 step is an in-place `helm upgrade` to the Prime chart; check SUSE's upgrade notes for the
 versions involved first.
 
+## Chart files
+
+The Helm values and the Traefik Ingress are YAML files in the `helm/` subfolder, not heredocs:
+`helm/values.yaml` (fixed chart values, passed with `--values`; `hostname` and
+`bootstrapPassword` still go in a generated second values file) and `helm/ingress.yaml`
+(`${INGRESS_HOST}` is filled in by [`yaml-render`](https://github.com/tomgrv/scripts/tree/main/yaml-render)).
+
 ## Progress
 
 The install is mostly waiting (chart download, then Rancher's images being pulled,
@@ -47,7 +63,7 @@ Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
 ```
 
 (`no pod in cattle-system yet` before the first pod exists.) The same helper,
-`run_with_progress` in `vps-common`, also covers the cert-manager install, this
+`kube-progress` (tomgrv/scripts), also covers the cert-manager install, this
 step's final rollout wait and the Traefik rollout in `vps-k3s`.
 
 ## If the install fails or hangs
@@ -77,12 +93,15 @@ sudo vps-setup --down-vps-rancher
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
 | `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
 | `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
 | `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
-| `RANCHER_HOSTNAME` | no | _(unset)_ | FQDN/IP used in Rancher's self-signed cert |
+| `RANCHER_INGRESS` | no | `true` | `false` disables the public Traefik route |
+| `RANCHER_INGRESS_HOST` | no | `rancher.<wildcard domain>` | Public host Traefik serves the dashboard on |
+| `RANCHER_HOSTNAME` | no | public ingress host, else private address | Rancher server URL host / self-signed cert name |
 | `RANCHER_HTTPS_PORT` | no | `7083` | Rancher HTTPS port |
 | `RANCHER_HTTP_PORT` | no | `7080` | Rancher HTTP port |
 
@@ -94,7 +113,7 @@ sudo vps-setup --down-vps-rancher
 
 ## Dependencies
 
-Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)). Also `vps-common` (shared helpers).
+Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)).
 
 ## Tests
 
@@ -102,4 +121,4 @@ Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabl
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).

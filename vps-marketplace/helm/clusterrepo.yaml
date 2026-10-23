@@ -1,0 +1,8 @@
+# Rancher Apps & Marketplace repository for this repo's chart catalog.
+# ${MARKETPLACE_REPO_NAME} and ${MARKETPLACE_REPO_URL} are filled in by run.sh.
+apiVersion: catalog.cattle.io/v1
+kind: ClusterRepo
+metadata:
+    name: ${MARKETPLACE_REPO_NAME}
+spec:
+    url: ${MARKETPLACE_REPO_URL}

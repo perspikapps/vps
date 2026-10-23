@@ -1,13 +1,12 @@
 {
   "name": "@tomgrv/vps-coder",
-  "version": "4.0.0",
+  "version": "4.4.0",
   "description": "Coder (remote development environments) with in-cluster PostgreSQL",
   "bin": {
     "vps-coder": "run.sh"
   },
   "dependencies": {
-    "@tomgrv/vps-rancher": "*",
-    "@tomgrv/vps-common": "*"
+    "@tomgrv/vps-rancher": "*"
   },
   "private": true,
   "scripts": {
@@ -18,6 +17,7 @@
   },
   "config": {
     "default": false,
+    "functions": true,
     "inputs": {
       "CODER_ACCESS_URL": {
         "description": "Externally reachable URL of Coder (default: http://coder.<wildcard domain>)",
@@ -91,6 +91,11 @@
         "description": "Registry username for the token",
         "required": false,
         "default": ""
+      },
+      "VPS_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
       }
     },
     "order": 8,
@@ -101,6 +106,11 @@
         "port": 5000,
         "access": "private"
       }
-    ]
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

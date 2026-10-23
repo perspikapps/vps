@@ -10,7 +10,7 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
 # Fresh box, Dokploy instead of the k3s/Rancher stack:
@@ -20,11 +20,11 @@ sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-v
 sudo vps-setup --only-vps-dokploy
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo bash vps-dokploy/run.sh up
-sudo bash vps-dokploy/run.sh down
+sudo zz-setup ./ -o vps-dokploy
+sudo zz-setup ./ -d vps-dokploy
 ```
 
 `up` installs Docker (the installer pins and holds `docker-ce`) if it is missing, initialises the swarm, starts Dokploy, its Postgres and its Traefik, then re-applies `vps-security`'s private-ports guard (see below). A re-run is safe: once Dokploy is there the upstream installer is **not** run again, because it starts with `docker swarm leave --force`. To upgrade, use Dokploy's own update (UI: Settings, Server) rather than this step.
@@ -59,7 +59,7 @@ The ports (`80`/`443` public, `3000` private) are fixed by the installer; overri
 
 ## Dependencies
 
-Only `vps-common` (shared helpers). It needs no other step, and conflicts with `vps-k3s` (see above).
+It needs no other step, and conflicts with `vps-k3s` (see above).
 
 ## Tests
 
@@ -67,4 +67,4 @@ Only `vps-common` (shared helpers). It needs no other step, and conflicts with `
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`), the k3s and foreign-swarm guards, the `package.json` `bin`/`engines`/`config` shape and its declared ports. The install itself needs a live root Ubuntu box with Docker, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced), the k3s and foreign-swarm guards, the `package.json` `bin`/`engines`/`config` shape and its declared ports. The install itself needs a live root Ubuntu box with Docker, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
