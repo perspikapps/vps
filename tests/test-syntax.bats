@@ -53,7 +53,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 # run_summary <step> <path with stubs>: source the step the way zz-setup does (from its
 # own directory, as ./run.sh) and call its summary(), when it has one.
 run_summary() {
-    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && . "$0" && if command -v summary >/dev/null 2>&1; then summary; fi' ./run.sh "$REPO_ROOT/vps-$1"
+    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && shift && . "$0" && if command -v summary >/dev/null 2>&1; then summary; fi' ./run.sh "$REPO_ROOT/vps-$1"
 }
 
 @test "every step's summary action runs and prints its block" {
@@ -140,5 +140,14 @@ shift; echo "$*"
     for s in network cert-manager; do
         run node -e "const p = require('$REPO_ROOT/vps-$s/package.json'); process.exit(p.bin['vps-$s'] && !p.engines ? 0 : 1)"
         [ "$status" -eq 0 ]
+    done
+}
+
+@test "a step run as 'run.sh <action>' (an older zz-setup) fails and says how to refresh zz-setup" {
+    for dir in "$REPO_ROOT"/vps-*/; do
+        grep -q '"functions": true' "$dir/package.json" || continue
+        run sh "$dir/run.sh" up
+        [ "$status" -ne 0 ]
+        [[ "$output" == *"needs a newer zz-setup"* ]]
     done
 }

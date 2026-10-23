@@ -8,6 +8,9 @@ set -eu
 zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown kube-service-port
 # shellcheck disable=SC1091
 . zz-colors
+# A step only defines up(), down() and summary(): zz-setup sources it. An older zz-setup runs
+# it as `run.sh <action>` and nothing would happen.
+[ "$#" -eq 0 ] || { zz-log e "[vps-setup] $0 needs a newer zz-setup (config.functions); refresh it: zz-use -f zz-setup zz-call zz-vars zz-workspaces" && exit 1; }
 # Scripts of this checkout, called (never sourced): addresses, private interface, ports.
 vps_network="$(dirname "$0")/../vps-network/run.sh"
 vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
