@@ -17,8 +17,8 @@ sudo CLOUDFLARE_TUNNEL_TOKEN=eyJ... vps-setup --skip-vps-tailscale --with-vps-cl
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-cloudflare/run.sh up
-sudo bash vps-cloudflare/run.sh down
+sudo sh vps-cloudflare/run.sh up
+sudo sh vps-cloudflare/run.sh down
 ```
 
 ## What it does
@@ -41,7 +41,7 @@ SSH needs no extra step here: the private route to `CLOUDFLARE_PRIVATE_IP` alrea
 From **another machine** (never the VPS itself: a connection to its own public address is delivered locally and proves nothing):
 
 ```bash
-bash vps-cloudflare/run.sh verify <public-ip>
+sh vps-cloudflare/run.sh verify <public-ip>
 ```
 
 Fails if any `access: "private"` port answers on the public address.

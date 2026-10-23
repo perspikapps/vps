@@ -23,8 +23,8 @@ sudo vps-setup --only-vps-dokploy
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-dokploy/run.sh up
-sudo bash vps-dokploy/run.sh down
+sudo sh vps-dokploy/run.sh up
+sudo sh vps-dokploy/run.sh down
 ```
 
 `up` installs Docker (the installer pins and holds `docker-ce`) if it is missing, initialises the swarm, starts Dokploy, its Postgres and its Traefik, then re-applies `vps-security`'s private-ports guard (see below). A re-run is safe: once Dokploy is there the upstream installer is **not** run again, because it starts with `docker swarm leave --force`. To upgrade, use Dokploy's own update (UI: Settings, Server) rather than this step.

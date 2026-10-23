@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-k3s
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-k3s/run.sh up
-sudo bash vps-k3s/run.sh down
+sudo sh vps-k3s/run.sh up
+sudo sh vps-k3s/run.sh down
 ```
 
 ## Removing (`down`)

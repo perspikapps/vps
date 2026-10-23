@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-cockpit
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-cockpit/run.sh up
-sudo bash vps-cockpit/run.sh down
+sudo sh vps-cockpit/run.sh up
+sudo sh vps-cockpit/run.sh down
 ```
 
 ## Removing (`down`)

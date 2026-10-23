@@ -18,8 +18,8 @@ sudo vps-setup --only-vps-coder   # just this step, on a host that already has R
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-coder/run.sh up
-sudo bash vps-coder/run.sh down
+sudo sh vps-coder/run.sh up
+sudo sh vps-coder/run.sh down
 ```
 
 ## What it does

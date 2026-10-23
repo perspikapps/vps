@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-marketplace
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-marketplace/run.sh up
-sudo bash vps-marketplace/run.sh down
+sudo sh vps-marketplace/run.sh up
+sudo sh vps-marketplace/run.sh down
 ```
 
 ## Removing (`down`)

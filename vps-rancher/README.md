@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-rancher
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-rancher/run.sh up
-sudo bash vps-rancher/run.sh down
+sudo sh vps-rancher/run.sh up
+sudo sh vps-rancher/run.sh down
 ```
 
 ## Public dashboard through Traefik

@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-tailscale
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-tailscale/run.sh up
-sudo bash vps-tailscale/run.sh down
+sudo sh vps-tailscale/run.sh up
+sudo sh vps-tailscale/run.sh down
 ```
 
 ## Private access

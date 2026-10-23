@@ -5,8 +5,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-coder"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -25,7 +25,7 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'bitnami/postgresql' "$DIR/run.sh"
     grep -q 'coder-db-url' "$DIR/run.sh"
     grep -q 'https://helm.coder.com/v2' "$DIR/run.sh"
-    grep -q 'CODER_PG_CONNECTION_URL' "$DIR/run.sh"
+    grep -q 'CODER_PG_CONNECTION_URL' "$DIR/helm/coder-values.yaml"
 }
 
 @test "the database password is generated and stored, never a fixed value or a --set argument" {
@@ -42,15 +42,15 @@ DIR="$REPO_ROOT/vps-coder"
 }
 
 @test "exposed through the Traefik ingress, access URL and wildcard from the same domain (cookie scope)" {
-    grep -q 'className: "traefik"' "$DIR/run.sh"
-    grep -q 'wildcardHost' "$DIR/run.sh"
-    grep -q 'http://coder.${WILDCARD}' "$DIR/run.sh"
-    grep -q '\*\.${WILDCARD}' "$DIR/run.sh"
+    grep -q 'className: traefik' "$DIR/helm/coder-values.yaml"
+    grep -q 'wildcardHost' "$DIR/helm/coder-values-wildcard.yaml"
+    grep -q 'http://coder.${wildcard}' "$DIR/run.sh"
+    grep -q '\*\.${wildcard}' "$DIR/run.sh"
     ! grep -q 'patch_service_port' "$DIR/run.sh"
 }
 
 @test "fails early, naming ZZ_SETUP_REF, when the cached vps-common predates wildcard_domain" {
-    grep -q 'declare -F wildcard_domain' "$DIR/run.sh"
+    grep -q 'command -v wildcard_domain' "$DIR/run.sh"
     grep -q 'ZZ_SETUP_REF=<ref> zz-setup' "$DIR/run.sh"
 }
 
@@ -69,9 +69,11 @@ DIR="$REPO_ROOT/vps-coder"
 }
 
 @test "charts come first: the platform is installed before the admin/template step, which only warns" {
-    inst=$(grep -n '^install_devcontainer_builder ||' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    boot=$(grep -n '^bootstrap_coder "\$ADMIN_EMAIL"' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    [ -n "$inst" ] && [ -n "$boot" ] && [ "$inst" -lt "$boot" ]
+    inst=$(grep -n '^    install_devcontainer_builder ||' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    boot=$(grep -n '^    bootstrap_coder "\$admin_email"' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    [ -n "$inst" ]
+    [ -n "$boot" ]
+    [ "$inst" -lt "$boot" ]
     grep -q 'incomplete (see above)' "$DIR/run.sh"
 }
 
@@ -85,8 +87,8 @@ DIR="$REPO_ROOT/vps-coder"
 }
 
 @test "in-cluster registry: anonymous registry:2 on a private port, with the builder told it is plain HTTP and containerd given a mirror" {
-    grep -q 'image: registry:2' "$DIR/run.sh"
-    grep -q 'insecureRegistries' "$DIR/run.sh"
+    grep -q 'image: registry:2' "$DIR/helm/registry.yaml"
+    grep -q 'insecureRegistries' "$DIR/helm/devcontainer-builder-values.yaml"
     grep -q '/etc/rancher/k3s/registries.yaml' "$DIR/run.sh"
     run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'devcontainer_registry'); process.exit(p && p.port === 5000 && p.access === 'private' ? 0 : 1)"
     [ "$status" -eq 0 ]
@@ -94,7 +96,7 @@ DIR="$REPO_ROOT/vps-coder"
 
 @test "the registry token never appears on a command line (values file, stdin)" {
     ! grep -q -- '--set .*password' "$DIR/run.sh"
-    grep -q 'registryAuth' "$DIR/run.sh"
+    grep -q 'registryAuth' "$DIR/helm/devcontainer-builder-values.yaml"
 }
 
 @test "a bootstrap action retries only the admin/template step, and each failure names its step" {
@@ -105,9 +107,9 @@ DIR="$REPO_ROOT/vps-coder"
 
 @test "BuildKit is deployed by the step (chart 0.5.0's bundled one is broken): privileged, endpoint passed to the chart, plain-HTTP registry in buildkitd.toml" {
     grep -q '^deploy_buildkit() {' "$DIR/run.sh"
-    grep -q 'moby/buildkit' "$DIR/run.sh"
+    grep -q 'moby/buildkit' "$DIR/helm/buildkit.yaml"
     grep -q 'http = true' "$DIR/run.sh"
-    grep -q 'buildkit: {endpoint:' "$DIR/run.sh"
+    grep -q 'endpoint: tcp://buildkit' "$DIR/helm/devcontainer-builder-values.yaml"
     ! grep -q 'deploy: {enabled: true}' "$DIR/run.sh"
 }
 
@@ -119,11 +121,25 @@ DIR="$REPO_ROOT/vps-coder"
 @test "one workspace namespace everywhere: RBAC for coder:coder, pull secret and both templates use it" {
     grep -q 'WORKSPACE_NAMESPACE="\${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"' "$DIR/run.sh"
     grep -q '^ensure_workspace_namespace() {' "$DIR/run.sh"
-    grep -q 'kind: Role' "$DIR/run.sh"
-    grep -q 'name: coder, namespace: \${CODER_NAMESPACE}' "$DIR/run.sh"
+    grep -q 'kind: Role' "$DIR/helm/workspace-rbac.yaml"
+    grep -q 'namespace: \${coder_namespace}' "$DIR/helm/workspace-rbac.yaml"
     grep -q 'kubectl -n "\$WORKSPACE_NAMESPACE" create secret docker-registry devcontainer-images' "$DIR/run.sh"
     ! grep -q -- '--var namespace=\${CODER_NAMESPACE}' "$DIR/run.sh"
     ! grep -q "namespace='\"\$CODER_NAMESPACE\"'" "$DIR/run.sh"
     run node -e "const i = require('$DIR/package.json').config.inputs.CODER_WORKSPACE_NAMESPACE; process.exit(i && i.default === 'coder-workspaces' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "every helm/*.yaml renders to valid YAML with its placeholders filled" {
+    python3 -c 'import yaml' 2>/dev/null || skip "python3 yaml not installed"
+    for f in "$DIR"/helm/*.yaml; do
+        names=$(grep -o '\${[a-z_]*}' "$f" | tr -d '${}' | sort -u | tr '\n' ' ')
+        out=$(dash -c ". '$REPO_ROOT/vps-common/run.sh' 2>/dev/null
+            coder_namespace=coder registry_port=5000 config_sha=abc db_password=12345 db_storage=10Gi
+            access_url=http://coder.example.com host=coder.example.com wildcard_host='*.example.com'
+            mapped=ghcr.io/org registry_auth='[]' insecure_registries='[]'
+            render_yaml '$f' $names")
+        [ -z "$(printf '%s' "$out" | grep '\${')" ]
+        printf '%s' "$out" | python3 -c 'import sys, yaml; list(yaml.safe_load_all(sys.stdin))'
+    done
 }

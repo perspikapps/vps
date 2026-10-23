@@ -17,7 +17,7 @@ sudo vps-setup --only-vps-system
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-system/run.sh up
+sudo sh vps-system/run.sh up
 ```
 
 ## Removing (`down`)

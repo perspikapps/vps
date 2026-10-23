@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-security
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-security/run.sh up
-sudo bash vps-security/run.sh down
+sudo sh vps-security/run.sh up
+sudo sh vps-security/run.sh down
 ```
 
 ## Private ports and the FORWARD guard

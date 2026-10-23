@@ -208,7 +208,7 @@ Either bring the dependents down in the same run (`--down-vps-k3s
 Every feature's `run.sh` also takes the action directly (`up` is the default):
 
 ```bash
-sudo bash vps-marketplace/run.sh down
+sudo sh vps-marketplace/run.sh down
 ```
 
 ## Full copy-paste example
@@ -364,7 +364,7 @@ sudo vps-rancher up
 `vps-rancher/run.sh` onto `PATH`. It skips discovery, ordering, dependency
 auto-enable and the menu, so run the features it depends on first (see
 [Dependencies](#dependencies-between-steps)). Inside a checkout, a feature runs
-as `sudo RANCHER_HOSTNAME=... bash vps-rancher/run.sh [up|down]`; it assumes
+as `sudo RANCHER_HOSTNAME=... sh vps-rancher/run.sh [up|down]`; it assumes
 `zz-use` is already on `PATH` and fetches `vps-common` itself.
 
 ## One folder per feature

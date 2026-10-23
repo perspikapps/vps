@@ -1,0 +1,54 @@
+# BuildKit for devcontainer-builder. Privileged, as BuildKit requires (the
+# namespace is labelled for it). ${config_sha} restarts the pod when its
+# buildkitd.toml changes; it is filled in by run.sh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: buildkit
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: buildkit
+    template:
+        metadata:
+            labels:
+                app: buildkit
+            annotations:
+                config-sha: '${config_sha}'
+        spec:
+            containers:
+                - name: buildkitd
+                  image: moby/buildkit:v0.31.0
+                  args: [--addr, 'unix:///run/buildkit/buildkitd.sock', --addr, 'tcp://0.0.0.0:1234']
+                  ports:
+                      - containerPort: 1234
+                  securityContext:
+                      privileged: true
+                  readinessProbe:
+                      tcpSocket:
+                          port: 1234
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                  volumeMounts:
+                      - name: state
+                        mountPath: /var/lib/buildkit
+                      - name: config
+                        mountPath: /etc/buildkit
+            volumes:
+                - name: state
+                  emptyDir: {}
+                - name: config
+                  configMap:
+                      name: buildkitd-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: buildkit
+spec:
+    selector:
+        app: buildkit
+    ports:
+        - port: 1234
+          targetPort: 1234

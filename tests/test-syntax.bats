@@ -101,3 +101,10 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 @test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
     ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/vps-*/run.sh | grep -v 'vps_secret'
 }
+
+@test "every run.sh is POSIX sh: #!/bin/sh and parses with dash (zz-setup conventions)" {
+    for f in "$REPO_ROOT"/*/run.sh; do
+        [ "$(head -n1 "$f")" = "#!/bin/sh" ]
+        dash -n "$f"
+    done
+}

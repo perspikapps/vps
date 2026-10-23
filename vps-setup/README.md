@@ -38,7 +38,7 @@ lists and `--force-down` becomes `-F`; anything else (`-h`, `-S` for a status
 view, `-D`) is passed through. From a checkout, no `zz-use` install is needed:
 
 ```sh
-sudo bash vps-setup/run.sh --only-vps-rancher
+sudo sh vps-setup/run.sh --only-vps-rancher
 ```
 
 ## What stays here
