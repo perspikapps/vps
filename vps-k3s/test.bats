@@ -6,8 +6,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-k3s"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -47,7 +47,7 @@ DIR="$REPO_ROOT/vps-k3s"
 
 
 @test "a stale cached vps-common is reported with the command to refresh it" {
-    grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
+    grep -q 'command -v reapply_private_guard' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
 
@@ -57,8 +57,8 @@ DIR="$REPO_ROOT/vps-k3s"
 }
 
 @test "Traefik's chart values live in traefik-config.yaml, rendered by run.sh" {
-    [ -f "$DIR/traefik-config.yaml" ]
-    grep -q 'kind: HelmChartConfig' "$DIR/traefik-config.yaml"
-    grep -q 'render_yaml "\$(dirname "\$0")/traefik-config.yaml"' "$DIR/run.sh"
+    [ -f "$DIR/helm/traefik-config.yaml" ]
+    grep -q 'kind: HelmChartConfig' "$DIR/helm/traefik-config.yaml"
+    grep -q 'render_yaml "\$(dirname "\$0")/helm/traefik-config.yaml"' "$DIR/run.sh"
     ! grep -q 'kind: HelmChartConfig' "$DIR/run.sh"
 }

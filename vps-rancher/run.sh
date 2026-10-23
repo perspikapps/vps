@@ -96,7 +96,7 @@ up() {
     run_with_progress cattle-system "Rancher install" \
         helm upgrade --install rancher vps-rancher/rancher \
         --namespace cattle-system \
-        --values "${dir}/values.yaml" \
+        --values "${dir}/helm/values.yaml" \
         --values "$values_file" \
         $chart_version \
         --timeout 10m || rc=$?
@@ -121,7 +121,7 @@ up() {
     if [ -n "$ingress_host" ]; then
         zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host}..."
         INGRESS_HOST="$ingress_host"
-        render_yaml "${dir}/ingress.yaml" INGRESS_HOST | kubectl apply -f -
+        render_yaml "${dir}/helm/ingress.yaml" INGRESS_HOST | kubectl apply -f -
     else
         kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
     fi

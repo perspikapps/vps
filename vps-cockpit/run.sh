@@ -1,50 +1,53 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Cockpit, on COCKPIT_HTTP_PORT/COCKPIT_HTTPS_PORT. Env vars: see README.
 
-set -euo pipefail
+set -eu
 zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
 # shellcheck disable=SC1091
 . vps-common
 
 up() {
-apt_update_once
+    local http_port https_port
 
-COCKPIT_HTTP_PORT="$(net_port cockpit_http)"
-COCKPIT_HTTPS_PORT="$(net_port cockpit_https)"
+    apt_update_once
 
-zz-log i "[vps-setup] Installing Cockpit..."
-apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
+    http_port="$(net_port cockpit_http)"
+    https_port="$(net_port cockpit_https)"
 
-zz-log i "[vps-setup] Configuring cockpit.socket to listen on ${COCKPIT_HTTP_PORT} and ${COCKPIT_HTTPS_PORT}..."
-mkdir -p /etc/systemd/system/cockpit.socket.d
-cat > /etc/systemd/system/cockpit.socket.d/override.conf <<EOF
+    zz-log i "[vps-setup] Installing Cockpit..."
+    apt_install cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
+
+    zz-log i "[vps-setup] Configuring cockpit.socket to listen on ${http_port} and ${https_port}..."
+    mkdir -p /etc/systemd/system/cockpit.socket.d
+    cat >/etc/systemd/system/cockpit.socket.d/override.conf <<EOF2
 [Socket]
 ListenStream=
-ListenStream=${COCKPIT_HTTP_PORT}
-ListenStream=${COCKPIT_HTTPS_PORT}
-EOF
+ListenStream=${http_port}
+ListenStream=${https_port}
+EOF2
 
-systemctl daemon-reload
-systemctl enable --now cockpit.socket
-systemctl restart cockpit.socket
+    systemctl daemon-reload
+    systemctl enable --now cockpit.socket
+    systemctl restart cockpit.socket
 
-ok "Cockpit installed. Reachable at https://$(summary_host):${COCKPIT_HTTP_PORT} and :${COCKPIT_HTTPS_PORT} (self-signed cert)."
+    ok "Cockpit installed. Reachable at https://$(summary_host):${http_port} and :${https_port} (self-signed cert)."
 }
 
 down() {
-  zz-log i "[vps-setup] Disabling Cockpit..."
-  systemctl disable --now cockpit.socket 2>/dev/null || true
-  rm -rf /etc/systemd/system/cockpit.socket.d
-  systemctl daemon-reload
-  zz-log i "[vps-setup] Removing Cockpit packages..."
-  apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
-  ok "Cockpit removed."
+    zz-log i "[vps-setup] Disabling Cockpit..."
+    systemctl disable --now cockpit.socket 2>/dev/null || true
+    rm -rf /etc/systemd/system/cockpit.socket.d
+    systemctl daemon-reload
+    zz-log i "[vps-setup] Removing Cockpit packages..."
+    apt_purge cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
+    ok "Cockpit removed."
 }
 
 summary() {
-  local host
-  host="$(summary_host)"
-  cat <<EOF
+    local host
+
+    host="$(summary_host)"
+    cat <<EOF2
  Cockpit:             https://${host}:$(net_port cockpit_http)
                        https://${host}:$(net_port cockpit_https)
                        user:     $(vps_secret COCKPIT_ADMIN_USER /root/.cockpit-admin-user | grep . || echo 'not set - run vps-security/run.sh')
@@ -52,7 +55,7 @@ summary() {
                        (saved to ${VPS_SECRETS_FILE}; PAM login, same
                        account you'd use on the local console - separate
                        from SSH, which stays key-only)
-EOF
+EOF2
 }
 
 dispatch_action "$@"

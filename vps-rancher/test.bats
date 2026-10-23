@@ -126,17 +126,17 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
     grep -q 'rancher.\$(wildcard_domain)' "$DIR/run.sh"
     grep -q 'RANCHER_INGRESS:-true' "$DIR/run.sh"
-    grep -q 'ingressClassName: traefik' "$DIR/ingress.yaml"
-    grep -q 'name: http$' "$DIR/ingress.yaml"
+    grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
+    grep -q 'name: http$' "$DIR/helm/ingress.yaml"
     run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
 @test "chart values and the Traefik Ingress live in yaml files beside run.sh, not in heredocs or --set" {
-    [ -f "$DIR/values.yaml" ]
-    [ -f "$DIR/ingress.yaml" ]
-    grep -q -- '--values "\${dir}/values.yaml"' "$DIR/run.sh"
-    grep -q 'render_yaml "\${dir}/ingress.yaml" INGRESS_HOST' "$DIR/run.sh"
+    [ -f "$DIR/helm/values.yaml" ]
+    [ -f "$DIR/helm/ingress.yaml" ]
+    grep -q -- '--values "\${dir}/helm/values.yaml"' "$DIR/run.sh"
+    grep -q 'render_yaml "\${dir}/helm/ingress.yaml" INGRESS_HOST' "$DIR/run.sh"
     ! grep -q -- '--set ' "$DIR/run.sh"
     ! grep -q '^kind: Ingress' "$DIR/run.sh"
 }

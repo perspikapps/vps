@@ -6,8 +6,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-dokploy"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -41,12 +41,12 @@ DIR="$REPO_ROOT/vps-dokploy"
 }
 
 @test "a stale cached vps-common is reported with the command to refresh it" {
-    grep -q 'declare -F reapply_private_guard' "$DIR/run.sh"
+    grep -q 'command -v reapply_private_guard' "$DIR/run.sh"
     grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
 }
 
 @test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
-    grep -q '^  reapply_private_guard$' "$DIR/run.sh"
+    grep -q '^    reapply_private_guard$' "$DIR/run.sh"
     ! grep -qE '^[[:space:]]*iptables ' "$DIR/run.sh"
 }
 

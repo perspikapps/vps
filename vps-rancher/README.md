@@ -47,9 +47,9 @@ versions involved first.
 
 ## Chart files
 
-The Helm values and the Traefik Ingress are YAML files beside `run.sh`, not heredocs:
-`values.yaml` (fixed chart values, passed with `--values`; `hostname` and
-`bootstrapPassword` still go in a generated second values file) and `ingress.yaml`
+The Helm values and the Traefik Ingress are YAML files in the `helm/` subfolder, not heredocs:
+`helm/values.yaml` (fixed chart values, passed with `--values`; `hostname` and
+`bootstrapPassword` still go in a generated second values file) and `helm/ingress.yaml`
 (`${INGRESS_HOST}` is filled in by `render_yaml` from `vps-common`).
 
 ## Progress

@@ -7,8 +7,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-marketplace"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -49,4 +49,11 @@ DIR="$REPO_ROOT/vps-marketplace"
 @test "package.json depends on @tomgrv/vps-rancher" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-rancher'] === '*' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "the ClusterRepo manifest lives in helm/clusterrepo.yaml, rendered by run.sh" {
+    [ -f "$DIR/helm/clusterrepo.yaml" ]
+    grep -q 'kind: ClusterRepo' "$DIR/helm/clusterrepo.yaml"
+    grep -q 'render_yaml "\$(dirname "\$0")/helm/clusterrepo.yaml"' "$DIR/run.sh"
+    ! grep -q 'kind: ClusterRepo' "$DIR/run.sh"
 }
