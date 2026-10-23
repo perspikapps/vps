@@ -2,12 +2,15 @@
 # Base system update and common CLI utilities.
 
 set -eu
-zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
-# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
-# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
-grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-# shellcheck disable=SC1091
-. vps-common
+# Source the vps-common of this checkout (always the version of the step); a step
+# installed on its own gets the one zz-use fetches.
+common="$(dirname "$0")/../vps-common/run.sh"
+if [ ! -f "$common" ]; then
+    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
+    common="$(command -v vps-common)"
+fi
+# shellcheck disable=SC1090
+. "$common"
 
 up() {
     local domain

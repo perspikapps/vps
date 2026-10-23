@@ -2,18 +2,15 @@
 # k3s, kubectl, helm, and Traefik as public ingress. Env vars: see README.
 
 set -eu
-zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
-# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
-grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-# shellcheck disable=SC1091
-. vps-common
-# vps-common comes from zz-use's download cache (24h for a branch), while the
-# steps come from the fresh checkout: an older cached copy lacks newer helpers.
-command -v reapply_private_guard >/dev/null || {
-    zz-log e "[vps-setup] The cached vps-common is older than this step. Refresh it and re-run:" \
-        "sudo zz-use --force perspikapps/vps/vps-common" && exit 1
-}
+# Source the vps-common of this checkout (always the version of the step); a step
+# installed on its own gets the one zz-use fetches.
+common="$(dirname "$0")/../vps-common/run.sh"
+if [ ! -f "$common" ]; then
+    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
+    common="$(command -v vps-common)"
+fi
+# shellcheck disable=SC1090
+. "$common"
 
 up() {
     local service_file=/etc/systemd/system/k3s.service need_install=1 kubeconfig_path=/etc/rancher/k3s/k3s.yaml i

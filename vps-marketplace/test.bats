@@ -12,9 +12,9 @@ DIR="$REPO_ROOT/vps-marketplace"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
+@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
     grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+    grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {

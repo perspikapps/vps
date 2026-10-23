@@ -4,19 +4,15 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-persist
-# vps-common comes from zz-use's download cache (24h for a branch). A copy from before
-# the POSIX sh rewrite breaks under sh ("trap: ERR: bad trap"): refresh it when stale.
-grep -q '^report_exit()' "$(command -v vps-common)" 2>/dev/null || zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-# shellcheck disable=SC1091
-. vps-common
-
-# vps-common comes from zz-use's download cache, one slot per repo+ref: running a
-# branch fetches its own vps-common (zz-use pins it to ZZ_SETUP_REF); an older copy is used otherwise.
-command -v wildcard_domain >/dev/null || {
-    zz-log e "[vps-setup] The cached vps-common is older than this step. Run it from the branch:" \
-        "sudo ZZ_SETUP_REF=<ref> zz-setup perspikapps/vps -o vps-coder" && exit 1
-}
+# Source the vps-common of this checkout (always the version of the step); a step
+# installed on its own gets the one zz-use fetches.
+common="$(dirname "$0")/../vps-common/run.sh"
+if [ ! -f "$common" ]; then
+    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
+    common="$(command -v vps-common)"
+fi
+# shellcheck disable=SC1090
+. "$common"
 
 CODER_NAMESPACE=coder
 # Where workspaces run: one namespace for the template's `namespace` variable, the pull secret and

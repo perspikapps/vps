@@ -11,9 +11,9 @@ DIR="$REPO_ROOT/vps-dokploy"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
+@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
     grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+    grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -40,10 +40,6 @@ DIR="$REPO_ROOT/vps-dokploy"
     ! grep -qE 'curl[^#]*\| *(ba)?sh' "$DIR/run.sh"
 }
 
-@test "a stale cached vps-common is reported with the command to refresh it" {
-    grep -q 'command -v reapply_private_guard' "$DIR/run.sh"
-    grep -q 'zz-use --force perspikapps/vps/vps-common' "$DIR/run.sh"
-}
 
 @test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
     grep -q '^    reapply_private_guard$' "$DIR/run.sh"

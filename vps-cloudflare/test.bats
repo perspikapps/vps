@@ -11,9 +11,9 @@ DIR="$REPO_ROOT/vps-cloudflare"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
+@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
     grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+    grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
 @test "defines up(), down() and dispatches via dispatch_action" {

@@ -10,9 +10,9 @@ DIR="$REPO_ROOT/vps-coder"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
+@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
     grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+    grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
 @test "defines up(), down() and dispatches via dispatch_action" {
@@ -49,10 +49,6 @@ DIR="$REPO_ROOT/vps-coder"
     ! grep -q 'patch_service_port' "$DIR/run.sh"
 }
 
-@test "fails early, naming ZZ_SETUP_REF, when the cached vps-common predates wildcard_domain" {
-    grep -q 'command -v wildcard_domain' "$DIR/run.sh"
-    grep -q 'ZZ_SETUP_REF=<ref> zz-setup' "$DIR/run.sh"
-}
 
 @test "creates the first admin and the devcontainer template, best effort, with the password stored" {
     grep -q '/users/first' "$DIR/run.sh"
