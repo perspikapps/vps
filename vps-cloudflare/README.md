@@ -14,11 +14,11 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 sudo CLOUDFLARE_TUNNEL_TOKEN=eyJ... vps-setup --skip-vps-tailscale --with-vps-cloudflare
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo bash vps-cloudflare/run.sh up
-sudo bash vps-cloudflare/run.sh down
+sudo zz-setup ./ -o vps-cloudflare
+sudo zz-setup ./ -d vps-cloudflare
 ```
 
 ## What it does
@@ -41,7 +41,7 @@ SSH needs no extra step here: the private route to `CLOUDFLARE_PRIVATE_IP` alrea
 From **another machine** (never the VPS itself: a connection to its own public address is delivered locally and proves nothing):
 
 ```bash
-bash vps-cloudflare/run.sh verify <public-ip>
+vps-network verify <public-ip>
 ```
 
 Fails if any `access: "private"` port answers on the public address.
@@ -64,7 +64,7 @@ sudo vps-setup --down-vps-cloudflare
 
 ## Dependencies
 
-`vps-common` (shared helpers) only; conflicts with `vps-tailscale` (see above).
+Conflicts with `vps-tailscale` (see above).
 
 ## Not verified on a live host
 

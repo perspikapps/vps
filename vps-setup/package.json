@@ -5,9 +5,6 @@
   "bin": {
     "vps-setup": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"

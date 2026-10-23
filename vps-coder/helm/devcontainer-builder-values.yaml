@@ -1,0 +1,13 @@
+# devcontainer-builder chart values. BuildKit is deployed by run.sh (buildkit.yaml),
+# not by the chart's bundled option. ${registry_auth} and ${insecure_registries} are
+# JSON lists, ${mapped} the registry (and org) the built images go to; all are
+# filled in by run.sh.
+buildkit:
+    endpoint: tcp://buildkit.devcontainer-builder.svc.cluster.local:1234
+registryAuth:
+    registries: ${registry_auth}
+registryMapping:
+    rules:
+        - hostMatch: github.com
+          registry: '${mapped}'
+insecureRegistries: ${insecure_registries}

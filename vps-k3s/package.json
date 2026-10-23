@@ -5,9 +5,6 @@
   "bin": {
     "vps-k3s": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -17,6 +14,7 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
       "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",
@@ -37,11 +35,6 @@
         "description": "Use Let's Encrypt's staging environment (true/false)",
         "required": false,
         "default": "true"
-      },
-      "TRAEFIK_DASHBOARD_PORT": {
-        "description": "Traefik dashboard port (private access only)",
-        "required": false,
-        "default": "8088"
       }
     },
     "order": 4,
@@ -69,6 +62,11 @@
         "port": 8088,
         "access": "private"
       }
-    ]
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

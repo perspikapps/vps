@@ -5,9 +5,6 @@
   "bin": {
     "vps-system": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -17,6 +14,7 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
       "WILDCARD_DOMAIN": {
         "description": "Wildcard DNS domain pointing at this VPS (e.g. apps.example.com for *.apps.example.com); empty = nip.io fallback",
@@ -30,6 +28,10 @@
       }
     },
     "order": 0,
-    "outputs": {}
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    }
   }
 }

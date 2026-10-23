@@ -5,9 +5,6 @@
   "bin": {
     "vps-dokploy": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -20,6 +17,7 @@
       "vps-k3s"
     ],
     "default": false,
+    "functions": true,
     "inputs": {
       "ADVERTISE_ADDR": {
         "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",
@@ -63,6 +61,11 @@
         "access": "private",
         "note": "Dokploy admin UI (fixed by the installer)"
       }
-    ]
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

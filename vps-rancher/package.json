@@ -6,8 +6,7 @@
     "vps-rancher": "run.sh"
   },
   "dependencies": {
-    "@tomgrv/vps-k3s": "*",
-    "@tomgrv/vps-common": "*"
+    "@tomgrv/vps-k3s": "*"
   },
   "private": true,
   "scripts": {
@@ -18,6 +17,7 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
       "CERT_MANAGER_VERSION": {
         "description": "Pin cert-manager's chart version",
@@ -40,20 +40,25 @@
         "required": false,
         "default": ""
       },
+      "RANCHER_INGRESS": {
+        "description": "Serve the dashboard publicly through Traefik; false keeps Rancher private-only",
+        "required": false,
+        "default": "true"
+      },
+      "RANCHER_INGRESS_HOST": {
+        "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<WILDCARD_DOMAIN>, else rancher.<public-ip>.nip.io)",
+        "required": false,
+        "default": ""
+      },
       "RANCHER_HOSTNAME": {
         "description": "FQDN/IP used in Rancher's self-signed cert",
         "required": false,
         "default": ""
       },
-      "RANCHER_HTTPS_PORT": {
-        "description": "Rancher HTTPS port",
+      "VPS_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
-        "default": "7083"
-      },
-      "RANCHER_HTTP_PORT": {
-        "description": "Rancher HTTP port",
-        "required": false,
-        "default": "7080"
+        "default": "/root/.vps-secrets.env"
       }
     },
     "order": 5,
@@ -74,6 +79,11 @@
         "port": 7083,
         "access": "private"
       }
-    ]
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

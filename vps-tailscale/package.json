@@ -5,9 +5,6 @@
   "bin": {
     "vps-tailscale": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -19,8 +16,8 @@
     "conflicts": [
       "vps-cloudflare"
     ],
-    "order": 1,
     "default": true,
+    "functions": true,
     "inputs": {
       "PURGE_TAILSCALE": {
         "description": "Also remove the tailscale package on down (true/false)",
@@ -39,6 +36,12 @@
         "default": ""
       }
     },
-    "outputs": {}
+    "order": 1,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

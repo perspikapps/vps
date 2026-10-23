@@ -8,7 +8,7 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
 sudo vps-setup --only-vps-k3s
@@ -17,8 +17,8 @@ sudo vps-setup --only-vps-k3s
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo bash vps-k3s/run.sh up
-sudo bash vps-k3s/run.sh down
+sudo sh vps-k3s/run.sh up
+sudo sh vps-k3s/run.sh down
 ```
 
 ## Removing (`down`)
@@ -47,7 +47,7 @@ sudo vps-setup --down-vps-k3s
 
 ## Dependencies
 
-`vps-common` (shared helpers) only; no other step is required.
+No other step is required.
 
 ## Tests
 
@@ -55,4 +55,4 @@ sudo vps-setup --down-vps-k3s
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).

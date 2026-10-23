@@ -5,9 +5,6 @@
   "bin": {
     "vps-cockpit": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -17,16 +14,12 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
-      "COCKPIT_HTTPS_PORT": {
-        "description": "Cockpit HTTPS port",
+      "VPS_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
-        "default": "9083"
-      },
-      "COCKPIT_HTTP_PORT": {
-        "description": "Cockpit HTTP port",
-        "required": false,
-        "default": "9080"
+        "default": "/root/.vps-secrets.env"
       }
     },
     "order": 3,
@@ -42,6 +35,11 @@
         "port": 9083,
         "access": "private"
       }
-    ]
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

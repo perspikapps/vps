@@ -5,9 +5,6 @@
   "bin": {
     "vps-cloudflare": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -19,8 +16,8 @@
     "conflicts": [
       "vps-tailscale"
     ],
-    "order": 1.5,
     "default": false,
+    "functions": true,
     "inputs": {
       "CLOUDFLARE_PRIVATE_IP": {
         "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",
@@ -39,6 +36,12 @@
         "default": "false"
       }
     },
-    "outputs": {}
+    "order": 1.5,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
   }
 }

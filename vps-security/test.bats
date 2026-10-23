@@ -6,14 +6,14 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-security"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh bootstraps zz-use and sources common" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -21,9 +21,11 @@ DIR="$REPO_ROOT/vps-security"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and dispatches via dispatch_action" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -40,14 +42,10 @@ DIR="$REPO_ROOT/vps-security"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 
-@test "run.sh opens private-access ports on the interface vps-common reports, not a hard-coded one" {
-    grep -q 'PRIVATE_IFACE="\$(private_interface)"' "$DIR/run.sh"
+@test "run.sh opens private-access ports on the interface vps-network reports, not a hard-coded one" {
+    grep -q 'private_iface="\$("\$vps_network" private-interface)"' "$DIR/run.sh"
     ! grep -q 'tailscale0' "$DIR/run.sh"
     ! grep -q '^    tailscale)' "$DIR/run.sh"
 }
@@ -97,19 +95,20 @@ guard_setup() {
 }
 
 @test "run.sh feeds the guard every access:private port of every feature, and down removes it" {
-    grep -q 'install_private_guard "\${PRIVATE_IFACE:--}" "\$(all_network_ports | awk' "$DIR/run.sh"
+    grep -q 'install_private_guard "\${private_iface:--}" "\$("\$vps_network" ports | awk' "$DIR/run.sh"
     grep -q '"\$GUARD_BIN" del -' "$DIR/run.sh"
 }
 
 @test "private ports are opened only to the private address, with no blanket allow on the interface" {
-    grep -q 'PRIVATE_IP="\$(private_address)"' "$DIR/run.sh"
-    grep -q 'to "\$PRIVATE_IP" port' "$DIR/run.sh"
-    ! grep -q 'ufw allow in on "\$PRIVATE_IFACE" comment' "$DIR/run.sh"
+    grep -q 'private_ip="\$("\$vps_network" private-address)"' "$DIR/run.sh"
+    grep -q 'to "\$private_ip" port' "$DIR/run.sh"
+    ! grep -q 'ufw allow in on "\$private_iface" comment' "$DIR/run.sh"
 }
 
 @test "ufw rules are upserted via fw(), not rebuilt after a reset on every run" {
     grep -q '^fw() {' "$DIR/run.sh"
-    grep -q 'UFW_STATE" \]\] || ufw --force reset' "$DIR/run.sh"
+    grep -q 'ufw_state" ] || ufw --force reset' "$DIR/run.sh"
     ! grep -q '^ufw --force reset' "$DIR/run.sh"
-    ! grep -qE '^\s+ufw allow ' "$DIR/run.sh"
+    # only fw() itself calls `ufw allow`
+    [ -z "$(grep -E '^\s+ufw allow ' "$DIR/run.sh" | grep -v 'ufw allow "\$@"')" ]
 }
