@@ -21,9 +21,9 @@ DIR="$REPO_ROOT/vps-rancher"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and dispatches via dispatch_action" {
+@test "defines up() and ends with . zz-step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -66,29 +66,29 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "the long waits report progress (helm install and rollout status are wrapped)" {
-    grep -q 'run_with_progress cattle-system "Rancher install"' "$DIR/run.sh"
-    grep -q 'run_with_progress cattle-system "Rancher rollout"' "$DIR/run.sh"
+    grep -q 'kube-progress cattle-system "Rancher install"' "$DIR/run.sh"
+    grep -q 'kube-progress cattle-system "Rancher rollout"' "$DIR/run.sh"
 }
 
 @test "helm does not --wait for the LoadBalancer Service: the port rebind has to happen first" {
     run awk '/helm upgrade --install rancher/ {h=1} h && /--wait/ {print "found"} /--timeout 10m/ {h=0}' "$DIR/run.sh"
     [ -z "$output" ]
     helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    patch_line=$(grep -n 'patch_service_port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    patch_line=$(grep -n 'kube-service-port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
     rollout_line=$(grep -n 'rollout status deploy/rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$helm_line" -lt "$patch_line" ]
     [ "$patch_line" -lt "$rollout_line" ]
 }
 
 @test "a failed install or rollout dumps diagnostics before exiting" {
-    [ "$(grep -c 'dump_diagnostics cattle-system' "$DIR/run.sh")" -ge 2 ]
+    [ "$(grep -c 'kube-diagnose cattle-system' "$DIR/run.sh")" -ge 2 ]
 }
 
 
 @test "an already-rebound Service is removed before helm upgrades, so ports are not merged into duplicates" {
     del_line=$(grep -n 'delete service rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
     helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    patch_line=$(grep -n 'patch_service_port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    patch_line=$(grep -n 'kube-service-port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ -n "$del_line" ]
     [ "$del_line" -lt "$helm_line" ]
     [ "$helm_line" -lt "$patch_line" ]
@@ -115,7 +115,7 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "the bitnami Helm repository is added as part of the install, before cert-manager" {
     grep -q 'helm repo add bitnami https://charts.bitnami.com/bitnami' "$DIR/run.sh"
     add_line=$(grep -n 'helm repo add bitnami' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    cm_line=$(grep -n '^    ensure_cert_manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    cm_line=$(grep -n '^    kube-cert-manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$add_line" -lt "$cm_line" ]
 }
 

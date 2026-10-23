@@ -74,4 +74,4 @@ summary() {
     fi
 }
 
-dispatch_action "$@"
+. zz-step

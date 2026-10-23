@@ -5,7 +5,7 @@
 # final connection summary. Installed and invoked as `vps-setup` - see
 # README's "Running vps-setup" section.
 #
-# What stays here: the Ubuntu/root checks, the legacy --skip-<step> /
+# What stays here: the legacy --skip-<step> /
 # --with-<step> / --only-<step> / --down-<step> / --force-down flags
 # (translated to zz-setup's -s/-w/-o/-d/-F lists), the shell-syntax settings
 # file (VPS_SETUP_ENV_FILE).
@@ -24,22 +24,9 @@ if [ -f "$env_file" ]; then
     set +a
 fi
 
-# --- helpers
-# --force: the steps that zz-setup runs fetch vps-common through zz-use's cache
-# (24h for a branch ref, one slot per repo+ref). Refreshing it here keeps the
-# helpers in step with the checkout zz-setup is about to run.
-zz-use --force "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}" zz-setup
-# shellcheck disable=SC1091
-. vps-common
-
-# -h only prints zz-setup's help, which needs neither.
-case " $* " in
-    *" -h "*) ;;
-    *)
-        require_root
-        require_ubuntu
-        ;;
-esac
+# --- zz-setup
+# The steps check what they need (root, Ubuntu) themselves, from their package.json.
+zz-use zz-setup
 
 # --- checkout
 script_dir="$(cd "$(dirname "$0")" && pwd)"

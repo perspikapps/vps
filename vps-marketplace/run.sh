@@ -50,4 +50,4 @@ summary() {
 EOF
 }
 
-dispatch_action "$@"
+. zz-step

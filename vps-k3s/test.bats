@@ -21,9 +21,9 @@ DIR="$REPO_ROOT/vps-k3s"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and dispatches via dispatch_action" {
+@test "defines up() and ends with . zz-step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
 @test "defines down()" {

@@ -64,6 +64,10 @@
         "note": "Dokploy admin UI (fixed by the installer)"
       }
     ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
     "summary": true
   }
 }

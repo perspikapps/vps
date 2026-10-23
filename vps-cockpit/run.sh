@@ -62,4 +62,4 @@ summary() {
 EOF2
 }
 
-dispatch_action "$@"
+. zz-step

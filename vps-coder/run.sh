@@ -172,12 +172,12 @@ install_devcontainer_builder() {
         'if $user == "" then [] else [{registry: $reg, username: $user, password: $tok}] end')"
     values="$(mktemp)"
     yaml-render "$HELM_DIR/devcontainer-builder-values.yaml" mapped="$mapped" registry_auth="$registry_auth" insecure_registries="$insecure_registries" >"$values"
-    run_with_progress devcontainer-builder "devcontainer-builder install" \
+    kube-progress devcontainer-builder "devcontainer-builder install" \
         helm upgrade --install devcontainer-builder "$chart" \
         --version "$version" -n devcontainer-builder --values "$values" --wait --timeout 10m || rc=$?
     rm -f "$values"
     if [ "$rc" -ne 0 ]; then
-        dump_diagnostics devcontainer-builder
+        kube-diagnose devcontainer-builder
         return "$rc"
     fi
     # workspaces pull the built images with this secret (a dummy login when the registry is anonymous)
@@ -250,11 +250,11 @@ up() {
     zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
     db_values="$(mktemp)"
     yaml-render "$HELM_DIR/postgresql-values.yaml" db_password="$db_password" db_storage="$db_storage" >"$db_values"
-    run_with_progress "$CODER_NAMESPACE" "Coder PostgreSQL" \
+    kube-progress "$CODER_NAMESPACE" "Coder PostgreSQL" \
         helm upgrade --install coder-db bitnami/postgresql -n "$CODER_NAMESPACE" --values "$db_values" --wait --timeout 10m || rc=$?
     rm -f "$db_values"
     if [ "$rc" -ne 0 ]; then
-        dump_diagnostics "$CODER_NAMESPACE"
+        kube-diagnose "$CODER_NAMESPACE"
         exit "$rc"
     fi
 
@@ -283,17 +283,17 @@ up() {
     zz-log i "[vps-setup] Installing/upgrading Coder (access URL ${access_url})..."
     rc=0
     # shellcheck disable=SC2086
-    run_with_progress "$CODER_NAMESPACE" "Coder install" \
+    kube-progress "$CODER_NAMESPACE" "Coder install" \
         helm upgrade --install coder vps-coder/coder -n "$CODER_NAMESPACE" --values "$values_file" \
         $chart_version --timeout 10m || rc=$?
     rm -f "$values_file"
     if [ "$rc" -ne 0 ]; then
-        dump_diagnostics "$CODER_NAMESPACE"
+        kube-diagnose "$CODER_NAMESPACE"
         exit "$rc"
     fi
 
-    if ! run_with_progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAMESPACE" rollout status deploy/coder --timeout=10m; then
-        dump_diagnostics "$CODER_NAMESPACE"
+    if ! kube-progress "$CODER_NAMESPACE" "Coder rollout" kubectl -n "$CODER_NAMESPACE" rollout status deploy/coder --timeout=10m; then
+        kube-diagnose "$CODER_NAMESPACE"
         zz-log e "[vps-setup] Coder did not become ready in time; re-run: sudo vps-setup --only-vps-coder" && exit 1
     fi
 
@@ -316,7 +316,7 @@ up() {
 down() {
     command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
-    helm_teardown "$CODER_NAMESPACE" coder
+    kube-teardown "$CODER_NAMESPACE" coder
     zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_DB_PASSWORD
     zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
     zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_EMAIL
@@ -353,4 +353,4 @@ if [ "${1:-}" = "bootstrap" ]; then
     exit
 fi
 
-dispatch_action "$@"
+. zz-step

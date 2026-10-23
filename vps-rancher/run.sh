@@ -1,7 +1,7 @@
 #!/bin/sh
 # Rancher on k3s. Env vars: see README.
 # A zz-setup step: configured by environment inputs (package.json config.inputs),
-# so there is no zz-args block; vps-common's dispatch_action runs up, down or summary.
+# so there is no zz-args block; zz-step runs up, down or summary.
 
 set -eu
 # Source the vps-common of this checkout (always the version of the step); a step
@@ -60,7 +60,7 @@ up() {
     helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null ||
         { zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami." && exit 1; }
 
-    ensure_cert_manager
+    kube-cert-manager
 
     kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
 
@@ -91,7 +91,7 @@ up() {
     fi
 
     # shellcheck disable=SC2086
-    run_with_progress cattle-system "Rancher install" \
+    kube-progress cattle-system "Rancher install" \
         helm upgrade --install rancher vps-rancher/rancher \
         --namespace cattle-system \
         --values "${dir}/helm/values.yaml" \
@@ -100,18 +100,18 @@ up() {
         --timeout 10m || rc=$?
     rm -f "$values_file"
     if [ "$rc" -ne 0 ]; then
-        dump_diagnostics cattle-system
+        kube-diagnose cattle-system
         exit "$rc"
     fi
 
     # --- private ports and rollout
     zz-log i "[vps-setup] Rebinding the rancher Service to ports ${http_port}/${https_port}..."
-    patch_service_port cattle-system rancher http "$http_port" || true
-    patch_service_port cattle-system rancher https "$https_port" || true
+    kube-service-port cattle-system rancher http "$http_port" || true
+    kube-service-port cattle-system rancher https "$https_port" || true
 
     zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
-    if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
-        dump_diagnostics cattle-system
+    if ! kube-progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
+        kube-diagnose cattle-system
         zz-log e "[vps-setup] Rancher did not become ready in time (see the diagnostics above); re-run: sudo vps-setup --only-vps-rancher" && exit 1
     fi
 
@@ -134,7 +134,7 @@ up() {
 down() {
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
-    helm_teardown cattle-system rancher
+    kube-teardown cattle-system rancher
     zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
     zz-log s "[vps-setup] Rancher removed."
 }
@@ -151,4 +151,4 @@ summary() {
 EOF
 }
 
-dispatch_action "$@"
+. zz-step

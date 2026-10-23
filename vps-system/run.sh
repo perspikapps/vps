@@ -62,4 +62,4 @@ EOF
     zz-log s "[vps-setup] Base system is up to date."
 }
 
-dispatch_action "$@"
+. zz-step

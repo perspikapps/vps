@@ -40,6 +40,10 @@
     },
     "order": 1.5,
     "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
     "summary": true
   }
 }

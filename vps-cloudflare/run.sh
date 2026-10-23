@@ -147,4 +147,4 @@ if [ "${1:-}" = "verify" ]; then
     exit
 fi
 
-dispatch_action "$@"
+. zz-step

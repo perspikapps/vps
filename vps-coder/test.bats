@@ -15,10 +15,10 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
-@test "defines up(), down() and dispatches via dispatch_action" {
+@test "defines up(), down() and ends with . zz-step" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
 @test "follows the Coder Rancher guide: bitnami postgres, coder-db-url secret, upstream chart" {
@@ -46,7 +46,7 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'wildcardHost' "$DIR/helm/coder-values-wildcard.yaml"
     grep -q 'http://coder.${wildcard}' "$DIR/run.sh"
     grep -q '\*\.${wildcard}' "$DIR/run.sh"
-    ! grep -q 'patch_service_port' "$DIR/run.sh"
+    ! grep -q 'kube-service-port' "$DIR/run.sh"
 }
 
 

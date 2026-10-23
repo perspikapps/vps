@@ -32,6 +32,10 @@
     },
     "order": 7,
     "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
     "summary": true
   }
 }

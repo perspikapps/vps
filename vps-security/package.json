@@ -55,6 +55,10 @@
         "note": "SSH"
       }
     ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
     "summary": true
   }
 }

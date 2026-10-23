@@ -16,10 +16,10 @@ DIR="$REPO_ROOT/vps-cloudflare"
     grep -q '^\. "\$common"$' "$DIR/run.sh"
 }
 
-@test "defines up(), down() and dispatches via dispatch_action" {
+@test "defines up(), down() and ends with . zz-step" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    grep -q 'dispatch_action "\$@"' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
 @test "package.json bin name is not the bare 'cloudflared'" {

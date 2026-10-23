@@ -26,9 +26,9 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh fetches vps-common and zz-setup with zz-use, and sources vps-common" {
-    grep -q 'zz-use --force "perspikapps/vps/vps-common@.*" zz-setup' "$DIR/run.sh"
-    grep -q '^\. vps-common$' "$DIR/run.sh"
+@test "run.sh fetches zz-setup with zz-use and leaves the host checks to the steps" {
+    grep -q '^zz-use zz-setup$' "$DIR/run.sh"
+    ! grep -q '^\. vps-common\|require_root\|require_ubuntu' "$DIR/run.sh"
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -72,7 +72,3 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}

@@ -99,7 +99,7 @@ up() {
         kubectl -n kube-system get deploy traefik >/dev/null 2>&1 && break
         sleep 5
     done
-    run_with_progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
+    kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
         zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
     reapply_private_guard
@@ -136,4 +136,4 @@ summary() {
 EOF
 }
 
-dispatch_action "$@"
+. zz-step

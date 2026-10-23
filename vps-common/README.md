@@ -8,19 +8,19 @@ through [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-
 `package.json` `config.ports`; an environment variable named after the port, e.g.
 `COCKPIT_HTTP_PORT`, overrides it), `feature_dirs` (the steps, through
 `zz-workspaces`), the private-network and address helpers (`private_interface`,
-`private_address`, `summary_host`, `public_ip`, `wildcard_domain`),
-`reapply_private_guard`, `dispatch_action` (the `up`/`down`/`summary` plumbing every
-feature's `run.sh` ends with; `up`/`down` require root), `require_root`/`require_ubuntu`
-(used by `vps-setup`), and the Kubernetes helpers (`run_with_progress`,
-`dump_diagnostics`, `ensure_cert_manager`, `helm_teardown`, `patch_service_port`).
+`private_address`, `summary_host`, `public_ip`, `wildcard_domain`) and
+`reapply_private_guard`.
 
 Steps call the `zz-*` scripts directly, with no wrapper here: `zz-install -m`/`-r` for
 system packages, `zz-install -u <url> -x <shell> <name>` to fetch and run an installer
 script (curl retries), `zz-persist -f "$VPS_SECRETS_FILE"` (`-s -g 24` to create a
 credential, `-r` to read, `-u` to remove) for credentials kept as KEY=VALUE lines in the
 owner-only `/root/.vps-secrets.env`, `zz-persist -l -f <file> <line>` to ensure a line,
-`zz-log s` for success lines and `yaml-render` for chart values. A failing step is
-reported by `zz-setup` itself (script and exit status).
+`zz-log s` for success lines, `yaml-render` for chart values, `kube-progress` /
+`kube-diagnose` / `kube-teardown` / `kube-service-port` / `kube-cert-manager` for
+Kubernetes, and `. zz-step` to end a step (it runs `up`/`down`/`summary` after checking
+the step's `config.requires`: root, Ubuntu). A failing step is reported by `zz-setup`
+itself (script and exit status).
 
 Not an installable step itself — excluded from `vps-setup`'s feature
 discovery. A caller sources it like any other repo script, via `zz-use`:
