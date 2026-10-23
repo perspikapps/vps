@@ -85,6 +85,12 @@
       "skillPath": "skills/caveman-stats/SKILL.md",
       "computedHash": "cc9fcd21f2a30cff5596b3cbb197fe0f4b1b30b58084a864350853c217ad301a"
     },
+    "harness": {
+      "source": "tomgrv/devcontainer-features",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/harness/SKILL.md",
+      "computedHash": "611817a4992972fb5269521a949697c02d0f3641a23cb9052d75bdc558da08b3"
+    },
     "investigate-first": {
       "source": "JuliusBrussee/caveman",
       "sourceType": "github",
