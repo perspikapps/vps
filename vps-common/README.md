@@ -3,7 +3,7 @@
 # vps-common
 
 Shared POSIX sh helpers sourced by every feature's `run.sh` (and by
-`vps-setup/run.sh`): the `ok` helper and leveled logging through
+`vps-setup/run.sh`): leveled logging through
 [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-log`,
 an exit trap that reports a failing step's status, `retry`, `command_exists`,
 `net_port`/`all_network_ports` (reading each feature's own
