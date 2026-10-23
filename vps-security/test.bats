@@ -6,8 +6,8 @@
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 DIR="$REPO_ROOT/vps-security"
 
-@test "run.sh parses as bash" {
-    run bash -n "$DIR/run.sh"
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -47,7 +47,7 @@ DIR="$REPO_ROOT/vps-security"
 
 
 @test "run.sh opens private-access ports on the interface vps-common reports, not a hard-coded one" {
-    grep -q 'PRIVATE_IFACE="\$(private_interface)"' "$DIR/run.sh"
+    grep -q 'private_iface="\$(private_interface)"' "$DIR/run.sh"
     ! grep -q 'tailscale0' "$DIR/run.sh"
     ! grep -q '^    tailscale)' "$DIR/run.sh"
 }
@@ -97,19 +97,20 @@ guard_setup() {
 }
 
 @test "run.sh feeds the guard every access:private port of every feature, and down removes it" {
-    grep -q 'install_private_guard "\${PRIVATE_IFACE:--}" "\$(all_network_ports | awk' "$DIR/run.sh"
+    grep -q 'install_private_guard "\${private_iface:--}" "\$(all_network_ports | awk' "$DIR/run.sh"
     grep -q '"\$GUARD_BIN" del -' "$DIR/run.sh"
 }
 
 @test "private ports are opened only to the private address, with no blanket allow on the interface" {
-    grep -q 'PRIVATE_IP="\$(private_address)"' "$DIR/run.sh"
-    grep -q 'to "\$PRIVATE_IP" port' "$DIR/run.sh"
-    ! grep -q 'ufw allow in on "\$PRIVATE_IFACE" comment' "$DIR/run.sh"
+    grep -q 'private_ip="\$(private_address)"' "$DIR/run.sh"
+    grep -q 'to "\$private_ip" port' "$DIR/run.sh"
+    ! grep -q 'ufw allow in on "\$private_iface" comment' "$DIR/run.sh"
 }
 
 @test "ufw rules are upserted via fw(), not rebuilt after a reset on every run" {
     grep -q '^fw() {' "$DIR/run.sh"
-    grep -q 'UFW_STATE" \]\] || ufw --force reset' "$DIR/run.sh"
+    grep -q 'ufw_state" ] || ufw --force reset' "$DIR/run.sh"
     ! grep -q '^ufw --force reset' "$DIR/run.sh"
-    ! grep -qE '^\s+ufw allow ' "$DIR/run.sh"
+    # only fw() itself calls `ufw allow`
+    [ -z "$(grep -E '^\s+ufw allow ' "$DIR/run.sh" | grep -v 'ufw allow "\$@"')" ]
 }
