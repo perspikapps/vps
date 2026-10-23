@@ -37,7 +37,7 @@ up() {
     else
         zz-log i "[vps-setup] Installing cloudflared from the Cloudflare apt repo..."
         install -m 0755 -d /usr/share/keyrings
-        retry curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
+        curl -fsSL --retry 5 --retry-delay 3 --retry-connrefused https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
         echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' >/etc/apt/sources.list.d/cloudflared.list
         # zz-install would skip the update (the index is under an hour old), but this repo is new
         apt-get update -y

@@ -32,7 +32,7 @@ up() {
         INSTALL_K3S_EXEC="server ${K3S_EXTRA_ARGS:-}"
         export INSTALL_K3S_EXEC
         [ -z "${K3S_VERSION:-}" ] || export INSTALL_K3S_VERSION="$K3S_VERSION"
-        download_run https://get.k3s.io sh
+        zz-install -u https://get.k3s.io -x sh k3s
     fi
 
     systemctl enable --now k3s
@@ -52,7 +52,7 @@ up() {
 
     mkdir -p /etc/rancher/k3s
     chmod 644 "$kubeconfig_path"
-    ensure_line "export KUBECONFIG=${kubeconfig_path}" /etc/profile.d/k3s-kubeconfig.sh
+    zz-persist -l -f /etc/profile.d/k3s-kubeconfig.sh "export KUBECONFIG=${kubeconfig_path}"
     chmod 644 /etc/profile.d/k3s-kubeconfig.sh
     export KUBECONFIG="$kubeconfig_path"
 

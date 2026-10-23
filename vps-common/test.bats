@@ -2,7 +2,7 @@
 # Moved from ../tests/ to live alongside vps-common/run.sh, matching every
 # other folder's <name>/test.bats convention (see README's "Tests" section).
 # Covers vps-common/run.sh's pure logic (net_port/all_network_ports/feature_dirs/
-# feature_package_json/dispatch_action) against a small fixture tree, since
+# dispatch_action) against a small fixture tree, since
 # the rest of vps-common/run.sh (apt helpers, cert-manager, Helm teardown) needs
 # a live root/Ubuntu/k3s environment this suite doesn't have.
 
@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 setup() {
     work="$BATS_TEST_TMPDIR"
     mkdir -p "$work/alpha" "$work/beta"
-    # feature_package_json/all_network_ports only look at directories with a
+    # feature_dirs/all_network_ports only look at directories with a
     # run.sh alongside package.json (skips node_modules/*) - fixtures need
     # one too, even though nothing here executes it.
     : >"$work/alpha/run.sh"
@@ -39,14 +39,14 @@ _load_common() {
     VPS_SETUP_ROOT="$work"
 }
 
-@test "net_port: resolves another feature's port by name" {
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_SETUP_ROOT='$work'; net_port alpha_http alpha"
+@test "net_port: resolves a port by name from the calling step's package.json" {
+    run bash -c "cd '$work/alpha'; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; net_port alpha_http"
     [ "$status" -eq 0 ]
     [ "$output" = "1111" ]
 }
 
 @test "net_port: an environment variable named after the port overrides package.json" {
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; VPS_SETUP_ROOT='$work'; ALPHA_HTTP_PORT=4242 net_port alpha_http alpha"
+    run bash -c "cd '$work/alpha'; source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; ALPHA_HTTP_PORT=4242 net_port alpha_http"
     [ "$status" -eq 0 ]
     [ "$output" = "4242" ]
 }
@@ -89,15 +89,6 @@ _load_common() {
     [ -z "$output" ]
 }
 
-@test "download_run: fetches the script to a private temp file, runs it with the shell, removes it" {
-    bin=$(mktemp -d)
-    printf '#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && { shift; printf "echo ran-installer \\$0\\n" >"$1"; }; shift; done\n' >"$bin/curl"
-    chmod +x "$bin/curl"
-    run env PATH="$bin:$PATH" bash -c "source '$REPO_ROOT/vps-common/run.sh' 2>/dev/null; download_run https://example.test/install.sh bash"
-    rm -rf "$bin"
-    [ "$status" -eq 0 ]
-    [[ "$output" == "ran-installer /tmp/"* ]]
-}
 
 @test "all_network_ports: aggregates every feature's ports as TSV" {
     run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; all_network_ports"
@@ -116,10 +107,6 @@ EOF
     [[ "$output" != *"should_not_appear"* ]]
 }
 
-@test "feature_package_json: errors on an unknown feature name" {
-    run bash -c "source '$REPO_ROOT/vps-common/run.sh'; VPS_SETUP_ROOT='$work'; feature_package_json nonexistent"
-    [ "$status" -ne 0 ]
-}
 
 @test "dispatch_action: defaults to up(), calls down() when defined" {
     run bash -c "

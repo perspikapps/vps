@@ -46,7 +46,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     done
 }
 
-@test "installer scripts are fetched with download_run, not through a predictable /tmp path" {
+@test "installer scripts are fetched with zz-install -x, not through a predictable /tmp path" {
     ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/vps-*/run.sh
 }
 

@@ -47,7 +47,7 @@ up() {
             admin_home="$(getent passwd "$VPS_ADMIN_USER" | cut -d: -f6)"
             install -d -m 700 -o "$VPS_ADMIN_USER" -g "$VPS_ADMIN_USER" "$admin_home/.ssh"
             touch "$admin_home/.ssh/authorized_keys"
-            ensure_line "$VPS_ADMIN_SSH_KEY" "$admin_home/.ssh/authorized_keys"
+            zz-persist -l -f "$admin_home/.ssh/authorized_keys" "$VPS_ADMIN_SSH_KEY"
             chmod 600 "$admin_home/.ssh/authorized_keys"
             chown "$VPS_ADMIN_USER":"$VPS_ADMIN_USER" "$admin_home/.ssh/authorized_keys"
         fi
@@ -56,7 +56,7 @@ up() {
     if [ -n "${VPS_ADMIN_SSH_KEY:-}" ]; then
         install -d -m 700 /root/.ssh
         touch /root/.ssh/authorized_keys
-        ensure_line "$VPS_ADMIN_SSH_KEY" /root/.ssh/authorized_keys
+        zz-persist -l -f /root/.ssh/authorized_keys "$VPS_ADMIN_SSH_KEY"
         chmod 600 /root/.ssh/authorized_keys
     fi
 

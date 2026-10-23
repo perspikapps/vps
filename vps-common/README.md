@@ -2,24 +2,25 @@
 
 # vps-common
 
-Shared POSIX sh helpers sourced by every feature's `run.sh` (and by
-`vps-setup/run.sh`): leveled logging through
-[`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-log`,
-an exit trap that reports a failing step's status, `retry`, `command_exists`,
-`net_port`/`all_network_ports` (reading each feature's own
-`package.json` `config.ports`; an environment variable named after the port,
-e.g. `COCKPIT_HTTP_PORT`, overrides it), `feature_dirs` (the steps, through
-`zz-workspaces`), `download_run` (fetch and run an installer script via a private
-temp file), `summary_host`, `cockpit_refresh`, `dispatch_action` (the
-`up`/`down`/`summary` plumbing every feature's `run.sh` ends with; `up`/`down`
-require root, `summary` is the step's optional block of the final connection
-summary), `helm_teardown`, `patch_service_port`, and `ensure_cert_manager`.
+Shared POSIX sh helpers sourced by every feature's `run.sh`: leveled logging
+through [`tomgrv/scripts`](https://github.com/tomgrv/scripts)'s `zz-colors`/`zz-log`,
+`command_exists`, `net_port`/`all_network_ports` (each feature's own
+`package.json` `config.ports`; an environment variable named after the port, e.g.
+`COCKPIT_HTTP_PORT`, overrides it), `feature_dirs` (the steps, through
+`zz-workspaces`), the private-network and address helpers (`private_interface`,
+`private_address`, `summary_host`, `public_ip`, `wildcard_domain`),
+`reapply_private_guard`, `dispatch_action` (the `up`/`down`/`summary` plumbing every
+feature's `run.sh` ends with; `up`/`down` require root), `require_root`/`require_ubuntu`
+(used by `vps-setup`), and the Kubernetes helpers (`run_with_progress`,
+`dump_diagnostics`, `ensure_cert_manager`, `helm_teardown`, `patch_service_port`).
 
 Steps call the `zz-*` scripts directly, with no wrapper here: `zz-install -m`/`-r` for
-system packages, `zz-persist -f "$VPS_SECRETS_FILE"` (`-s -g 24` to create a
-credential, `-r` to read, `-u` to remove) for credentials kept as KEY=VALUE lines in
-the owner-only `/root/.vps-secrets.env`, `zz-log s` for success lines and
-`yaml-render` for chart values.
+system packages, `zz-install -u <url> -x <shell> <name>` to fetch and run an installer
+script (curl retries), `zz-persist -f "$VPS_SECRETS_FILE"` (`-s -g 24` to create a
+credential, `-r` to read, `-u` to remove) for credentials kept as KEY=VALUE lines in the
+owner-only `/root/.vps-secrets.env`, `zz-persist -l -f <file> <line>` to ensure a line,
+`zz-log s` for success lines and `yaml-render` for chart values. A failing step is
+reported by `zz-setup` itself (script and exit status).
 
 Not an installable step itself — excluded from `vps-setup`'s feature
 discovery. A caller sources it like any other repo script, via `zz-use`:

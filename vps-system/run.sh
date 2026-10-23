@@ -37,7 +37,7 @@ up() {
 
     zz-log i "[vps-setup] Enabling unattended security upgrades..."
     dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
-    ensure_line 'Unattended-Upgrade::Automatic-Reboot "false";' /etc/apt/apt.conf.d/50unattended-upgrades-local
+    zz-persist -l -f /etc/apt/apt.conf.d/50unattended-upgrades-local 'Unattended-Upgrade::Automatic-Reboot "false";'
     cat >/etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";

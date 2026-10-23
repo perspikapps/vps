@@ -35,8 +35,8 @@ DIR="$REPO_ROOT/vps-dokploy"
     grep -q 'Swarm.LocalNodeState' "$DIR/run.sh"
 }
 
-@test "the installer is fetched with download_run, not piped from curl" {
-    grep -q 'download_run "\$DOKPLOY_INSTALL_URL" bash' "$DIR/run.sh"
+@test "the installer is fetched with zz-install -u -x, not piped from curl" {
+    grep -q 'zz-install -u "\$DOKPLOY_INSTALL_URL" -x bash' "$DIR/run.sh"
     ! grep -qE 'curl[^#]*\| *(ba)?sh' "$DIR/run.sh"
 }
 

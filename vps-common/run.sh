@@ -10,16 +10,6 @@ zz-use zz-colors zz-log yaml-render zz-install zz-workspaces zz-persist
 # shellcheck disable=SC1091
 . zz-colors
 
-# Reports an unguarded failure under set -e (which otherwise fails silently).
-# POSIX sh has no ERR trap, so this runs on exit; a step that logged its own
-# error and then exits is reported once more with its status.
-report_exit() {
-    local status=$?
-
-    [ "$status" -eq 0 ] || zz-log e "[vps-setup] ERROR: exited with status ${status} (${0})"
-}
-trap report_exit EXIT
-
 require_root() {
     if [ "$(id -u)" -ne 0 ]; then
         zz-log e "[vps-setup] This script must be run as root (use sudo)."
@@ -43,31 +33,11 @@ require_ubuntu() {
 
 export DEBIAN_FRONTEND=noninteractive
 
-# Cockpit picks up new modules / socket settings on a socket restart.
-cockpit_refresh() {
-    systemctl try-restart cockpit.socket 2>/dev/null || true
-}
-
 # Ports published by k3s (ServiceLB) or Docker are DNAT-ed past ufw; vps-security's
 # vps-private-ports-guard unit re-inserts its FORWARD rule ahead of theirs. Call
 # once k3s or Docker is up (best effort: the unit exists only after vps-security).
 reapply_private_guard() {
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
-}
-
-retry() {
-    local attempts=5 delay=3 n=1
-
-    until "$@"; do
-        if [ "$n" -ge "$attempts" ]; then
-            zz-log e "[vps-setup] Command failed after ${attempts} attempts: $*"
-            exit 1
-        fi
-        zz-log w "[vps-setup] Command failed (attempt ${n}/${attempts}), retrying in ${delay}s: $*"
-        sleep "$delay"
-        n=$((n + 1))
-        delay=$((delay * 2))
-    done
 }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
@@ -93,22 +63,11 @@ feature_dirs() {
     zz-workspaces "$root" | cut -d "$tab" -f3 | sed "s|^|${root}/|"
 }
 
-# Path of the package.json of feature $1 (the name without the @tomgrv/ scope).
-feature_package_json() {
-    local feature="$1" d
-
-    d="$(zz-workspaces "$VPS_SETUP_ROOT" | awk -F "$(printf '\037')" -v n="$feature" '$2 == n { print $3; exit }')"
-    if [ -z "$d" ]; then
-        zz-log e "[vps-setup] Unknown feature '${feature}' (no installable step named ${feature})." && exit 1
-    fi
-    printf '%s' "${VPS_SETUP_ROOT}/${d}/package.json"
-}
-
-# Port <name> of <feature> (default: the calling step's own package.json). An
-# environment variable named after the port (cockpit_http -> COCKPIT_HTTP_PORT)
-# overrides the package.json default, for every caller alike.
+# Port <name> of the calling step (its own package.json). zz-setup exports every
+# declared port as <NAME>_PORT (config.ports are inputs); the variable also wins
+# when a step runs on its own.
 net_port() {
-    local name="$1" feature="${2:-}" pkg override value
+    local name="$1" override value
 
     override="$(printf '%s' "$name" | to_upper)_PORT"
     value="$(get_env "$override")"
@@ -116,12 +75,7 @@ net_port() {
         printf '%s\n' "$value"
         return 0
     fi
-    if [ -n "$feature" ]; then
-        pkg="$(feature_package_json "$feature")"
-    else
-        pkg="$(cd "$(dirname "$0")" && pwd)/package.json"
-    fi
-    jq -r --arg name "$name" '(.config.ports // [])[] | select(.name == $name) | .port' "$pkg"
+    jq -r --arg name "$name" '(.config.ports // [])[] | select(.name == $name) | .port' "$(cd "$(dirname "$0")" && pwd)/package.json"
 }
 
 # Every feature's ports as TSV (name, port, access, note); the port honours
@@ -173,18 +127,14 @@ summary_host() {
     printf '%s' "${ip:-<private-ip>}"
 }
 
-# Whether the IPv4 address on stdin is private, loopback, link-local or CGNAT.
-is_private_ip() {
-    grep -Eq '^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)'
-}
-
 # Public IPv4 of this host: the default-route source address, or - behind NAT
 # (a private address, as on some clouds) - what an external echo service sees.
 public_ip() {
     local ip
 
     ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
-    if [ -z "$ip" ] || printf '%s\n' "$ip" | is_private_ip; then
+    # empty, or private / loopback / link-local / CGNAT: behind NAT
+    if [ -z "$ip" ] || printf '%s\n' "$ip" | grep -Eq '^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)'; then
         ip="$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || true)"
     fi
     printf '%s' "$ip"
@@ -214,24 +164,6 @@ wildcard_domain() {
 # password) live as KEY=VALUE lines in this owner-only env file; the steps use
 # zz-persist on it directly (-s -g to create, -r to read, -u to remove).
 VPS_SECRETS_FILE="${VPS_SECRETS_FILE:-/root/.vps-secrets.env}"
-
-# Fetch an installer script and run it with <shell> (default sh), via a
-# private temp file instead of a predictable /tmp path.
-download_run() {
-    local url="$1" shell="${2:-sh}" f rc=0
-
-    f="$(mktemp)"
-    retry curl -fsSL "$url" -o "$f"
-    "$shell" "$f" || rc=$?
-    rm -f "$f"
-    return "$rc"
-}
-
-ensure_line() {
-    local line="$1" file="$2"
-
-    grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >>"$file"
-}
 
 # One status line for a namespace: elapsed time, pods ready/total, and what the
 # others are doing (ContainerCreating, ImagePullBackOff...).

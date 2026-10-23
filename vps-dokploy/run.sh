@@ -47,7 +47,7 @@ up() {
         export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${DOCKER_SWARM_INIT_ARGS:-}"
         zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${ADVERTISE_ADDR}); it installs Docker if needed..."
         # The official installer needs bash.
-        download_run "$DOKPLOY_INSTALL_URL" bash
+        zz-install -u "$DOKPLOY_INSTALL_URL" -x bash dokploy
         is_dokploy_installed || { zz-log e "[vps-setup] The Dokploy installer finished but the dokploy service/Traefik are not there." && exit 1; }
     fi
 

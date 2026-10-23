@@ -18,7 +18,7 @@ up() {
     else
         zz-log i "[vps-setup] Installing Tailscale from the official repo..."
         # The official installer needs bash.
-        download_run https://tailscale.com/install.sh bash
+        zz-install -u https://tailscale.com/install.sh -x bash tailscale
     fi
 
     zz-log i "[vps-setup] Enabling tailscaled as a systemd service..."
