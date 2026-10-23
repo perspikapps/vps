@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.6.0 (2026-10-23)
+
+*Commits from: v4.5.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.5.0' into develop
+### 📦 vps-network changes
+
+#### Other changes
+
+- ♻️ list steps with ws-list instead of zz-workspaces (#59)
+
 ## 4.5.0 (2026-10-23)
 
 *Commits from: v4.4.0..HEAD*
@@ -436,6 +451,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
