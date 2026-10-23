@@ -40,6 +40,11 @@
         "required": false,
         "default": ""
       },
+      "RANCHER_INGRESS": {
+        "description": "Serve the dashboard publicly through Traefik; false keeps Rancher private-only",
+        "required": false,
+        "default": "true"
+      },
       "RANCHER_INGRESS_HOST": {
         "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<WILDCARD_DOMAIN>, else rancher.<public-ip>.nip.io)",
         "required": false,

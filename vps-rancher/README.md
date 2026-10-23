@@ -26,6 +26,7 @@ sudo bash vps-rancher/run.sh down
 The dashboard is also served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
 the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
 `WILDCARD_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
+Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
 This makes the admin UI publicly reachable (the `RANCHER_HTTP(S)_PORT` ports stay private-only),
 so change the bootstrap password on first login.
 
@@ -90,8 +91,9 @@ sudo vps-setup --down-vps-rancher
 | `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
 | `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
+| `RANCHER_INGRESS` | no | `true` | `false` disables the public Traefik route |
 | `RANCHER_INGRESS_HOST` | no | `rancher.<wildcard domain>` | Public host Traefik serves the dashboard on |
-| `RANCHER_HOSTNAME` | no | _(unset)_ | FQDN/IP used in Rancher's self-signed cert |
+| `RANCHER_HOSTNAME` | no | public ingress host, else private address | Rancher server URL host / self-signed cert name |
 | `RANCHER_HTTPS_PORT` | no | `7083` | Rancher HTTPS port |
 | `RANCHER_HTTP_PORT` | no | `7080` | Rancher HTTP port |
 

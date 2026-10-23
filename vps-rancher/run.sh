@@ -20,8 +20,17 @@ command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.s
 
 RANCHER_HTTP_PORT="$(net_port rancher_http)"
 RANCHER_HTTPS_PORT="$(net_port rancher_https)"
-# Rancher's ports are private-only (ufw): default to the private address users connect to.
-RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(private_address)}"
+# Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
+# RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
+RANCHER_INGRESS="${RANCHER_INGRESS:-true}"
+RANCHER_INGRESS_HOST_OVERRIDE="${RANCHER_INGRESS_HOST:-}"
+RANCHER_INGRESS_HOST=""
+if [[ "$RANCHER_INGRESS" == "true" ]]; then
+  RANCHER_INGRESS_HOST="${RANCHER_INGRESS_HOST_OVERRIDE:-rancher.$(wildcard_domain)}"
+  [[ "$RANCHER_INGRESS_HOST" != "rancher." ]] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN."; exit 1; }
+fi
+# Rancher's server URL follows the public host; without one, the private address.
+RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-${RANCHER_INGRESS_HOST:-$(private_address)}}"
 RANCHER_HOSTNAME="${RANCHER_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
 
 RANCHER_BOOTSTRAP_PASSWORD="$(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password)"
@@ -108,12 +117,11 @@ if ! run_with_progress cattle-system "Rancher rollout" kubectl -n cattle-system 
   exit 1
 fi
 
-# Public dashboard through k3s's Traefik at rancher.<wildcard domain> (same domain
-# source as Coder). The backend is the Service's "http" port by name, so it
-# survives the private-port rebind above; Traefik terminates TLS (Let's Encrypt)
-# and sends X-Forwarded-Proto, which keeps Rancher from redirecting to https again.
-RANCHER_INGRESS_HOST="${RANCHER_INGRESS_HOST:-rancher.$(wildcard_domain)}"
-[[ "$RANCHER_INGRESS_HOST" != "rancher." ]] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN."; exit 1; }
+# Public dashboard through k3s's Traefik. The backend is the Service's "http" port
+# by name, so it survives the private-port rebind above; Traefik terminates TLS
+# (Let's Encrypt) and sends X-Forwarded-Proto, which keeps Rancher from
+# redirecting to https again.
+if [[ -n "$RANCHER_INGRESS_HOST" ]]; then
 zz-log i "[vps-setup] Exposing Rancher through Traefik at ${RANCHER_INGRESS_HOST}..."
 kubectl apply -f - <<EOF2
 apiVersion: networking.k8s.io/v1
@@ -140,11 +148,15 @@ spec:
                 port:
                   name: http
 EOF2
+else
+  kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
+fi
 
 reapply_private_guard
 
 ok "Rancher installed."
-ok "UI: https://${RANCHER_INGRESS_HOST} (via Traefik, public); private: https://${RANCHER_HOSTNAME}:${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
+[[ -z "$RANCHER_INGRESS_HOST" ]] || ok "UI: https://${RANCHER_INGRESS_HOST} (via Traefik, public)"
+ok "UI (private): https://$(private_address):${RANCHER_HTTPS_PORT} (also plain-port ${RANCHER_HTTP_PORT})"
 ok "Bootstrap password saved to ${VPS_SECRETS_FILE}: ${RANCHER_BOOTSTRAP_PASSWORD}"
 }
 
@@ -158,8 +170,8 @@ down() {
 
 summary() {
   cat <<EOF
- Rancher:             https://${RANCHER_INGRESS_HOST:-rancher.$(wildcard_domain)} (through Traefik - public)
-                       private: https://${RANCHER_HOSTNAME:-$(summary_host)}:$(net_port rancher_https)
+ Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo '(no public route)')
+                       private: https://$(summary_host):$(net_port rancher_https)
                        (also on plain port $(net_port rancher_http))
                        user:     admin
                        password: $(vps_secret RANCHER_BOOTSTRAP_PASSWORD /root/.rancher-bootstrap-password | grep . || echo 'not set - run vps-rancher/run.sh')
