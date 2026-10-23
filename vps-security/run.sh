@@ -2,15 +2,12 @@
 # Admin user, SSH hardening, ufw, fail2ban. Env vars: see README.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+export DEBIAN_FRONTEND=noninteractive
+zz-use zz-colors zz-log zz-persist zz-install
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 GUARD_BIN=/usr/local/sbin/vps-private-ports-guard
 GUARD_UNIT=/etc/systemd/system/vps-private-ports-guard.service
@@ -29,7 +26,7 @@ up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
     local name port access note tab spec private_iface private_ip
 
-    ssh_port="$(net_port ssh)"
+    ssh_port="$("$vps_network" port ssh)"
 
     zz-log i "[vps-setup] Installing ufw and fail2ban..."
     zz-install -m  ufw fail2ban
@@ -121,8 +118,8 @@ EOF
     ufw default deny incoming
     ufw default allow outgoing
 
-    private_iface="$(private_interface)"
-    private_ip="$(private_address)"
+    private_iface="$("$vps_network" private-interface)"
+    private_ip="$("$vps_network" private-address)"
     if [ -z "$private_iface" ]; then
         zz-log w "[vps-setup] No private interface (VPS_PRIVATE_INTERFACE unset, and no step persisted one): private-access ports stay closed."
     elif [ -z "$private_ip" ]; then
@@ -143,7 +140,7 @@ EOF
                 ;;
         esac
     done <<EOF
-$(all_network_ports)
+$("$vps_network" ports)
 EOF
 
     if [ -f "$ufw_state" ]; then
@@ -157,7 +154,7 @@ EOF
     ufw --force enable
     zz-log s "[vps-setup] ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
 
-    install_private_guard "${private_iface:--}" "$(all_network_ports | awk -F'\t' '$3 == "private" { print $2 }')"
+    install_private_guard "${private_iface:--}" "$("$vps_network" ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
 
 # ufw only filters INPUT. Ports published by k3s's ServiceLB or by Docker are
@@ -166,7 +163,7 @@ EOF
 # interface. This drops DNAT-ed connections to the private ports arriving on the
 # default-route interface (unless that is the private one). FORWARD position 1,
 # re-inserted on every run: k3s and Docker must be (re)started before the rule
-# is final, so their steps call reapply_private_guard once they are up.
+# is final, so their steps call "$vps_network" reapply-guard once they are up.
 install_private_guard() {
     local private="$1" ports="$2"
 
@@ -247,9 +244,7 @@ summary() {
  Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
-                       the private interface ($(private_interface || true)) - connect
+                       the private interface ($("$vps_network" private-interface || true)) - connect
                        to that network first.
 EOF
 }
-
-. zz-step

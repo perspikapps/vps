@@ -11,9 +11,9 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. "\$common"$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -21,9 +21,11 @@ DIR="$REPO_ROOT/vps-rancher"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and ends with . zz-step" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^\. zz-step$' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -40,10 +42,6 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 @test "package.json depends on @tomgrv/vps-k3s" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-k3s'] === '*' ? 0 : 1)"
@@ -115,12 +113,12 @@ DIR="$REPO_ROOT/vps-rancher"
 @test "the bitnami Helm repository is added as part of the install, before cert-manager" {
     grep -q 'helm repo add bitnami https://charts.bitnami.com/bitnami' "$DIR/run.sh"
     add_line=$(grep -n 'helm repo add bitnami' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    cm_line=$(grep -n '^    kube-cert-manager' "$DIR/run.sh" | head -1 | cut -d: -f1)
+    cm_line=$(grep -n '^    "\$vps_cert_manager"' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$add_line" -lt "$cm_line" ]
 }
 
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
-    grep -q 'rancher.\$(wildcard_domain)' "$DIR/run.sh"
+    grep -q 'rancher.\$("\$vps_network" wildcard-domain)' "$DIR/run.sh"
     grep -q 'RANCHER_INGRESS:-true' "$DIR/run.sh"
     grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
     grep -q 'name: http$' "$DIR/helm/ingress.yaml"

@@ -1,42 +1,40 @@
 #!/bin/sh
 # Rancher on k3s. Env vars: see README.
 # A zz-setup step: configured by environment inputs (package.json config.inputs),
-# so there is no zz-args block; zz-step runs up, down or summary.
+# so there is no zz-args block; zz-setup sources this file (config.functions) and calls
+# up(), down() or summary().
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown kube-service-port
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
+vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
 
 up() {
     local http_port https_port ingress_host host password values_file chart_version dir rc=0
 
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     dir="$(cd "$(dirname "$0")" && pwd)"
-    command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
-    command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first." && exit 1; }
+    command -v kubectl >/dev/null 2>&1 || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
+    command -v helm >/dev/null 2>&1 || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first." && exit 1; }
 
     # --- parameters: ports, public dashboard host, server URL, bootstrap password
-    http_port="$(net_port rancher_http)"
-    https_port="$(net_port rancher_https)"
+    http_port="$("$vps_network" port rancher_http)"
+    https_port="$("$vps_network" port rancher_https)"
     # Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
     # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
     ingress_host=""
     if [ "${RANCHER_INGRESS:-true}" = "true" ]; then
-        ingress_host="${RANCHER_INGRESS_HOST:-rancher.$(wildcard_domain)}"
+        ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" wildcard-domain)}"
         case "$ingress_host" in
             *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
         esac
         [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN." && exit 1; }
     fi
     # Rancher's server URL follows the public host; without one, the private address.
-    host="${RANCHER_HOSTNAME:-${ingress_host:-$(private_address)}}"
+    host="${RANCHER_HOSTNAME:-${ingress_host:-$("$vps_network" private-address)}}"
     host="${host:-$(hostname -I | awk '{print $1}')}"
 
     password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
@@ -60,7 +58,7 @@ up() {
     helm repo add bitnami https://charts.bitnami.com/bitnami --force-update >/dev/null ||
         { zz-log e "[vps-setup] Could not add the Helm repository https://charts.bitnami.com/bitnami." && exit 1; }
 
-    kube-cert-manager
+    "$vps_cert_manager"
 
     kubectl create namespace cattle-system --dry-run=client -o yaml | kubectl apply -f -
 
@@ -123,17 +121,17 @@ up() {
         kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
     fi
 
-    reapply_private_guard
+    "$vps_network" reapply-guard
 
     zz-log s "[vps-setup] Rancher installed."
     [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, public)"
-    zz-log s "[vps-setup] UI (private): https://$(summary_host):${https_port} (also plain-port ${http_port})"
+    zz-log s "[vps-setup] UI (private): https://$("$vps_network" summary-host):${https_port} (also plain-port ${http_port})"
     zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
 
 down() {
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
-    command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
+    command -v kubectl >/dev/null 2>&1 || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     kube-teardown cattle-system rancher
     zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
     zz-log s "[vps-setup] Rancher removed."
@@ -142,13 +140,11 @@ down() {
 summary() {
     cat <<EOF
  Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo '(no public route)')
-                       private: https://$(summary_host):$(net_port rancher_https)
-                       (also on plain port $(net_port rancher_http))
+                       private: https://$("$vps_network" summary-host):$("$vps_network" port rancher_https)
+                       (also on plain port $("$vps_network" port rancher_http))
                        user:     admin
                        password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; you'll
                        be prompted to change it on first login)
 EOF
 }
-
-. zz-step

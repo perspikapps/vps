@@ -2,18 +2,15 @@
 # Tailscale. Env vars: see README.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+export DEBIAN_FRONTEND=noninteractive
+zz-use zz-colors zz-log zz-install
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
-    if command_exists tailscale; then
+    if command -v tailscale >/dev/null 2>&1; then
         zz-log i "[vps-setup] Tailscale already installed ($(tailscale --version | head -n1 || true))."
     else
         zz-log i "[vps-setup] Installing Tailscale from the official repo..."
@@ -27,8 +24,8 @@ up() {
     zz-log s "[vps-setup] tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
     # Tell the other steps which interface carries the private network (ufw rules
-    # for access:"private" ports, the final summary); see vps-common's private_interface.
-    zz-persist -f "$VPS_PRIVATE_ACCESS_FILE" VPS_PRIVATE_INTERFACE tailscale0
+    # for access:"private" ports, the final summary); see vps-network.
+    "$vps_network" set-private-interface tailscale0
 
     if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
         zz-log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
@@ -42,14 +39,14 @@ up() {
 }
 
 down() {
-    if ! command_exists tailscale; then
+    if ! command -v tailscale >/dev/null 2>&1; then
         zz-log w "[vps-setup] Tailscale not installed; nothing to do."
         return
     fi
     zz-log i "[vps-setup] Logging out of the tailnet..."
     tailscale logout || true
     systemctl disable --now tailscaled || true
-    [ ! -f "$VPS_PRIVATE_ACCESS_FILE" ] || sed -i '/^VPS_PRIVATE_INTERFACE=tailscale0$/d' "$VPS_PRIVATE_ACCESS_FILE"
+    "$vps_network" unset-private-interface tailscale0
     if [ "${PURGE_TAILSCALE:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
         zz-install -r tailscale || true
@@ -63,8 +60,8 @@ down() {
 summary() {
     local iface ip
 
-    iface="$(private_interface)"
-    ip="$(private_address)"
+    iface="$("$vps_network" private-interface)"
+    ip="$("$vps_network" private-address)"
     if [ -z "$iface" ]; then
         echo " Private network:     none - private-access ports are closed (set VPS_PRIVATE_INTERFACE, or run vps-tailscale)"
     elif [ -z "$ip" ]; then
@@ -73,5 +70,3 @@ summary() {
         echo " Private network:     ${ip} (${iface})"
     fi
 }
-
-. zz-step

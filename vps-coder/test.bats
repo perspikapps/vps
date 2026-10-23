@@ -10,15 +10,17 @@ DIR="$REPO_ROOT/vps-coder"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. "\$common"$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
-@test "defines up(), down() and ends with . zz-step" {
+@test "defines up(), down() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    grep -q '^\. zz-step$' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "follows the Coder Rancher guide: bitnami postgres, coder-db-url secret, upstream chart" {
@@ -95,11 +97,6 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'registryAuth' "$DIR/helm/devcontainer-builder-values.yaml"
 }
 
-@test "a bootstrap action retries only the admin/template step, and each failure names its step" {
-    grep -q '"bootstrap"' "$DIR/run.sh"
-    grep -q 'POST /users/first' "$DIR/run.sh"
-    grep -q 'template failed (see above)' "$DIR/run.sh"
-}
 
 @test "BuildKit is deployed by the step (chart 0.5.0's bundled one is broken): privileged, endpoint passed to the chart, plain-HTTP registry in buildkitd.toml" {
     grep -q '^deploy_buildkit() {' "$DIR/run.sh"

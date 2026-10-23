@@ -4,15 +4,11 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 CODER_NAMESPACE=coder
 # Where workspaces run: one namespace for the template's `namespace` variable, the pull secret and
@@ -20,7 +16,7 @@ CODER_NAMESPACE=coder
 WORKSPACE_NAMESPACE="${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"
 printf '%s\n' "$WORKSPACE_NAMESPACE" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$' ||
     { zz-log e "[vps-setup] CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')." && exit 1; }
-REGISTRY_PORT="$(net_port devcontainer_registry)"
+REGISTRY_PORT="$("$vps_network" port devcontainer_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
 # Chart values and manifests, rendered with yaml-render (see helm/).
@@ -98,7 +94,7 @@ deploy_local_registry() {
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
     yaml-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
     kubectl -n devcontainer-builder rollout status deploy/registry --timeout=5m
-    reapply_private_guard
+    "$vps_network" reapply-guard
     if [ ! -f "$cfg" ]; then
         zz-log i "[vps-setup] Letting containerd pull ${addr} over HTTP (${cfg}); restarting k3s (running pods keep running)..."
         printf 'mirrors:\n  "%s":\n    endpoint:\n      - "http://%s"\n' "$addr" "$addr" >"$cfg"
@@ -231,8 +227,8 @@ up() {
     local db_password db_storage db_values rc=0 wildcard wildcard_host access_url host values_file chart_version
     local admin_email admin_user admin_password
 
-    command_exists kubectl || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
-    command_exists helm || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first." && exit 1; }
+    command -v kubectl >/dev/null 2>&1 || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
+    command -v helm >/dev/null 2>&1 || { zz-log e "[vps-setup] helm not found; run vps-k3s/run.sh first." && exit 1; }
 
     # --- repositories and namespace
     zz-log i "[vps-setup] Adding the Helm repositories (Bitnami for PostgreSQL, Coder for the chart)..."
@@ -266,7 +262,7 @@ up() {
     # Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
     # under it: both come from one domain (vps-system's WILDCARD_DOMAIN, else nip.io).
-    wildcard="$(wildcard_domain)"
+    wildcard="$("$vps_network" wildcard-domain)"
     access_url="${CODER_ACCESS_URL:-${wildcard:+http://coder.${wildcard}}}"
     [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or WILDCARD_DOMAIN." && exit 1; }
     host="${access_url#*://}"
@@ -314,7 +310,7 @@ up() {
 }
 
 down() {
-    command_exists kubectl || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
+    command -v kubectl >/dev/null 2>&1 || { zz-log w "[vps-setup] kubectl not found; nothing to remove." && return 0; }
     zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
     kube-teardown "$CODER_NAMESPACE" coder
     zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_DB_PASSWORD
@@ -328,7 +324,7 @@ summary() {
     local host
 
     # Opt-in step: say nothing on a host that never installed it.
-    command_exists kubectl && kubectl get namespace "$CODER_NAMESPACE" >/dev/null 2>&1 || return 0
+    command -v kubectl >/dev/null 2>&1 && kubectl get namespace "$CODER_NAMESPACE" >/dev/null 2>&1 || return 0
     host="$(kubectl -n "$CODER_NAMESPACE" get ingress coder -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
     cat <<EOF
  Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public)
@@ -337,20 +333,6 @@ summary() {
                        (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF
     if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
-        echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$(summary_host):${REGISTRY_PORT}/v2/_catalog)"
+        echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$("$vps_network" summary-host):${REGISTRY_PORT}/v2/_catalog)"
     fi
 }
-
-# bootstrap: re-run only the admin/template step (e.g. after fixing a warning above),
-# with the admin credentials the install saved.
-if [ "${1:-}" = "bootstrap" ]; then
-    command_exists kubectl || { zz-log e "[vps-setup] kubectl not found." && exit 1; }
-    pw="$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD)"
-    [ -n "$pw" ] || { zz-log e "[vps-setup] No saved admin password: run the full step first (sudo vps-setup --only-vps-coder)." && exit 1; }
-    ensure_workspace_namespace
-    if kubectl -n devcontainer-builder get deploy/devcontainer-builder >/dev/null 2>&1; then BUILDER_READY=1; fi
-    bootstrap_coder "$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL)" "$(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_USERNAME)" "$pw"
-    exit
-fi
-
-. zz-step

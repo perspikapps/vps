@@ -8,17 +8,17 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
 sudo vps-setup --only-vps-cockpit
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo sh vps-cockpit/run.sh up
-sudo sh vps-cockpit/run.sh down
+sudo zz-setup ./ -o vps-cockpit
+sudo zz-setup ./ -d vps-cockpit
 ```
 
 ## Removing (`down`)
@@ -33,12 +33,13 @@ sudo vps-setup --down-vps-cockpit
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `COCKPIT_HTTPS_PORT` | no | `9083` | Cockpit HTTPS port |
 | `COCKPIT_HTTP_PORT` | no | `9080` | Cockpit HTTP port |
 
 ## Dependencies
 
-`vps-common` (shared helpers) only; no other step is required.
+No other step is required.
 
 ## Tests
 
@@ -46,4 +47,4 @@ sudo vps-setup --down-vps-cockpit
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).

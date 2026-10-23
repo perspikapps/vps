@@ -11,9 +11,9 @@ DIR="$REPO_ROOT/vps-dokploy"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. "\$common"$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -21,9 +21,11 @@ DIR="$REPO_ROOT/vps-dokploy"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and ends with . zz-step" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^\. zz-step$' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -31,7 +33,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 }
 
 @test "refuses to run next to k3s and over a foreign swarm (the installer would reset it)" {
-    grep -q 'command_exists k3s' "$DIR/run.sh"
+    grep -q 'command -v k3s' "$DIR/run.sh"
     grep -q 'Swarm.LocalNodeState' "$DIR/run.sh"
 }
 
@@ -42,7 +44,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 
 @test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
-    grep -q '^    reapply_private_guard$' "$DIR/run.sh"
+    grep -q '^    "\$vps_network" reapply-guard$' "$DIR/run.sh"
     ! grep -qE '^[[:space:]]*iptables ' "$DIR/run.sh"
 }
 
@@ -56,10 +58,6 @@ DIR="$REPO_ROOT/vps-dokploy"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common only (no k3s: the two are exclusive)" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(Object.keys(p.dependencies).join() === '@tomgrv/vps-common' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 @test "package.json declares the k3s conflict, so zz-setup aborts before any step runs" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.config.conflicts.includes('vps-k3s') ? 0 : 1)"

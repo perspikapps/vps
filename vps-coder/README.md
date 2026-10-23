@@ -15,11 +15,11 @@ sudo vps-setup --with-vps-coder
 sudo vps-setup --only-vps-coder   # just this step, on a host that already has Rancher
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo sh vps-coder/run.sh up
-sudo sh vps-coder/run.sh down
+sudo zz-setup ./ -o vps-coder
+sudo zz-setup ./ -d vps-coder
 ```
 
 ## What it does
@@ -73,7 +73,7 @@ sudo ZZ_SETUP_REF=<ref> DEVCONTAINER_BUILDER_REF=<tag> zz-setup perspikapps/vps 
 
 BuildKit's `buildkitd.toml` is set to push to the in-cluster registry over plain HTTP (`http = true`); an external registry needs nothing.
 
-Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, retry only this part with `sudo ZZ_SETUP_REF=<ref> bash /opt/vps/vps-coder/run.sh bootstrap` (uses the saved admin credentials), or run `coder templates push` by hand.
+Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, re-run the step (`sudo vps-setup --only-vps-coder`; the admin and template parts are idempotent and use the saved credentials), or run `coder templates push` by hand.
 
 ## Removing (`down`)
 
@@ -87,6 +87,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `CODER_ADMIN_EMAIL` | no | `admin@<wildcard domain>` | Email of the first Coder admin |
 | `CODER_ADMIN_PASSWORD` | no | _(generated)_ | Password of the first Coder admin |
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
@@ -104,7 +105,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Dependencies
 
-`vps-rancher` (which brings `vps-k3s`) and `vps-common`.
+`vps-rancher` (which brings `vps-k3s`).
 
 ## Not verified on a live host
 

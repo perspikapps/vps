@@ -11,9 +11,9 @@ DIR="$REPO_ROOT/vps-tailscale"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. "\$common"$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -21,9 +21,11 @@ DIR="$REPO_ROOT/vps-tailscale"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and ends with . zz-step" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^\. zz-step$' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -40,10 +42,6 @@ DIR="$REPO_ROOT/vps-tailscale"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 @test "package.json bin name is not the bare 'tailscale'" {
     # This folder is named vps-tailscale/, not tailscale/, specifically so
@@ -56,8 +54,8 @@ DIR="$REPO_ROOT/vps-tailscale"
 
 
 @test "run.sh persists the private interface for the other steps, and forgets it on down" {
-    grep -q 'zz-persist -f "\$VPS_PRIVATE_ACCESS_FILE" VPS_PRIVATE_INTERFACE tailscale0' "$DIR/run.sh"
-    grep -q "sed -i '/\^VPS_PRIVATE_INTERFACE=tailscale0\$/d'" "$DIR/run.sh"
+    grep -q '"\$vps_network" set-private-interface tailscale0' "$DIR/run.sh"
+    grep -q '"\$vps_network" unset-private-interface tailscale0' "$DIR/run.sh"
 }
 
 @test "vps.order puts tailscale before the firewall step that reads the persisted interface" {

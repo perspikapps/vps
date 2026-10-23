@@ -2,21 +2,18 @@
 # k3s, kubectl, helm, and Traefik as public ingress. Env vars: see README.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+export DEBIAN_FRONTEND=noninteractive
+zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
     local service_file=/etc/systemd/system/k3s.service need_install=1 kubeconfig_path=/etc/rancher/k3s/k3s.yaml i
 
     # --- k3s
-    if command_exists k3s; then
+    if command -v k3s >/dev/null 2>&1; then
         zz-log i "[vps-setup] k3s already installed ($(k3s --version | head -n1))."
         need_install=0
         if [ -f "$service_file" ] && grep -Pzoq -- "(?s)--disable.{0,80}traefik" "$service_file"; then
@@ -57,7 +54,7 @@ up() {
     export KUBECONFIG="$kubeconfig_path"
 
     # --- helm
-    if command_exists helm; then
+    if command -v helm >/dev/null 2>&1; then
         zz-log i "[vps-setup] Helm already installed ($(helm version --short))."
     else
         zz-log i "[vps-setup] Installing Helm..."
@@ -69,7 +66,7 @@ up() {
     # --- Traefik
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
     TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
-    TRAEFIK_DASHBOARD_PORT="$(net_port traefik_dashboard)"
+    TRAEFIK_DASHBOARD_PORT="$("$vps_network" port traefik_dashboard)"
 
     if [ "$TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
         zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
@@ -102,7 +99,7 @@ up() {
     kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
         zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
-    reapply_private_guard
+    "$vps_network" reapply-guard
 
     zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
@@ -121,19 +118,17 @@ down() {
 summary() {
     local host
 
-    host="$(public_ip)"
+    host="$("$vps_network" public-ip)"
     cat <<EOF
  Traefik (k3s):       public: http://${host:-<public-ip>} and https://${host:-<public-ip>}
                        (a "letsencrypt" certResolver is configured and
                        ready to use - it won't issue anything until you
                        add the router.tls.certresolver annotation to your
                        own Ingress; see README)
-                       dashboard: http://$(summary_host):$(net_port traefik_dashboard)/dashboard/
+                       dashboard: http://$("$vps_network" summary-host):$("$vps_network" port traefik_dashboard)/dashboard/
                        (private access only, no login - see README's Security model)
 
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
                        via /etc/profile.d/k3s-kubeconfig.sh for new shells)
 EOF
 }
-
-. zz-step

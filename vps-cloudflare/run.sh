@@ -3,15 +3,12 @@
 # Mutually exclusive with vps-tailscale. Env vars: see README.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+export DEBIAN_FRONTEND=noninteractive
+zz-use zz-colors zz-log zz-install
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 IFACE=vpscf0
 IF_UNIT=/etc/systemd/system/vps-cloudflare-private.service
@@ -23,7 +20,7 @@ up() {
 
     # conflicts only guards one run: a host a previous run set up with Tailscale is
     # caught here.
-    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$(private_interface)" = "tailscale0" ]; then
+    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$("$vps_network" private-interface)" = "tailscale0" ]; then
         zz-log e "[vps-setup] Tailscale is set up on this host and is mutually exclusive with vps-cloudflare. Run 'sudo vps-setup --down-vps-tailscale' first (mind your SSH path), then re-run." && exit 1
     fi
 
@@ -32,7 +29,7 @@ up() {
     fi
 
     # --- cloudflared
-    if command_exists cloudflared; then
+    if command -v cloudflared >/dev/null 2>&1; then
         zz-log i "[vps-setup] cloudflared already installed ($(cloudflared --version | head -n1 || true))."
     else
         zz-log i "[vps-setup] Installing cloudflared from the Cloudflare apt repo..."
@@ -92,8 +89,8 @@ UNIT
     zz-log s "[vps-setup] cloudflared is running as a service; private address ${private_ip} on ${IFACE}."
 
     # Tell the other steps which interface carries the private network (ufw rules
-    # for access:"private" ports, the final summary); see vps-common's private_interface.
-    zz-persist -f "$VPS_PRIVATE_ACCESS_FILE" VPS_PRIVATE_INTERFACE "$IFACE"
+    # for access:"private" ports, the final summary); see vps-network.
+    "$vps_network" set-private-interface "$IFACE"
 }
 
 down() {
@@ -101,7 +98,7 @@ down() {
     systemctl disable --now cloudflared.service vps-cloudflare-private.service 2>/dev/null || true
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
-    [ ! -f "$VPS_PRIVATE_ACCESS_FILE" ] || sed -i "/^VPS_PRIVATE_INTERFACE=${IFACE}\$/d" "$VPS_PRIVATE_ACCESS_FILE"
+    "$vps_network" unset-private-interface "$IFACE"
     if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
         zz-install -r cloudflared || true
@@ -116,35 +113,6 @@ down() {
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -f "$IF_UNIT" ] || return 0
-    echo " Private network:     $(private_address) (${IFACE}) via Cloudflare Tunnel - add a private network"
+    echo " Private network:     $("$vps_network" private-address) (${IFACE}) via Cloudflare Tunnel - add a private network"
     echo "                       route for this /32 to the tunnel, and connect with the WARP client"
 }
-
-# verify <public-ip>: run it from ANOTHER machine, never on the VPS itself (a
-# connection to its own public address is delivered locally and proves nothing).
-# Every access:"private" port must time out or be refused from the internet.
-verify() {
-    local ip="$1" name port access note bad=0 tab
-
-    tab="$(printf '\t')"
-    while IFS="$tab" read -r name port access note; do
-        [ "$access" = "private" ] || continue
-        if curl -s -m 5 -o /dev/null "http://${ip}:${port}" 2>/dev/null || curl -sk -m 5 -o /dev/null "https://${ip}:${port}" 2>/dev/null; then
-            zz-log e "[vps-setup] ${name} (${port}) answers on ${ip}: private port is exposed."
-            bad=1
-        else
-            zz-log s "[vps-setup] ${name} (${port}) is closed on ${ip}."
-        fi
-    done <<EOF
-$(all_network_ports)
-EOF
-    return "$bad"
-}
-
-if [ "${1:-}" = "verify" ]; then
-    VPS_SETUP_ROOT="${VPS_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-    verify "${2:?usage: run.sh verify <public-ip> (from another machine)}"
-    exit
-fi
-
-. zz-step

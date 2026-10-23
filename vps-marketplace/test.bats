@@ -12,9 +12,9 @@ DIR="$REPO_ROOT/vps-marketplace"
     [ "$status" -eq 0 ]
 }
 
-@test "run.sh sources the sibling vps-common, else the one zz-use fetches" {
-    grep -q 'zz-use "perspikapps/vps/vps-common' "$DIR/run.sh"
-    grep -q '^\. "\$common"$' "$DIR/run.sh"
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -22,9 +22,11 @@ DIR="$REPO_ROOT/vps-marketplace"
     ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
 }
 
-@test "defines up() and ends with . zz-step" {
+@test "defines up() and is a config.functions step" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^\. zz-step$' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.functions === true ? 0 : 1)"
+    [ "$status" -eq 0 ]
+    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -41,10 +43,6 @@ DIR="$REPO_ROOT/vps-marketplace"
     [ "$status" -eq 0 ]
 }
 
-@test "package.json depends on @tomgrv/vps-common" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-common'] === '*' ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 @test "package.json depends on @tomgrv/vps-rancher" {
     run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-rancher'] === '*' ? 0 : 1)"

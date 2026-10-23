@@ -5,9 +5,6 @@
   "bin": {
     "vps-k3s": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -17,6 +14,7 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
       "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",

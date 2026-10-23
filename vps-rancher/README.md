@@ -8,17 +8,17 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or standalone once `vps-common/run.sh` is reachable (see the root README's [Layout](../README.md#layout)):
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
 sudo vps-setup --only-vps-rancher
 ```
 
-Or directly, from a checkout (`up` is the default action):
+Or from a checkout, without `vps-setup` (`up` by default; the step is sourced and its `up()` or `down()` called, so `run.sh` is not run directly):
 
 ```bash
-sudo sh vps-rancher/run.sh up
-sudo sh vps-rancher/run.sh down
+sudo zz-setup ./ -o vps-rancher
+sudo zz-setup ./ -d vps-rancher
 ```
 
 ## Public dashboard through Traefik
@@ -63,7 +63,7 @@ Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
 ```
 
 (`no pod in cattle-system yet` before the first pod exists.) The same helper,
-`run_with_progress` in `vps-common`, also covers the cert-manager install, this
+`kube-progress` (tomgrv/scripts), also covers the cert-manager install, this
 step's final rollout wait and the Traefik rollout in `vps-k3s`.
 
 ## If the install fails or hangs
@@ -93,6 +93,7 @@ sudo vps-setup --down-vps-rancher
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
 | `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
 | `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
@@ -112,7 +113,7 @@ sudo vps-setup --down-vps-rancher
 
 ## Dependencies
 
-Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)). Also `vps-common` (shared helpers).
+Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)).
 
 ## Tests
 
@@ -120,4 +121,4 @@ Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabl
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use`/`vps-common` wiring, `up()`/`down()`, and `dispatch_action`) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the functions `zz-setup` calls, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).

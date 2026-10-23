@@ -245,9 +245,6 @@ sudo zz-use --force perspikapps/vps/vps-setup
 sudo vps-setup
 ```
 
-A step that needs a newer `vps-common` than the cached one stops with this
-instruction instead of failing mid-install.
-
 ## Running from a non-standard branch or fork
 
 Two fetches must agree: `zz-use`'s fetch of the `vps-setup` folder (`@<ref>`),
@@ -330,7 +327,8 @@ accepts "User data" (DigitalOcean, Hetzner Cloud, OpenStack, ...).
 | Path                  | Role                                                                                                                                                         |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `vps-setup/`          | Orchestrator: a thin [`zz-setup`](https://github.com/tomgrv/scripts/tree/main/zz-setup) wrapper plus the connection summary. Not a step.                     |
-| `vps-common/`         | Shared helpers sourced by every `run.sh` (logging, retry, idempotency, port lookup, `dispatch_action`). Bash, not POSIX sh. Not a step.                      |
+| `vps-network/`        | Script (not a step): public/private addresses, private interface, wildcard domain, port lookup, `verify` from outside. Called by the steps, never sourced.   |
+| `vps-cert-manager/`   | Script (not a step): installs cert-manager through Helm unless it is there. Called by `vps-rancher`.                                                          |
 | `vps-system/`         | apt update/upgrade, base tooling, unattended security upgrades.                                                                                              |
 | `vps-security/`       | Optional admin user, ufw rules generated from every feature's ports, sshd hardening, fail2ban, Cockpit/console password.                                     |
 | `vps-tailscale/`      | Installs Tailscale, enables `tailscaled`, joins the tailnet.                                                                                                 |
@@ -355,17 +353,16 @@ A single feature can also be run without this repo or `vps-setup`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # vps-common needs it
+command -v jq > /dev/null || sudo apt-get update && sudo apt-get install -y jq # the scripts need it
 zz-use perspikapps/vps/vps-rancher
 sudo vps-rancher up
 ```
 
 `zz-use` downloads this repo (cached per origin/ref) and links
-`vps-rancher/run.sh` onto `PATH`. It skips discovery, ordering, dependency
-auto-enable and the menu, so run the features it depends on first (see
-[Dependencies](#dependencies-between-steps)). Inside a checkout, a feature runs
-as `sudo RANCHER_HOSTNAME=... sh vps-rancher/run.sh [up|down]`; it assumes
-`zz-use` is already on `PATH` and fetches `vps-common` itself.
+`vps-rancher/run.sh` onto `PATH`. Its bin only defines `up()`, `down()` and
+`summary()` (`config.functions`), so it is run by `zz-setup`, not directly: inside
+a checkout, `sudo RANCHER_HOSTNAME=... zz-setup ./ -o vps-rancher` (`-d` to bring it
+down). That skips the menu but keeps dependency auto-enable, requirements and inputs.
 
 ## One folder per feature
 
@@ -374,7 +371,7 @@ Each feature is a small npm workspace package. All of these are required here:
 ```
 vps-rancher/
   package.json   # see below
-  run.sh         # up() and down(), ending in dispatch_action "$@"
+  run.sh         # up(), down() and summary() functions only; zz-setup sources it and calls one
   test.bats      # syntax + shape checks
   README.md      # env vars, up/down usage, dependencies
 ```
@@ -387,8 +384,8 @@ vps-rancher/
   "description": "Rancher install",
   "bin": { "vps-rancher": "run.sh" },
   "engines": { "zz-setup": "*" },
-  "config": { "order": 5, "default": true },
-  "dependencies": { "@tomgrv/vps-k3s": "*", "@tomgrv/vps-common": "*" }
+  "config": { "order": 5, "default": true, "functions": true, "requires": { "root": true, "os": "ubuntu" } },
+  "dependencies": { "@tomgrv/vps-k3s": "*" }
 }
 ```
 
@@ -396,10 +393,12 @@ vps-rancher/
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`             | Always `@tomgrv/<folder>`. Internal identities (flags, state, `--only-vps-rancher`) use the name without the scope, keeping the `vps-` prefix.                                                                             |
 | `bin`              | `{"<folder>": "run.sh"}`. With `engines.zz-setup`, it makes the folder a runnable step: `zz-setup` runs the bin with `up` or `down`.                                                                                       |
-| `engines.zz-setup` | Marks the package runnable by `zz-setup` (any value, `"*"` by convention). `vps-setup` and `vps-common` omit it, so they are never proposed as steps.                                                                      |
+| `engines.zz-setup` | Marks the package runnable by `zz-setup` (any value, `"*"` by convention). `vps-setup`, `vps-network` and `vps-cert-manager` omit it, so they are never proposed as steps.                                                                      |
 | `config`           | Optional settings: `order` (install order, an integer), `default` (`false` = opt-in), `inputs` (see [Interactive menu](#interactive-menu)), `ports` (see [Network config](#network-config-each-features-own-packagejson)). |
 | `config.summary`   | `true` when the bin answers a `summary` action (the connection info it prints); `zz-setup <repo> -m` collects them, which is how `vps-setup` prints its final block. |
-| `dependencies`     | Always includes `@tomgrv/vps-common`, plus any other step it needs. Only keys naming a real step folder count, so an ordinary npm dependency is never auto-enabled.                                                        |
+| `config.functions` | `true`: the bin only defines `up()`, `down()` and `summary()`; `zz-setup` sources it from its own directory and calls the one asked. No dispatch code, nothing sourced but `zz-colors`. |
+| `config.requires`  | What the host must offer, checked before the first step runs: `{"root": true, "os": "ubuntu"}`. |
+| `dependencies`     | Any other step it needs. Only keys naming a real step folder count, so an ordinary npm dependency is never auto-enabled.                                                        |
 
 Folder names carry no ordering (`vps-rancher/`, not `05-vps-rancher/`); order is
 `config.order`. The uniform `vps-` prefix also avoids collisions with real
@@ -432,10 +431,10 @@ Every port this repo opens is declared on the feature that owns it, in
 `vps-rancher` carries `rancher_http`/`rancher_https`, `vps-k3s` carries
 `http`/`https`/`traefik_dashboard`, and so on.
 
-`vps-security` has no per-service ufw logic: it calls `vps-common`'s
-`all_network_ports()`, which scans every `*/package.json`, and builds the rules
-from the combined list. Features that bind a port read their own default through
-`net_port()`, so the port ufw opens and the port the app listens on cannot drift.
+`vps-security` has no per-service ufw logic: it calls `vps-network ports`, which
+scans every step's `package.json`, and builds the rules
+from the combined list. Features that bind a port read it through
+`vps-network port <name>` (zz-setup also exports it as `<NAME>_PORT`), so the port ufw opens and the port the app listens on cannot drift.
 
 To change a default for good, edit that `package.json` and re-run the affected
 steps (e.g. `--only-vps-security --only-vps-rancher`). To override for one run,
@@ -488,7 +487,7 @@ ports are `"access": "private"` and which interface carries the private network:
   the variable yourself: `sudo VPS_PRIVATE_INTERFACE=wg0 vps-setup
 --skip-vps-tailscale`. It also works as a menu input and from
   `VPS_SETUP_ENV_FILE`; a set variable wins over the persisted value.
-- Steps read it through `vps-common`'s `private_interface` and `private_address`.
+- Steps read it through `vps-network private-interface` and `vps-network private-address`.
 
 ## Traefik ingress: Let's Encrypt and the dashboard
 
@@ -623,13 +622,8 @@ through their chart values.
 
 ## Troubleshooting: a step fails or "just stops"
 
-Every script runs under `set -euo pipefail` and sources `vps-common`, which
-installs an error trap: the first unhandled failing command prints its file, line
-and command, then the script exits:
-
-```
-[vps-setup] ERROR: command failed (exit 1) at /opt/vps/vps-rancher/run.sh line 52: helm upgrade --install rancher ...
-```
+Every step runs under `set -eu`; `zz-setup` reports the first failing step with its
+script and exit status, then stops.
 
 During a full `vps-setup` run, a failing step also prints how to re-run just it:
 
@@ -650,16 +644,15 @@ npm install --global bats # or: apt-get install bats
 npm test                  # or: bats --recursive .
 ```
 
-The `zz-*` helpers must be on `PATH` (the `setup.sh` one-liner installs them);
-otherwise tests that source `vps-common` fail.
+The `zz-*` and `kube-*` scripts must be on `PATH` (the `setup.sh` one-liner installs
+them); otherwise tests that call them fail.
 
 Each feature folder has its own `test.bats` (run with `bats <name>/test.bats` or
-that folder's `npm test`) covering `run.sh` syntax (`bash -n`), the
-`zz-use`/`vps-common` wiring, `up()`/`down()`, and the `package.json`
+that folder's `npm test`) covering `run.sh` syntax (`dash -n`), the `zz-use` line,
+the functions `zz-setup` calls, and the `package.json`
 `bin`/`engines`/`config`/`dependencies` shape.
-[`vps-common/test.bats`](vps-common/test.bats) also covers its pure logic
-(`net_port`, `all_network_ports`, `ordered_feature_dirs`, `feature_package_json`,
-`dispatch_action`, `download_run`) against a fixture tree.
+[`vps-network/test.bats`](vps-network/test.bats) also covers its commands (ports,
+private interface, wildcard domain) against a fixture tree.
 [`tests/`](tests/) holds invariants spanning every folder (e.g. no leftover
 `log`/`warn`/`die` wrappers - see [`tests/test-syntax.bats`](tests/test-syntax.bats)).
 The installs themselves (apt/Helm/k3s) need a live root Ubuntu box, so that part

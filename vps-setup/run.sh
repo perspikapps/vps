@@ -31,7 +31,7 @@ zz-use zz-setup
 # --- checkout
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 
-if [ -f "$script_dir/../vps-common/run.sh" ]; then
+if [ -f "$script_dir/../vps-network/run.sh" ]; then
     # Full local checkout (dev clone, `sh vps-setup/run.sh`): used in place.
     checkout="$(cd "$script_dir/.." && pwd)"
     repo="$checkout"

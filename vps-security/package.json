@@ -5,9 +5,6 @@
   "bin": {
     "vps-security": "run.sh"
   },
-  "dependencies": {
-    "@tomgrv/vps-common": "*"
-  },
   "private": true,
   "scripts": {
     "test": "bats test.bats"
@@ -17,6 +14,7 @@
   },
   "config": {
     "default": true,
+    "functions": true,
     "inputs": {
       "VPS_ADMIN_PASSWORD": {
         "description": "Cockpit/console login password for VPS_ADMIN_USER (or root if unset)",
@@ -38,6 +36,11 @@
         "description": "Optional non-root sudo user to create",
         "required": false,
         "default": ""
+      },
+      "VPS_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
       }
     },
     "order": 2,

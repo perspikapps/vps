@@ -2,15 +2,12 @@
 # Base system update and common CLI utilities.
 
 set -eu
-# Source the vps-common of this checkout (always the version of the step); a step
-# installed on its own gets the one zz-use fetches.
-common="$(dirname "$0")/../vps-common/run.sh"
-if [ ! -f "$common" ]; then
-    zz-use "perspikapps/vps/vps-common@${ZZ_SETUP_REF:-main}"
-    common="$(command -v vps-common)"
-fi
-# shellcheck disable=SC1090
-. "$common"
+export DEBIAN_FRONTEND=noninteractive
+zz-use zz-colors zz-log zz-persist zz-install
+# shellcheck disable=SC1091
+. zz-colors
+# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
+vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
     local domain
@@ -53,7 +50,7 @@ EOF
         domain="${WILDCARD_DOMAIN#\*.}"
         printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
             { zz-log e "[vps-setup] WILDCARD_DOMAIN must be a bare domain like apps.example.com (got '${WILDCARD_DOMAIN}')." && exit 1; }
-        zz-persist -f "$VPS_WILDCARD_FILE" WILDCARD_DOMAIN "$domain"
+        "$vps_network" set-wildcard-domain "$domain"
         zz-log i "[vps-setup] Wildcard DNS: *.${domain} (point it at this VPS)."
     else
         zz-log i "[vps-setup] No WILDCARD_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."
@@ -61,5 +58,3 @@ EOF
 
     zz-log s "[vps-setup] Base system is up to date."
 }
-
-. zz-step
