@@ -118,3 +118,8 @@ guard_setup() {
     grep -q 'useradd -m' "$DIR/run.sh"
     ! grep -q 'adduser' "$DIR/run.sh"
 }
+
+@test "the FORWARD guard's iptables and ip are installed before the unit" {
+    grep -q 'zz-install -m iptables' "$DIR/run.sh"
+    grep -q 'zz-install -m iproute2 dnf=iproute' "$DIR/run.sh"
+}

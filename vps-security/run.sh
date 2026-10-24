@@ -191,6 +191,9 @@ EOF
     if [ "$firewall" = ufw ]; then ufw --force enable; else firewall-cmd -q --reload; fi
     zz-log s "[vps-setup] ${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
 
+    # The guard calls iptables and ip; minimal images (Amazon Linux, SUSE) may lack them.
+    zz-install -m iptables
+    zz-install -m iproute2 dnf=iproute
     install_private_guard "${private_iface:--}" "$("$vps_network" ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
 
