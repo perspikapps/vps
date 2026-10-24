@@ -49,3 +49,10 @@ DIR="$REPO_ROOT/vps-system"
     run node -e "const i = require('$DIR/package.json').config.inputs.WILDCARD_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
+
+@test "upgrades and unattended security upgrades cover apt, dnf and zypper" {
+    grep -q 'apt-get upgrade' "$DIR/run.sh"
+    grep -q 'dnf upgrade' "$DIR/run.sh"
+    grep -q 'zypper --non-interactive --quiet update' "$DIR/run.sh"
+    grep -q 'dnf-automatic' "$DIR/run.sh"
+}
