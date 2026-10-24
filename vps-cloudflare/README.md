@@ -23,7 +23,7 @@ sudo zz-setup ./ -d vps-cloudflare
 
 ## What it does
 
-1. Installs `cloudflared` from Cloudflare's apt repo.
+1. Installs `cloudflared` from Cloudflare's release binary (any distribution).
 2. Creates `vps-cloudflare-private.service`: a dummy interface `vpscf0` holding `CLOUDFLARE_PRIVATE_IP`/32.
 3. Creates `cloudflared.service` running the remotely-managed tunnel; the token is kept in `/etc/cloudflared/tunnel.env` (owner-only), not on the unit's command line.
 4. Persists `VPS_PRIVATE_INTERFACE=vpscf0` (see [Private access](../README.md#private-access)); this step runs before `vps-security` for that reason.
