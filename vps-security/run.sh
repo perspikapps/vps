@@ -1,5 +1,5 @@
 #!/bin/sh
-# Admin user, SSH hardening, ufw, fail2ban. Env vars: see README.
+# Admin user, SSH hardening, firewall (ufw on apt systems, firewalld elsewhere), fail2ban. Env vars: see README.
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
@@ -12,7 +12,13 @@ vps_network="$(dirname "$0")/../vps-network/run.sh"
 GUARD_BIN=/usr/local/sbin/vps-private-ports-guard
 GUARD_UNIT=/etc/systemd/system/vps-private-ports-guard.service
 
-# Rules wanted by this run, one ufw spec per line (see fw).
+# Firewall in use: ufw where apt is, firewalld on dnf/zypper systems (Amazon Linux, SUSE).
+if command -v apt-get >/dev/null 2>&1; then firewall=ufw; else firewall=firewalld; fi
+
+# SSH unit name: ssh on Debian, sshd elsewhere.
+if systemctl cat ssh.service >/dev/null 2>&1; then ssh_unit=ssh; else ssh_unit=sshd; fi
+
+# Rules wanted by this run, one spec per line (see fw and fw_d).
 wanted=""
 
 # fw <ufw allow arguments...>: allows a rule and records its spec, so rules a
@@ -22,14 +28,20 @@ fw() {
     printf '%s\n' "$*" >>"$wanted"
 }
 
+# fw_d <zone> <port>/tcp: firewalld counterpart of fw, recording "<zone> <port>/tcp".
+fw_d() {
+    firewall-cmd -q --permanent --zone="$1" --add-port="$2"
+    printf '%s %s\n' "$1" "$2" >>"$wanted"
+}
+
 up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
     local name port access note tab spec private_iface private_ip
 
     ssh_port="$("$vps_network" port ssh)"
 
-    zz-log i "[vps-setup] Installing ufw and fail2ban..."
-    zz-install -m  ufw fail2ban
+    zz-log i "[vps-setup] Installing ${firewall} and fail2ban..."
+    zz-install -m "$firewall" fail2ban
 
     # --- admin user and SSH key
     if [ -n "${VPS_ADMIN_USER:-}" ]; then
@@ -37,8 +49,9 @@ up() {
             zz-log i "[vps-setup] User ${VPS_ADMIN_USER} already exists."
         else
             zz-log i "[vps-setup] Creating sudo user ${VPS_ADMIN_USER}..."
-            adduser --disabled-password --gecos "" "$VPS_ADMIN_USER"
-            usermod -aG sudo "$VPS_ADMIN_USER"
+            # sudo group on Debian, wheel on Amazon Linux and SUSE.
+            useradd -m -s /bin/bash -G "$(getent group sudo >/dev/null && echo sudo || echo wheel)" "$VPS_ADMIN_USER"
+            passwd -l "$VPS_ADMIN_USER" >/dev/null
         fi
         if [ -n "${VPS_ADMIN_SSH_KEY:-}" ]; then
             admin_home="$(getent passwd "$VPS_ADMIN_USER" | cut -d: -f6)"
@@ -86,11 +99,11 @@ up() {
     fi
 
     sshd -t -f /etc/ssh/sshd_config
-    if systemctl is-active --quiet ssh.service; then
-        systemctl reload ssh
+    if systemctl is-active --quiet "$ssh_unit".service; then
+        systemctl reload "$ssh_unit"
         zz-log s "[vps-setup] sshd hardened and reloaded."
     else
-        zz-log w "[vps-setup] ssh.service is not active: sshd config written but not reloaded (it applies on next start)."
+        zz-log w "[vps-setup] ${ssh_unit}.service is not active: sshd config written but not reloaded (it applies on next start)."
     fi
 
     # --- fail2ban
@@ -106,20 +119,31 @@ EOF
     systemctl enable --now fail2ban
     systemctl restart fail2ban
 
-    # --- ufw
-    zz-log i "[vps-setup] Configuring ufw from every feature's package.json..."
+    # --- firewall
+    zz-log i "[vps-setup] Configuring ${firewall} from every feature's package.json..."
     # Upsert, no window without rules: every rule goes through fw(), which records its
     # spec; rules recorded by the previous run but not wanted now are deleted after the
     # new ones are in. No record yet (first run, or a host set up by an older version
     # that reset and rebuilt): one reset to start clean.
     ufw_state=/var/lib/vps-security-ufw.rules
-    [ -f "$ufw_state" ] || ufw --force reset >/dev/null
     wanted="$(mktemp)"
-    ufw default deny incoming
-    ufw default allow outgoing
-
     private_iface="$("$vps_network" private-interface)"
     private_ip="$("$vps_network" private-address)"
+    if [ "$firewall" = ufw ]; then
+        [ -f "$ufw_state" ] || ufw --force reset >/dev/null
+        ufw default deny incoming
+        ufw default allow outgoing
+    else
+        # Only the ports listed below stay open: drop the zones' default services (ssh, cockpit...)
+        # and bind the private interface to the internal zone, so private ports never open on the public one.
+        systemctl enable --now firewalld
+        for f in public internal; do
+            for spec in $(firewall-cmd --permanent --zone="$f" --list-services); do
+                firewall-cmd -q --permanent --zone="$f" --remove-service="$spec"
+            done
+        done
+        [ -z "$private_iface" ] || firewall-cmd -q --permanent --zone=internal --change-interface="$private_iface"
+    fi
     if [ -z "$private_iface" ]; then
         zz-log w "[vps-setup] No private interface (VPS_PRIVATE_INTERFACE unset, and no step persisted one): private-access ports stay closed."
     elif [ -z "$private_ip" ]; then
@@ -130,10 +154,10 @@ EOF
     while IFS="$tab" read -r name port access note; do
         case "$access" in
             public)
-                fw "${port}/tcp" comment "${note:-$name}"
+                if [ "$firewall" = ufw ]; then fw "${port}/tcp" comment "${note:-$name}"; else fw_d public "${port}/tcp"; fi
                 ;;
             private)
-                [ -z "$private_ip" ] || fw in on "$private_iface" to "$private_ip" port "$port" proto tcp comment "vps-setup: private-only (${name})" || true
+                [ -z "$private_ip" ] || if [ "$firewall" = firewalld ]; then fw_d internal "${port}/tcp"; else fw in on "$private_iface" to "$private_ip" port "$port" proto tcp comment "vps-setup: private-only (${name})"; fi || true
                 ;;
             *)
                 zz-log w "[vps-setup] unknown access '${access}' for port '${name}' - skipping."
@@ -146,13 +170,18 @@ EOF
     if [ -f "$ufw_state" ]; then
         # shellcheck disable=SC2046
         while IFS= read -r spec; do
-            grep -qxF "$spec" "$wanted" || ufw --force delete allow ${spec%% comment *} || true
+            grep -qxF "$spec" "$wanted" && continue
+            if [ "$firewall" = ufw ]; then
+                ufw --force delete allow ${spec%% comment *} || true
+            else
+                firewall-cmd -q --permanent --zone="${spec%% *}" --remove-port="${spec#* }" || true
+            fi
         done <"$ufw_state"
     fi
     mv "$wanted" "$ufw_state"
 
-    ufw --force enable
-    zz-log s "[vps-setup] ufw enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
+    if [ "$firewall" = ufw ]; then ufw --force enable; else firewall-cmd -q --reload; fi
+    zz-log s "[vps-setup] ${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
 
     install_private_guard "${private_iface:--}" "$("$vps_network" ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
@@ -218,20 +247,20 @@ down() {
     zz-log i "[vps-setup] Restoring sshd to its distro default config..."
     rm -f /etc/ssh/sshd_config.d/99-vps-setup.conf
     if sshd -t 2>/dev/null; then
-        if systemctl is-active --quiet ssh.service; then
-            systemctl reload ssh
+        if systemctl is-active --quiet "$ssh_unit".service; then
+            systemctl reload "$ssh_unit"
         else
-            zz-log w "[vps-setup] ssh.service is not active: nothing to reload."
+            zz-log w "[vps-setup] ${ssh_unit}.service is not active: nothing to reload."
         fi
     else
         zz-log w "[vps-setup] sshd -t failed after removing the drop-in; reload it manually once sshd_config is valid again."
     fi
 
-    zz-log i "[vps-setup] Disabling ufw..."
-    ufw --force disable || true
+    zz-log i "[vps-setup] Disabling ${firewall}..."
+    if [ "$firewall" = ufw ]; then ufw --force disable || true; else systemctl disable --now firewalld || true; fi
     rm -f /var/lib/vps-security-ufw.rules
 
-    zz-log w "[vps-setup] Security hardening reverted: ufw is disabled (no firewall at all) and" \
+    zz-log w "[vps-setup] Security hardening reverted: the firewall is disabled (no firewall at all) and" \
         "sshd/fail2ban are back to distro defaults. The admin user/password" \
         "created by 'up' (if any) were left in place. Re-run this step's" \
         "'up' action, or configure your own firewall, before exposing this" \
@@ -241,7 +270,7 @@ down() {
 
 summary() {
     cat <<EOF
- Firewall:            ufw is enabled; SSH/HTTP/HTTPS are public (Traefik is
+ Firewall:            ${firewall} is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
                        the private interface ($("$vps_network" private-interface || true)) - connect
