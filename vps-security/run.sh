@@ -41,7 +41,13 @@ up() {
     ssh_port="$("$vps_network" port ssh)"
 
     zz-log i "[vps-setup] Installing ${firewall} and fail2ban..."
-    zz-install -m "$firewall" fail2ban
+    zz-install -m "$firewall"
+    # fail2ban is not in every distribution's repositories (Amazon Linux): optional there.
+    if [ "$firewall" = ufw ]; then
+        zz-install -m fail2ban
+    else
+        zz-install -m fail2ban || zz-log w "[vps-setup] fail2ban is not available here: skipping the sshd jail."
+    fi
 
     # --- admin user and SSH key
     if [ -n "${VPS_ADMIN_USER:-}" ]; then
@@ -107,8 +113,9 @@ up() {
     fi
 
     # --- fail2ban
-    zz-log i "[vps-setup] Enabling fail2ban for sshd..."
-    cat >/etc/fail2ban/jail.d/sshd.local <<EOF
+    if command -v fail2ban-client >/dev/null 2>&1; then
+        zz-log i "[vps-setup] Enabling fail2ban for sshd..."
+        cat >/etc/fail2ban/jail.d/sshd.local <<EOF
 [sshd]
 enabled = true
 port = ${ssh_port}
@@ -116,8 +123,9 @@ maxretry = 5
 bantime = 1h
 findtime = 10m
 EOF
-    systemctl enable --now fail2ban
-    systemctl restart fail2ban
+        systemctl enable --now fail2ban
+        systemctl restart fail2ban
+    fi
 
     # --- firewall
     zz-log i "[vps-setup] Configuring ${firewall} from every feature's package.json..."

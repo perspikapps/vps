@@ -12,20 +12,8 @@ vps_network="$(dirname "$0")/../vps-network/run.sh"
 up() {
     local domain
 
-    zz-log i "[vps-setup] Upgrading existing packages..."
-    if command -v apt-get >/dev/null 2>&1; then
-        apt-get update -y
-        apt-get upgrade -y
-    elif command -v dnf >/dev/null 2>&1; then
-        dnf upgrade -y -q
-    elif command -v zypper >/dev/null 2>&1; then
-        zypper --non-interactive --quiet update
-    else
-        zz-log e "[vps-setup] No supported package manager (apt-get, dnf, zypper)." && exit 1
-    fi
-
-    zz-log i "[vps-setup] Installing base utilities..."
-    zz-install -m ca-certificates curl wget git jq unzip htop net-tools
+    zz-log i "[vps-setup] Upgrading existing packages and installing base utilities..."
+    zz-install -f -m ca-certificates curl wget git jq unzip htop net-tools
     # Same tools, named differently outside Debian (gnupg2 on Amazon Linux, gpg2 on SUSE).
     zz-install -m gnupg dnf=gnupg2 zypper=gpg2
 
