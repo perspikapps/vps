@@ -29,6 +29,16 @@
         "default": "",
         "secret": true
       },
+      "CLOUDFLARED_VERSION": {
+        "description": "cloudflared release to install, e.g. 2025.1.0 (empty = latest)",
+        "required": false,
+        "default": ""
+      },
+      "CLOUDFLARED_SHA256": {
+        "description": "sha256 of that release's binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
+        "required": false,
+        "default": ""
+      },
       "PURGE_CLOUDFLARED": {
         "description": "Also remove the cloudflared package on down (true/false)",
         "required": false,

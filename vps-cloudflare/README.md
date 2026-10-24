@@ -60,6 +60,8 @@ sudo vps-setup --down-vps-cloudflare
 | --- | --- | --- | --- |
 | `CLOUDFLARE_PRIVATE_IP` | no | `10.254.254.1` | Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | yes | _(unset)_ | Cloudflare Tunnel token (Zero Trust > Networks > Tunnels) |
+| `CLOUDFLARED_VERSION` | no | _(latest)_ | cloudflared release to install, e.g. `2025.1.0` |
+| `CLOUDFLARED_SHA256` | no | _(not checked)_ | sha256 of that release's binary, or a JSON object keyed `<os>_<arch>` |
 | `PURGE_CLOUDFLARED` | no | `false` | Also remove the cloudflared package on down (true/false) |
 
 ## Dependencies

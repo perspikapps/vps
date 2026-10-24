@@ -33,7 +33,13 @@ up() {
         zz-log i "[vps-setup] cloudflared already installed ($(cloudflared --version | head -n1 || true))."
     else
         zz-log i "[vps-setup] Installing cloudflared (release binary, works on any distribution)..."
-        zz-install -u https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-{OS}-{ARCH} cloudflared
+        # CLOUDFLARED_VERSION pins the release (and CLOUDFLARED_SHA256 checks it); unset = latest.
+        if [ -n "${CLOUDFLARED_VERSION:-}" ]; then
+            zz-install -u https://github.com/cloudflare/cloudflared/releases/download/{VERSION}/cloudflared-{OS}-{ARCH} \
+                -v "$CLOUDFLARED_VERSION" ${CLOUDFLARED_SHA256:+-s "$CLOUDFLARED_SHA256"} cloudflared
+        else
+            zz-install -u https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-{OS}-{ARCH} cloudflared
+        fi
     fi
 
     # --- private interface unit
