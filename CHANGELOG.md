@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.7.0 (2026-10-25)
+
+*Commits from: v4.6.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.6.0' into develop
+### 📦 vps changes
+
+#### Other changes
+
+- 📝 add cloud-init README (#61)
+
+### 📦 vps-setup changes
+
+#### Other changes
+
+- 📚️ 📝 rewrite root README around current usage (#62)
+
+### 📦 vps-system changes
+
+#### Features
+
+- ✨ support dnf and zypper alongside apt (#63)
+
 ## 4.6.0 (2026-10-23)
 
 *Commits from: v4.5.0..HEAD*
@@ -475,5 +502,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-23 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-25 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
