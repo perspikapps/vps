@@ -23,7 +23,7 @@ sudo zz-setup ./ -d vps-cloudflare
 
 ## What it does
 
-1. Installs `cloudflared` from Cloudflare's apt repo.
+1. Installs `cloudflared` from Cloudflare's release binary (any distribution).
 2. Creates `vps-cloudflare-private.service`: a dummy interface `vpscf0` holding `CLOUDFLARE_PRIVATE_IP`/32.
 3. Creates `cloudflared.service` running the remotely-managed tunnel; the token is kept in `/etc/cloudflared/tunnel.env` (owner-only), not on the unit's command line.
 4. Persists `VPS_PRIVATE_INTERFACE=vpscf0` (see [Private access](../README.md#private-access)); this step runs before `vps-security` for that reason.
@@ -60,6 +60,8 @@ sudo vps-setup --down-vps-cloudflare
 | --- | --- | --- | --- |
 | `CLOUDFLARE_PRIVATE_IP` | no | `10.254.254.1` | Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | yes | _(unset)_ | Cloudflare Tunnel token (Zero Trust > Networks > Tunnels) |
+| `CLOUDFLARED_VERSION` | no | _(latest)_ | cloudflared release to install, e.g. `2025.1.0` |
+| `CLOUDFLARED_SHA256` | no | _(not checked)_ | sha256 of that release's binary, or a JSON object keyed `<os>_<arch>` |
 | `PURGE_CLOUDFLARED` | no | `false` | Also remove the cloudflared package on down (true/false) |
 
 ## Dependencies

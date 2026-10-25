@@ -111,3 +111,15 @@ guard_setup() {
     # only fw() itself calls `ufw allow`
     [ -z "$(grep -E '^\s+ufw allow ' "$DIR/run.sh" | grep -v 'ufw allow "\$@"')" ]
 }
+
+@test "firewall and admin user are distribution-aware (ufw/firewalld, ssh/sshd, useradd)" {
+    grep -q 'firewall=firewalld' "$DIR/run.sh"
+    grep -q 'ssh_unit=sshd' "$DIR/run.sh"
+    grep -q 'useradd -m' "$DIR/run.sh"
+    ! grep -q 'adduser' "$DIR/run.sh"
+}
+
+@test "the FORWARD guard's iptables and ip are installed before the unit" {
+    grep -q 'zz-install -m iptables' "$DIR/run.sh"
+    grep -q 'zz-install -m iproute2 dnf=iproute' "$DIR/run.sh"
+}
