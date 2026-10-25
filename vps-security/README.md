@@ -27,6 +27,8 @@ ufw filters INPUT only. Ports that k3s's ServiceLB (Rancher, the Traefik dashboa
 
 ## Removing (`down`)
 
+On dnf and zypper systems (Amazon Linux, SUSE) `up` uses firewalld instead of ufw: public ports go to the `public` zone, private ports to the `internal` zone bound to the private interface, and the zones' default services are removed. The sshd unit is `sshd` there (`ssh` on Debian), and the admin user is created with `useradd`. fail2ban must be available in the distribution's repositories.
+
 `down` removes ufw rules (disables ufw entirely), the private-ports guard, sshd hardening, and the fail2ban jail. Leaves the admin user/password `up` created (if any) in place.
 
 ```bash
