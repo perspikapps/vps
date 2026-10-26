@@ -124,6 +124,40 @@ Traefik dashboard, the Dokploy UI and the k3s API only answer on your private
 network, so join the same tailnet first. To check from outside,
 `curl -m 5 http://<public-ip>:7083` must time out.
 
+Every service is reachable one of three ways. Coder, Rancher and the apps pick
+**public or internal, never both**; the private ports are a separate, local access.
+
+```mermaid
+flowchart LR
+    net([Internet])
+    vpn([Tailscale / Cloudflare client])
+    subgraph vps[VPS]
+        direction LR
+        subgraph traefik[Traefik]
+            pub["web / websecure<br/>80 / 443 (public IP)"]
+            int["internalsecure<br/>8444 (private)"]
+        end
+        priv["Private ports<br/>Cockpit, Rancher 7080/7083, Dashboard 8088, Dokploy"]
+        subgraph svc[Services]
+            pubsvc["public: coder.&lt;public-ip&gt;.nip.io<br/>rancher., argocd., ..."]
+            intsvc["internal: coder.&lt;private-ip&gt;.nip.io<br/>rancher., argocd., ..."]
+        end
+    end
+    net -->|"SSH, 80/443"| pub
+    pub --> pubsvc
+    vpn -->|"private address"| int
+    vpn -->|"private address"| priv
+    int --> intsvc
+    net -. "blocked by ufw and FORWARD guard" .-> int
+    net -. "blocked by ufw and FORWARD guard" .-> priv
+```
+
+| Access   | Reached on                              | Chosen by                                     |
+| -------- | --------------------------------------- | --------------------------------------------- |
+| public   | server IP, Traefik 80/443               | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
+| internal | Tailscale/Cloudflare address, port 8444 | `internal` in those same settings             |
+| private  | Tailscale/Cloudflare address, own ports | always, for `access: "private"` steps         |
+
 - **Logins.** Cockpit uses a Linux account (`VPS_ADMIN_USER`, else `root`) and
   the password from `VPS_ADMIN_PASSWORD` or the generated one. Rancher uses
   `admin` and asks you to change the password at first login.
