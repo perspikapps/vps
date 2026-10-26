@@ -116,6 +116,10 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$add_line" -lt "$cm_line" ]
 }
 
+@test "The Rancher Ingress outranks Coder's wildcard route" {
+    grep -q "router.priority: '1000'" "$DIR/helm/ingress.yaml"
+}
+
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
     grep -q 'rancher.\$("\$vps_network" wildcard-domain)' "$DIR/run.sh"
     grep -q 'RANCHER_INGRESS:-true' "$DIR/run.sh"
