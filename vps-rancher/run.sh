@@ -4,11 +4,9 @@
 # so there is no zz-args block; run with up, down or summary as its first argument.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
 
 up() {
@@ -24,13 +22,13 @@ up() {
     # vps-access (or RANCHER_ACCESS) picks where the route is served, public or internal, never both:
     # public = Traefik 80/443 on the server IP (Let's Encrypt); internal = Traefik's private
     # "internal"/"internalsecure" ports on the Tailscale/Cloudflare address (default cert).
-    access="$("$vps_network" visibility rancher)"
+    access="$(vps-network visibility rancher)"
     case "$access" in
         public) entrypoints="web,websecure" certresolver="letsencrypt" port_suffix="" ;;
-        internal) entrypoints="internal,internalsecure" certresolver="" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
+        internal) entrypoints="internal,internalsecure" certresolver="" port_suffix=":$(vps-network port traefik_internal_https)" ;;
         *) zz-log e "[vps-setup] RANCHER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
     esac
-    ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" access-domain "$access")}"
+    ingress_host="${RANCHER_INGRESS_HOST:-rancher.$(vps-network access-domain "$access")}"
     case "$ingress_host" in
         *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
     esac

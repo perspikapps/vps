@@ -43,7 +43,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 
 @test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
-    grep -q '^    "\$vps_network" reapply-guard$' "$DIR/run.sh"
+    grep -q '^    vps-network reapply-guard$' "$DIR/run.sh"
     ! grep -qE '^[[:space:]]*iptables ' "$DIR/run.sh"
 }
 

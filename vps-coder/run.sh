@@ -4,11 +4,9 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 CODER_NAMESPACE=coder
 # Where workspaces run: one namespace for the template's `namespace` variable, the pull secret and
@@ -16,7 +14,7 @@ CODER_NAMESPACE=coder
 WORKSPACE_NAMESPACE="${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"
 printf '%s\n' "$WORKSPACE_NAMESPACE" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$' ||
     { zz-log e "[vps-setup] CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')." && exit 1; }
-REGISTRY_PORT="$("$vps_network" port devcontainer_registry)"
+REGISTRY_PORT="$(vps-network port devcontainer_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
 # Chart values and manifests, rendered with yaml-render (see helm/).
@@ -94,7 +92,7 @@ deploy_local_registry() {
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
     yaml-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
     kubectl -n devcontainer-builder rollout status deploy/registry --timeout=5m
-    "$vps_network" reapply-guard
+    vps-network reapply-guard
     if [ ! -f "$cfg" ]; then
         zz-log i "[vps-setup] Letting containerd pull ${addr} over HTTP (${cfg}); restarting k3s (running pods keep running)..."
         printf 'mirrors:\n  "%s":\n    endpoint:\n      - "http://%s"\n' "$addr" "$addr" >"$cfg"
@@ -265,13 +263,13 @@ up() {
     # vps-access (or CODER_ACCESS) picks public or internal, never both: public = Traefik 80/443 on the
     # server IP; internal = Traefik's private "internal" (HTTP) port on the
     # Tailscale/Cloudflare address. Plain HTTP either way, like public.
-    access="$("$vps_network" visibility coder)"
+    access="$(vps-network visibility coder)"
     case "$access" in
         public) entrypoints="web,websecure" tls="false" scheme="http" port_suffix="" ;;
-        internal) entrypoints="internal,internalsecure" tls="false" scheme="http" port_suffix=":$("$vps_network" port traefik_internal_http)" ;;
+        internal) entrypoints="internal,internalsecure" tls="false" scheme="http" port_suffix=":$(vps-network port traefik_internal_http)" ;;
         *) zz-log e "[vps-setup] CODER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
     esac
-    wildcard="$("$vps_network" access-domain "$access")" || exit 1
+    wildcard="$(vps-network access-domain "$access")" || exit 1
     access_url="${CODER_ACCESS_URL:-${wildcard:+${scheme}://coder.${wildcard}${port_suffix}}}"
     [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or WILDCARD_DOMAIN." && exit 1; }
     host="${access_url#*://}"
@@ -343,7 +341,7 @@ summary() {
                        (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
 EOF
     if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
-        echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$("$vps_network" summary-host):${REGISTRY_PORT}/v2/_catalog)"
+        echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$(vps-network summary-host):${REGISTRY_PORT}/v2/_catalog)"
     fi
 }
 

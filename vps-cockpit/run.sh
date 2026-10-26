@@ -3,17 +3,15 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
     local http_port https_port
 
-    http_port="$("$vps_network" port cockpit_http)"
-    https_port="$("$vps_network" port cockpit_https)"
+    http_port="$(vps-network port cockpit_http)"
+    https_port="$(vps-network port cockpit_https)"
 
     zz-log i "[vps-setup] Installing Cockpit..."
     zz-install -m  cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
@@ -31,7 +29,7 @@ EOF2
     systemctl enable --now cockpit.socket
     systemctl restart cockpit.socket
 
-    zz-log s "[vps-setup] Cockpit installed. Reachable at https://$("$vps_network" summary-host):${http_port} and :${https_port} (self-signed cert)."
+    zz-log s "[vps-setup] Cockpit installed. Reachable at https://$(vps-network summary-host):${http_port} and :${https_port} (self-signed cert)."
 }
 
 down() {
@@ -47,10 +45,10 @@ down() {
 summary() {
     local host
 
-    host="$("$vps_network" summary-host)"
+    host="$(vps-network summary-host)"
     cat <<EOF2
- Cockpit:             https://${host}:$("$vps_network" port cockpit_http)
-                       https://${host}:$("$vps_network" port cockpit_https)
+ Cockpit:             https://${host}:$(vps-network port cockpit_http)
+                       https://${host}:$(vps-network port cockpit_https)
                        user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_USER | grep . || echo 'not set - run vps-security/run.sh')
                        password: $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_PASSWORD | grep . || echo 'not set - run vps-security/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; PAM login, same

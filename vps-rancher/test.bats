@@ -98,7 +98,7 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
-    grep -q 'rancher.\$("\$vps_network" wildcard-domain)' "$DIR/run.sh"
+    grep -q 'rancher.\$(vps-network access-domain' "$DIR/run.sh"
     grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
     grep -q 'name: http$' "$DIR/helm/ingress.yaml"
     run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"

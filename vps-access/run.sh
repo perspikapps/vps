@@ -5,11 +5,9 @@
 # run with up, down or summary as its first argument. The menus only run on a terminal.
 
 set -eu
-zz-use zz-colors zz-log zz-menu zz-prompt
+zz-use zz-colors zz-log zz-menu zz-prompt perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, domains, saved choices.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 # ask: menus only with a terminal to ask on (stdin, else /dev/tty, as zz-prompt reads it)
 # and unless VPS_ACCESS_MENU=false.
@@ -27,17 +25,17 @@ confirm_visibility() {
     while IFS="$tab" read -r name vis; do
         [ -z "$name" ] || set -- "$@" "${name}:${vis}=${name}"
     done <<EOF
-$("$vps_network" visibilities)
+$(vps-network visibilities)
 EOF
     [ "$#" -gt 0 ] || return 0
     out="$(zz-menu -t "Visibility (a number cycles public/internal, Enter confirms, q keeps)" -c public,internal "$@")" || return 0
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
-        if [ "$state" = "internal" ] && [ -z "$("$vps_network" private-address)" ]; then
+        if [ "$state" = "internal" ] && [ -z "$(vps-network private-address)" ]; then
             zz-log w "[vps-setup] ${key}: no private address (install vps-tailscale or vps-cloudflare); keeping it public."
             state=public
         fi
-        "$vps_network" set-visibility "$key" "$state"
+        vps-network set-visibility "$key" "$state"
     done <<EOF
 $out
 EOF
@@ -62,7 +60,7 @@ confirm_domain() {
         fi
     fi
     # A fallback nothing custom replaced is not saved: it follows the address if it changes.
-    [ "$domain" = "$fallback" ] && [ "$initial" = "$fallback" ] || "$vps_network" "$persist" "$domain"
+    [ "$domain" = "$fallback" ] && [ "$initial" = "$fallback" ] || vps-network "$persist" "$domain"
     zz-log i "[vps-setup] ${label} DNS: *.${domain} -> ${ip}"
 }
 
@@ -72,22 +70,22 @@ hosts() {
 
     tab="$(printf '\t')"
     while IFS="$tab" read -r name vis; do
-        [ -z "$name" ] || printf '%s: %s.%s (%s)\n' "$name" "$name" "$("$vps_network" access-domain "$vis" 2>/dev/null || echo '<no private address>')" "$vis"
+        [ -z "$name" ] || printf '%s: %s.%s (%s)\n' "$name" "$name" "$(vps-network access-domain "$vis" 2>/dev/null || echo '<no private address>')" "$vis"
     done <<EOF
-$("$vps_network" visibilities)
+$(vps-network visibilities)
 EOF
 }
 
 up() {
     confirm_visibility
-    confirm_domain External "$("$vps_network" wildcard-domain)" "$("$vps_network" public-ip)" set-wildcard-domain
-    confirm_domain Internal "$("$vps_network" internal-domain)" "$("$vps_network" private-address)" set-internal-domain
+    confirm_domain External "$(vps-network wildcard-domain)" "$(vps-network public-ip)" set-wildcard-domain
+    confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network private-address)" set-internal-domain
     zz-log s "[vps-setup] Access confirmed:"
     hosts | while IFS= read -r line; do zz-log s "[vps-setup]   ${line}"; done
 }
 
 down() {
-    "$vps_network" unset-access
+    vps-network unset-access
     zz-log s "[vps-setup] Access choices forgotten (visibility back to each step's default)."
 }
 

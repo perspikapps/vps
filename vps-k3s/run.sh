@@ -3,11 +3,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress
+zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
     local service_file=/etc/systemd/system/k3s.service need_install=1 kubeconfig_path=/etc/rancher/k3s/k3s.yaml i
@@ -66,9 +64,9 @@ up() {
     # --- Traefik
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
     TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
-    TRAEFIK_DASHBOARD_PORT="$("$vps_network" port traefik_dashboard)"
-    TRAEFIK_INTERNAL_HTTP_PORT="$("$vps_network" port traefik_internal_http)"
-    TRAEFIK_INTERNAL_HTTPS_PORT="$("$vps_network" port traefik_internal_https)"
+    TRAEFIK_DASHBOARD_PORT="$(vps-network port traefik_dashboard)"
+    TRAEFIK_INTERNAL_HTTP_PORT="$(vps-network port traefik_internal_http)"
+    TRAEFIK_INTERNAL_HTTPS_PORT="$(vps-network port traefik_internal_https)"
 
     if [ "$TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
         zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
@@ -101,7 +99,7 @@ up() {
     kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
         zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
-    "$vps_network" reapply-guard
+    vps-network reapply-guard
 
     zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
@@ -120,14 +118,14 @@ down() {
 summary() {
     local host
 
-    host="$("$vps_network" public-ip)"
+    host="$(vps-network public-ip)"
     cat <<EOF
  Traefik (k3s):       public: http://${host:-<public-ip>} and https://${host:-<public-ip>}
                        (a "letsencrypt" certResolver is configured and
                        ready to use - it won't issue anything until you
                        add the router.tls.certresolver annotation to your
                        own Ingress; see README)
-                       dashboard: http://$("$vps_network" summary-host):$("$vps_network" port traefik_dashboard)/dashboard/
+                       dashboard: http://$(vps-network summary-host):$(vps-network port traefik_dashboard)/dashboard/
                        (private access only, no login - see README's Security model)
 
  kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported

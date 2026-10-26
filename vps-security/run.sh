@@ -3,11 +3,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 GUARD_BIN=/usr/local/sbin/vps-private-ports-guard
 GUARD_UNIT=/etc/systemd/system/vps-private-ports-guard.service
@@ -38,7 +36,7 @@ up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
     local name port access note tab spec private_iface private_ip
 
-    ssh_port="$("$vps_network" port ssh)"
+    ssh_port="$(vps-network port ssh)"
 
     zz-log i "[vps-setup] Installing ${firewall} and fail2ban..."
     zz-install -m "$firewall"
@@ -135,8 +133,8 @@ EOF
     # that reset and rebuilt): one reset to start clean.
     ufw_state=/var/lib/vps-security-ufw.rules
     wanted="$(mktemp)"
-    private_iface="$("$vps_network" private-interface)"
-    private_ip="$("$vps_network" private-address)"
+    private_iface="$(vps-network private-interface)"
+    private_ip="$(vps-network private-address)"
     if [ "$firewall" = ufw ]; then
         [ -f "$ufw_state" ] || ufw --force reset >/dev/null
         ufw default deny incoming
@@ -172,7 +170,7 @@ EOF
                 ;;
         esac
     done <<EOF
-$("$vps_network" ports)
+$(vps-network ports)
 EOF
 
     if [ -f "$ufw_state" ]; then
@@ -194,7 +192,7 @@ EOF
     # The guard calls iptables and ip; minimal images (Amazon Linux, SUSE) may lack them.
     zz-install -m iptables
     zz-install -m iproute2 dnf=iproute
-    install_private_guard "${private_iface:--}" "$("$vps_network" ports | awk -F'\t' '$3 == "private" { print $2 }')"
+    install_private_guard "${private_iface:--}" "$(vps-network ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
 
 # ufw only filters INPUT. Ports published by k3s's ServiceLB or by Docker are
@@ -203,7 +201,7 @@ EOF
 # interface. This drops DNAT-ed connections to the private ports arriving on the
 # default-route interface (unless that is the private one). FORWARD position 1,
 # re-inserted on every run: k3s and Docker must be (re)started before the rule
-# is final, so their steps call "$vps_network" reapply-guard once they are up.
+# is final, so their steps call vps-network reapply-guard once they are up.
 install_private_guard() {
     local private="$1" ports="$2"
 
@@ -284,7 +282,7 @@ summary() {
  Firewall:            ${firewall} is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
-                       the private interface ($("$vps_network" private-interface || true)) - connect
+                       the private interface ($(vps-network private-interface || true)) - connect
                        to that network first.
 EOF
 }

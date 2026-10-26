@@ -3,11 +3,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive # apt only; ignored elsewhere
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 up() {
     local domain
@@ -44,7 +42,7 @@ EOF2
         domain="${WILDCARD_DOMAIN#\*.}"
         printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
             { zz-log e "[vps-setup] WILDCARD_DOMAIN must be a bare domain like apps.example.com (got '${WILDCARD_DOMAIN}')." && exit 1; }
-        "$vps_network" set-wildcard-domain "$domain"
+        vps-network set-wildcard-domain "$domain"
         zz-log i "[vps-setup] Wildcard DNS: *.${domain} (point it at this VPS)."
     else
         zz-log i "[vps-setup] No WILDCARD_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."

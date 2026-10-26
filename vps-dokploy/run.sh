@@ -3,11 +3,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 DOKPLOY_INSTALL_URL=https://dokploy.com/install.sh
 
@@ -21,7 +19,7 @@ is_dokploy_installed() {
 up() {
     local ui_port
 
-    ui_port="$("$vps_network" port dokploy_ui)"
+    ui_port="$(vps-network port dokploy_ui)"
 
     if is_dokploy_installed; then
         zz-log i "[vps-setup] Dokploy already installed; not re-running its installer (it resets the swarm)."
@@ -49,7 +47,7 @@ up() {
     fi
 
     # Docker publishes the admin UI past ufw: vps-security's FORWARD guard covers it.
-    "$vps_network" reapply-guard
+    vps-network reapply-guard
     zz-log s "[vps-setup] Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
 }
 
@@ -79,7 +77,7 @@ summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -d /etc/dokploy ] || return 0
     cat <<EOF
- Dokploy:             http://$("$vps_network" summary-host):$("$vps_network" port dokploy_ui)
+ Dokploy:             http://$(vps-network summary-host):$(vps-network port dokploy_ui)
                        (private access only; the first visit creates the
                        admin account, so join the private network first.
                        Apps are served by Dokploy's own Traefik on 80/443)

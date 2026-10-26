@@ -44,7 +44,7 @@ DIR="$REPO_ROOT/vps-security"
 
 
 @test "run.sh opens private-access ports on the interface vps-network reports, not a hard-coded one" {
-    grep -q 'private_iface="\$("\$vps_network" private-interface)"' "$DIR/run.sh"
+    grep -q 'private_iface="\$(vps-network private-interface)"' "$DIR/run.sh"
     ! grep -q 'tailscale0' "$DIR/run.sh"
     ! grep -q '^    tailscale)' "$DIR/run.sh"
 }
@@ -94,12 +94,12 @@ guard_setup() {
 }
 
 @test "run.sh feeds the guard every access:private port of every feature, and down removes it" {
-    grep -q 'install_private_guard "\${private_iface:--}" "\$("\$vps_network" ports | awk' "$DIR/run.sh"
+    grep -q 'install_private_guard "\${private_iface:--}" "\$(vps-network ports | awk' "$DIR/run.sh"
     grep -q '"\$GUARD_BIN" del -' "$DIR/run.sh"
 }
 
 @test "private ports are opened only to the private address, with no blanket allow on the interface" {
-    grep -q 'private_ip="\$("\$vps_network" private-address)"' "$DIR/run.sh"
+    grep -q 'private_ip="\$(vps-network private-address)"' "$DIR/run.sh"
     grep -q 'to "\$private_ip" port' "$DIR/run.sh"
     ! grep -q 'ufw allow in on "\$private_iface" comment' "$DIR/run.sh"
 }

@@ -53,6 +53,9 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 # run_summary <step> <path with stubs>: run the step's summary action the way zz-setup does
 # (from its own directory, as ./run.sh).
 run_summary() {
+    # vps-network is on PATH through zz-use in a real run; here the checkout's own copy.
+    printf '#!/bin/sh\nexec sh "%s/vps-network/run.sh" "$@"\n' "$REPO_ROOT" >"$2/vps-network"
+    chmod +x "$2/vps-network"
     run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$REPO_ROOT/vps-$1"
 }
 

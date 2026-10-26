@@ -4,11 +4,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install perspikapps/vps/vps-network
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 IFACE=vpscf0
 IF_UNIT=/etc/systemd/system/vps-cloudflare-private.service
@@ -20,7 +18,7 @@ up() {
 
     # conflicts only guards one run: a host a previous run set up with Tailscale is
     # caught here.
-    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$("$vps_network" private-interface)" = "tailscale0" ]; then
+    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$(vps-network private-interface)" = "tailscale0" ]; then
         zz-log e "[vps-setup] Tailscale is set up on this host and is mutually exclusive with vps-cloudflare. Run 'sudo vps-setup --down-vps-tailscale' first (mind your SSH path), then re-run." && exit 1
     fi
 
@@ -91,7 +89,7 @@ UNIT
 
     # Tell the other steps which interface carries the private network (ufw rules
     # for access:"private" ports, the final summary); see vps-network.
-    "$vps_network" set-private-interface "$IFACE"
+    vps-network set-private-interface "$IFACE"
 }
 
 down() {
@@ -99,7 +97,7 @@ down() {
     systemctl disable --now cloudflared.service vps-cloudflare-private.service 2>/dev/null || true
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
-    "$vps_network" unset-private-interface "$IFACE"
+    vps-network unset-private-interface "$IFACE"
     if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
         # Installed as a plain binary (no package to remove); also drop the apt repo of earlier installs.
@@ -114,7 +112,7 @@ down() {
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -f "$IF_UNIT" ] || return 0
-    echo " Private network:     $("$vps_network" private-address) (${IFACE}) via Cloudflare Tunnel - add a private network"
+    echo " Private network:     $(vps-network private-address) (${IFACE}) via Cloudflare Tunnel - add a private network"
     echo "                       route for this /32 to the tunnel, and connect with the WARP client"
 }
 

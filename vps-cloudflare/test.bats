@@ -49,8 +49,8 @@ DIR="$REPO_ROOT/vps-cloudflare"
 }
 
 @test "run.sh persists the private interface for the other steps, and forgets it on down" {
-    grep -q '"\$vps_network" set-private-interface "\$IFACE"' "$DIR/run.sh"
-    grep -q '"\$vps_network" unset-private-interface "\$IFACE"' "$DIR/run.sh"
+    grep -q 'vps-network set-private-interface "\$IFACE"' "$DIR/run.sh"
+    grep -q 'vps-network unset-private-interface "\$IFACE"' "$DIR/run.sh"
 }
 
 @test "vps.order puts cloudflare before the firewall step, after nothing it needs" {

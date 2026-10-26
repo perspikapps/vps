@@ -4,7 +4,7 @@
 
 The network facts and state of this VPS, in one place. A **script, not a step**:
 its `package.json` has a `bin` but no `engines.zz-setup`, so `zz-setup` never lists it.
-The steps call it by path (`vps_network="$(dirname "$0")/../vps-network/run.sh"`), never source it.
+The steps get it on `PATH` with `zz-use perspikapps/vps/vps-network` and call `vps-network <command>`, never source it.
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
 
