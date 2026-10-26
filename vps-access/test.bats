@@ -30,3 +30,10 @@ DIR="$REPO_ROOT/vps-access"
     run node -e "const fs = require('fs'); const bad = fs.readdirSync('$REPO_ROOT').filter(d => fs.existsSync('$REPO_ROOT/' + d + '/package.json')).map(d => require('$REPO_ROOT/' + d + '/package.json')).filter(p => p.config && p.config.visibility && !['public', 'internal'].includes(p.config.visibility)); process.exit(bad.length ? 1 : 0)"
     [ "$status" -eq 0 ]
 }
+
+@test "summary spells out the rule, both domains and each service's host, ports and reach" {
+    grep -q 'each service is public OR internal, never both' "$DIR/run.sh"
+    grep -q '^domain_line() {' "$DIR/run.sh"
+    grep -q '^service_lines() {' "$DIR/run.sh"
+    grep -q 'does NOT resolve' "$DIR/run.sh"
+}

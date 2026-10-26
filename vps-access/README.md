@@ -42,6 +42,22 @@ An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve 
 
 Without a terminal (or with `VPS_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
 
+## Summary
+
+The final `vps-setup` summary spells it out: the rule (public or internal, never both), both domains with where each comes from (`custom` or the nip.io `fallback`) and whether `*.<domain>` resolves to the expected address, then each service with its choice, host, ports and who can reach it:
+
+```text
+ Access:              each service is public OR internal, never both
+ DNS:
+   External domain  *.apps.example.com - custom, resolves to 203.0.113.7
+   Internal domain  *.100-64-0-1.nip.io - fallback (nip.io), resolves to 100.64.0.1
+ Services:
+   coder      public   coder.apps.example.com
+                       HTTP/HTTPS ports 80/443 on 203.0.113.7, from the internet
+   rancher    internal rancher.100-64-0-1.nip.io
+                       HTTP/HTTPS ports 8081/8444 on 100.64.0.1, over the internal network (Tailscale/Cloudflare) only
+```
+
 ## Removing (`down`)
 
 `down` forgets the saved choices (each service goes back to its `config.visibility` default).

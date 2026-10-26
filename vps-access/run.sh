@@ -89,9 +89,58 @@ down() {
     zz-log s "[vps-setup] Access choices forgotten (visibility back to each step's default)."
 }
 
+# domain_line <label> <domain> <ip>: the domain, where it comes from and whether DNS answers.
+domain_line() {
+    local label="$1" domain="$2" ip="$3" fallback resolved how
+
+    if [ -z "$domain" ]; then
+        printf '   %-16s %s\n' "$label" "not available (no address and no domain set)"
+        return 0
+    fi
+    [ -n "$ip" ] || ip="<address unknown>"
+    fallback="$(printf '%s' "$ip" | tr . -).nip.io"
+    [ "$domain" = "$fallback" ] && how="fallback (nip.io)" || how="custom"
+    resolved="$(getent hosts "vps-access-check.${domain}" 2>/dev/null | awk '{print $1; exit}' || true)"
+    [ "$resolved" = "$ip" ] && resolved="resolves to ${ip}" || resolved="does NOT resolve to ${ip}"
+    printf '   %-16s *.%s - %s, %s\n' "$label" "$domain" "$how" "$resolved"
+}
+
+# service_lines: one line per service: its choice, host and where it can be reached from.
+service_lines() {
+    local name vis tab domain ports from
+
+    tab="$(printf '\t')"
+    while IFS="$tab" read -r name vis; do
+        [ -n "$name" ] || continue
+        if [ "$vis" = "internal" ]; then
+            ports="$(vps-network port traefik_internal_http)/$(vps-network port traefik_internal_https) on $(vps-network summary-host)"
+            from="over the internal network (Tailscale/Cloudflare) only"
+        else
+            ports="80/443 on $(vps-network public-ip || true)"
+            ports="${ports% on }"
+            from="from the internet"
+        fi
+        domain="$(vps-network access-domain "$vis" 2>/dev/null || true)"
+        if [ -n "$domain" ]; then
+            printf '   %-10s %-8s %s.%s\n' "$name" "$vis" "$name" "$domain"
+        else
+            printf '   %-10s %-8s %s\n' "$name" "$vis" "no domain yet (set EXTERNAL_DOMAIN / INTERNAL_DOMAIN, or install a network)"
+        fi
+        printf '   %-10s %-8s HTTP/HTTPS ports %s, %s\n' "" "" "$ports" "$from"
+    done <<EOF
+$(vps-network visibilities)
+EOF
+}
+
 summary() {
-    printf ' Access:              %s\n' "public: server IP; internal: Tailscale/Cloudflare address (never both)"
-    hosts | sed 's/^/                       /'
+    printf ' Access:              each service is public OR internal, never both\n'
+    printf '   public = server IP, Traefik web/websecure; internal = internal network, Traefik internal/internalsecure\n'
+    printf ' DNS:\n'
+    domain_line "External domain" "$(vps-network external-domain)" "$(vps-network public-ip)"
+    domain_line "Internal domain" "$(vps-network internal-domain)" "$(vps-network internal-address)"
+    printf ' Services:\n'
+    service_lines
+    printf '   (change: sudo vps-setup --only-vps-access, then re-run the service step)\n'
 }
 
 case "${1:-}" in
