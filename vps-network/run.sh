@@ -247,7 +247,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, private-interface, private-address, summary-host, wildcard-domain, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, private-interface, private-address, summary-host, wildcard-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard)"
     exit 1
     ;;
 esac

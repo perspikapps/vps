@@ -23,7 +23,7 @@ sudo zz-setup ./ -d vps-security
 
 ## Private ports and the FORWARD guard
 
-ufw filters INPUT only. Ports that k3s's ServiceLB (Rancher, the Traefik dashboard) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `vps-k3s`, `vps-rancher` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the private network: `curl -m 5 http://<public-ip>:7083` must time out.
+ufw filters INPUT only. Ports that k3s's ServiceLB (the Traefik dashboard and its internal 8081/8444 entrypoints) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `vps-k3s`, `vps-coder` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the private network: `curl -m 5 http://<public-ip>:9083` must time out.
 
 ## Removing (`down`)
 

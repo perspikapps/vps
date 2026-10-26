@@ -40,11 +40,6 @@
         "required": false,
         "default": ""
       },
-      "RANCHER_INGRESS": {
-        "description": "Serve the dashboard publicly through Traefik; false keeps Rancher private-only",
-        "required": false,
-        "default": "true"
-      },
       "RANCHER_ACCESS": {
         "description": "Override vps-access: public (server IP) or internal (Tailscale/Cloudflare address), never both",
         "required": false,
@@ -73,18 +68,6 @@
         "value": "/root/.vps-secrets.env"
       }
     },
-    "ports": [
-      {
-        "name": "rancher_http",
-        "port": 7080,
-        "access": "private"
-      },
-      {
-        "name": "rancher_https",
-        "port": 7083,
-        "access": "private"
-      }
-    ],
     "requires": {
       "root": true,
       "os": "ubuntu"

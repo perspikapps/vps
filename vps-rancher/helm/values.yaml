@@ -5,6 +5,6 @@ ingress:
     # Traefik serves the dashboard through ingress.yaml, not the chart's ingress.
     enabled: false
 service:
-    # Moved to private ports by run.sh once the release exists.
-    type: LoadBalancer
+    # Reached only through Traefik (ingress.yaml), never on a host port.
+    type: ClusterIP
 replicas: 1

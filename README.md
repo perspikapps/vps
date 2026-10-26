@@ -31,7 +31,7 @@ sudo VPS_ADMIN_USER=ops \
 This creates the `ops` sudo user with your key, disables SSH password login,
 joins your Tailscale network, and installs Cockpit, k3s and Rancher. From a
 machine on the same tailnet, open Cockpit at `https://<tailscale-ip>:9080` and
-Rancher at `https://<RANCHER_HOSTNAME>:7083`. The generated passwords are printed
+Rancher at the host its step prints. The generated passwords are printed
 at the end and saved in `/root/.vps-secrets.env`. `vps-setup -h` lists every flag.
 
 ## Steps
@@ -99,7 +99,7 @@ need and remembers your answers in `/etc/vps.env`.
 | `TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
 | `TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
 | `WILDCARD_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
-| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `RANCHER_HTTPS_PORT`, `COCKPIT_HTTPS_PORT` |
+| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT`, `TRAEFIK_INTERNAL_HTTPS_PORT` |
 
 To keep a set of inputs in a file instead, use `/etc/vps-setup.env`
 (`KEY=VALUE`, or the file named by `VPS_SETUP_ENV_FILE`); it is read on every
@@ -120,10 +120,10 @@ run and wins over `/etc/vps.env`.
 
 ## What is reachable
 
-From the internet: SSH, and HTTP/HTTPS through Traefik. Cockpit, Rancher, the
+From the internet: SSH, and HTTP/HTTPS through Traefik. Cockpit, the
 Traefik dashboard, the Dokploy UI and the k3s API only answer on your private
 network, so join the same tailnet first. To check from outside,
-`curl -m 5 http://<public-ip>:7083` must time out.
+`curl -m 5 http://<public-ip>:9083` must time out.
 
 The [`vps-access`](vps-access/README.md) step confirms each service's choice (and the DNS domains) on a terminal.
 
@@ -143,7 +143,6 @@ flowchart LR
         end
         subgraph priv["Private ports (local)"]
             cockpit["Cockpit<br/>9080 / 9083"]
-            rancherp["Rancher<br/>7080 / 7083"]
             dash["Traefik dashboard<br/>8088"]
             dokploy["Dokploy UI<br/>3000"]
             registry["Image registry<br/>5000"]

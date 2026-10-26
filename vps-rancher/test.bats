@@ -67,29 +67,10 @@ DIR="$REPO_ROOT/vps-rancher"
     grep -q 'kube-progress cattle-system "Rancher rollout"' "$DIR/run.sh"
 }
 
-@test "helm does not --wait for the LoadBalancer Service: the port rebind has to happen first" {
-    run awk '/helm upgrade --install rancher/ {h=1} h && /--wait/ {print "found"} /--timeout 10m/ {h=0}' "$DIR/run.sh"
-    [ -z "$output" ]
-    helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    patch_line=$(grep -n 'kube-service-port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    rollout_line=$(grep -n 'rollout status deploy/rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    [ "$helm_line" -lt "$patch_line" ]
-    [ "$patch_line" -lt "$rollout_line" ]
-}
-
 @test "a failed install or rollout dumps diagnostics before exiting" {
     [ "$(grep -c 'kube-diagnose cattle-system' "$DIR/run.sh")" -ge 2 ]
 }
 
-
-@test "an already-rebound Service is removed before helm upgrades, so ports are not merged into duplicates" {
-    del_line=$(grep -n 'delete service rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    helm_line=$(grep -n 'helm upgrade --install rancher' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    patch_line=$(grep -n 'kube-service-port cattle-system rancher http' "$DIR/run.sh" | head -1 | cut -d: -f1)
-    [ -n "$del_line" ]
-    [ "$del_line" -lt "$helm_line" ]
-    [ "$helm_line" -lt "$patch_line" ]
-}
 
 @test "the chart repository comes from RANCHER_CHART_REPO_URL (community latest by default), not a hard-coded alias" {
     grep -q 'RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest' "$DIR/run.sh"
@@ -118,7 +99,6 @@ DIR="$REPO_ROOT/vps-rancher"
 
 @test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
     grep -q 'rancher.\$("\$vps_network" wildcard-domain)' "$DIR/run.sh"
-    grep -q 'RANCHER_INGRESS:-true' "$DIR/run.sh"
     grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
     grep -q 'name: http$' "$DIR/helm/ingress.yaml"
     run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"
@@ -139,5 +119,12 @@ DIR="$REPO_ROOT/vps-rancher"
     grep -q 'internal) entrypoints="internal,internalsecure"' "$DIR/run.sh"
     grep -q 'router.entrypoints: ${ENTRYPOINTS}' "$DIR/helm/ingress.yaml"
     run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_ACCESS; process.exit(i && i.required === false && require('$DIR/package.json').config.visibility === 'public' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+@test "Rancher has no port of its own: a ClusterIP Service reached only through Traefik" {
+    grep -q 'type: ClusterIP' "$DIR/helm/values.yaml"
+    ! grep -q 'kube-service-port' "$DIR/run.sh"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.ports || p.config.inputs.RANCHER_INGRESS ? 1 : 0)"
     [ "$status" -eq 0 ]
 }

@@ -23,12 +23,10 @@ sudo zz-setup ./ -d vps-rancher
 
 ## Public dashboard through Traefik
 
-The dashboard is also served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
+The dashboard is served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
 the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
 `WILDCARD_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
-`vps-access` (or `RANCHER_ACCESS`, which wins) picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<private-ip>.nip.io` on Traefik's private `internal`/`internalsecure` entrypoints (the UI on `TRAEFIK_INTERNAL_HTTPS_PORT`, 8444) over Tailscale/Cloudflare, with Traefik's default certificate. The private (local) ports are unchanged. Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
-This makes the admin UI publicly reachable (the `RANCHER_HTTP(S)_PORT` ports stay private-only),
-so change the bootstrap password on first login.
+`vps-access` (or `RANCHER_ACCESS`, which wins) picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<private-ip>.nip.io` on Traefik's private `internal`/`internalsecure` entrypoints (the UI on `TRAEFIK_INTERNAL_HTTPS_PORT`, 8444) over Tailscale/Cloudflare, with Traefik's default certificate. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL (`RANCHER_HOSTNAME`) defaults to the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
 
 ## Installing from SUSE Rancher Prime
 
@@ -68,11 +66,7 @@ step's final rollout wait and the Traefik rollout in `vps-k3s`.
 
 ## If the install fails or hangs
 
-Rancher's Service is a `LoadBalancer`. On k3s, ServiceLB cannot place it while
-Traefik holds host ports 80/443, so the step creates the release **without**
-`helm --wait`, moves the Service to `RANCHER_HTTP_PORT`/`RANCHER_HTTPS_PORT`, and
-only then waits for the rollout (`UPGRADE FAILED: context deadline exceeded` was
-helm waiting for an address that could not exist yet). When a wait still fails,
+Rancher's Service is a `ClusterIP` (older runs left a `LoadBalancer` on private ports; the step removes it so helm recreates it). The step creates the release **without** `helm --wait` and waits for the rollout itself, with progress. When a wait still fails,
 the step prints diagnostics before exiting: pods and services, recent events,
 the `svclb-*` pods in `kube-system` and why each unready pod is not running.
 Re-running `sudo vps-setup --only-vps-rancher` is safe: `helm upgrade --install`
@@ -99,12 +93,9 @@ sudo vps-setup --down-vps-rancher
 | `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
 | `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
-| `RANCHER_INGRESS` | no | `true` | `false` disables the public Traefik route |
 | `RANCHER_ACCESS` | no | _(vps-access, else `public`)_ | `public` (server IP) or `internal` (Tailscale/Cloudflare address) for the Traefik route |
-| `RANCHER_INGRESS_HOST` | no | `rancher.<wildcard domain>` | Public host Traefik serves the dashboard on |
-| `RANCHER_HOSTNAME` | no | public ingress host, else private address | Rancher server URL host / self-signed cert name |
-| `RANCHER_HTTPS_PORT` | no | `7083` | Rancher HTTPS port |
-| `RANCHER_HTTP_PORT` | no | `7080` | Rancher HTTP port |
+| `RANCHER_INGRESS_HOST` | no | `rancher.<domain>` | Host Traefik serves the dashboard on |
+| `RANCHER_HOSTNAME` | no | the route's host | Rancher server URL host / self-signed cert name |
 
 ## Outputs
 
