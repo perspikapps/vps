@@ -133,28 +133,35 @@ flowchart LR
     vpn([Tailscale / Cloudflare client])
     subgraph vps[VPS]
         direction LR
+        ssh["sshd<br/>22"]
         subgraph traefik[Traefik]
             pub["web / websecure<br/>80 / 443 (public IP)"]
             int["internalsecure<br/>8444 (private)"]
         end
-        priv["Private ports<br/>Cockpit, Rancher 7080/7083, Dashboard 8088, Dokploy"]
-        subgraph svc[Services]
-            pubsvc["public: coder.&lt;public-ip&gt;.nip.io<br/>rancher., argocd., ..."]
-            intsvc["internal: coder.&lt;private-ip&gt;.nip.io<br/>rancher., argocd., ..."]
+        subgraph priv["Private ports (local)"]
+            cockpit["Cockpit<br/>9080 / 9083"]
+            rancherp["Rancher<br/>7080 / 7083"]
+            dash["Traefik dashboard<br/>8088"]
+            dokploy["Dokploy UI<br/>3000"]
+            registry["Image registry<br/>5000"]
+        end
+        subgraph svc["Services (public or internal, one each)"]
+            apps["Coder, Rancher,<br/>argocd, hermes, cognee"]
         end
     end
-    net -->|"SSH, 80/443"| pub
-    pub --> pubsvc
+    net -->|"SSH"| ssh
+    net -->|"HTTP / HTTPS"| pub
+    pub -->|"public routes"| apps
     vpn -->|"private address"| int
+    int -->|"internal routes"| apps
     vpn -->|"private address"| priv
-    int --> intsvc
     net -. "blocked by ufw and FORWARD guard" .-> int
     net -. "blocked by ufw and FORWARD guard" .-> priv
 ```
 
 | Access   | Reached on                              | Chosen by                                     |
 | -------- | --------------------------------------- | --------------------------------------------- |
-| public   | server IP, Traefik 80/443               | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
+| public   | server IP: Traefik 80/443 (Dokploy's Traefik uses the same ports), SSH 22 | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
 | internal | Tailscale/Cloudflare address, port 8444 | `internal` in those same settings             |
 | private  | Tailscale/Cloudflare address, own ports | always, for `access: "private"` steps         |
 
