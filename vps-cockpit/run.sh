@@ -46,15 +46,12 @@ summary() {
     local host
 
     host="$(vps-network summary-host)"
-    cat <<EOF2
- Cockpit:             https://${host}:$(vps-network port cockpit_http)
-                       https://${host}:$(vps-network port cockpit_https)
-                       user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_USER | grep . || echo 'not set - run vps-security/run.sh')
-                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_PASSWORD | grep . || echo 'not set - run vps-security/run.sh')
-                       (saved to ${VPS_SECRETS_FILE}; PAM login, same
-                       account you'd use on the local console - separate
-                       from SSH, which stays key-only)
-EOF2
+    vps-network summary-block Cockpit - \
+        "https://${host}:$(vps-network port cockpit_http) and https://${host}:$(vps-network port cockpit_https) (internal address, private port)" \
+        "https://localhost:$(vps-network port cockpit_http) and https://localhost:$(vps-network port cockpit_https) (on the VPS)" \
+        "user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_USER | grep . || echo 'not set - run vps-security/run.sh')" \
+        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r COCKPIT_ADMIN_PASSWORD | grep . || echo 'not set - run vps-security/run.sh')" \
+        "(saved to ${VPS_SECRETS_FILE}; PAM login, same account you'd use on the local console - separate from SSH, which stays key-only)"
 }
 
 case "${1:-}" in

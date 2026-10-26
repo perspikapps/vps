@@ -329,20 +329,25 @@ down() {
 }
 
 summary() {
-    local host
+    local host access pub="" int="" reg="" ip
 
     # Opt-in step: say nothing on a host that never installed it.
     command -v kubectl >/dev/null 2>&1 && kubectl get namespace "$CODER_NAMESPACE" >/dev/null 2>&1 || return 0
     host="$(kubectl -n "$CODER_NAMESPACE" get ingress coder -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
-    cat <<EOF
- Coder:               http://${host:-<coder host>} (through Traefik on 80/443 - public)
-                       user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')
-                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')
-                       (saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)
-EOF
-    if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
-        echo " Image registry:      $(hostname -I | awk '{print $1}'):${REGISTRY_PORT} (in-cluster, private; catalog: http://$(vps-network summary-host):${REGISTRY_PORT}/v2/_catalog)"
+    access="$(vps-network visibility coder)"
+    if [ "$access" = "internal" ]; then
+        int="http://${host:-<coder host>}:$(vps-network port traefik_internal_http) (internal network only)"
+    else
+        pub="http://${host:-<coder host>} (through Traefik on 80/443)"
     fi
+    if kubectl -n devcontainer-builder get deploy/registry >/dev/null 2>&1; then
+        ip="$(hostname -I | awk '{print $1}')"
+        reg="image registry ${ip}:${REGISTRY_PORT} (in-cluster, no login; catalog http://${ip}:${REGISTRY_PORT}/v2/_catalog)"
+    fi
+    vps-network summary-block Coder "$pub" "$int" "${reg:--}" \
+        "user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run vps-coder/run.sh')" \
+        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run vps-coder/run.sh')" \
+        "(saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
 }
 
 case "${1:-}" in

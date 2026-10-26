@@ -143,3 +143,10 @@ shift; echo "$*"
         [ "$status" -eq 0 ]
     done
 }
+
+@test "every step summary prints its public, internal and local paragraph through vps-network summary-block" {
+    for d in "$REPO_ROOT"/vps-*/; do
+        grep -q '^summary() {' "$d/run.sh" || continue
+        awk '/^summary\(\) \{/,/^}/' "$d/run.sh" | grep -q 'vps-network summary-block'
+    done
+}

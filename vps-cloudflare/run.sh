@@ -112,8 +112,8 @@ down() {
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -f "$IF_UNIT" ] || return 0
-    echo " Internal network:     $(vps-network internal-address) (${IFACE}) via Cloudflare Tunnel - add a internal network"
-    echo "                       route for this /32 to the tunnel, and connect with the WARP client"
+    vps-network summary-block "Internal network" - "$(vps-network internal-address) on ${IFACE} (Cloudflare Tunnel): connect with the WARP client" - \
+        "add an internal network route for this /32 to the tunnel in Zero Trust"
 }
 
 case "${1:-}" in

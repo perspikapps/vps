@@ -61,11 +61,10 @@ summary() {
     iface="$(vps-network internal-interface)"
     ip="$(vps-network internal-address)"
     if [ -z "$iface" ]; then
-        echo " Internal network:     none - private-access ports are closed (set VPS_INTERNAL_INTERFACE, or run vps-tailscale)"
-    elif [ -z "$ip" ]; then
-        echo " Internal network:     ${iface} (no address yet - join the internal network)"
+        vps-network summary-block "Internal network" - "none: no interface (set VPS_INTERNAL_INTERFACE, or run vps-tailscale)" -
     else
-        echo " Internal network:     ${ip} (${iface})"
+        vps-network summary-block "Internal network" - "${ip:-no address yet} on ${iface} (Tailscale): join the tailnet to reach the internal services" \
+            "private-port services listen here and are closed to the internet"
     fi
 }
 

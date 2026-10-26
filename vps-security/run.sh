@@ -278,13 +278,10 @@ down() {
 }
 
 summary() {
-    cat <<EOF
- Firewall:            ${firewall} is enabled; SSH/HTTP/HTTPS are public (Traefik is
-                       this VPS's ingress). Cockpit, Rancher, the Traefik
-                       dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
-                       the internal interface ($(vps-network internal-interface || true)) - connect
-                       to that network first.
-EOF
+    vps-network summary-block "Firewall (${firewall})" \
+        "SSH 22 (key-only) and Traefik 80/443" \
+        "internal services: Traefik internal/internalsecure, on the internal interface only ($(vps-network internal-interface || true))" \
+        "private ports (Cockpit, Traefik dashboard, Dokploy UI, k3s API): closed to the internet, open on the internal address only - connect to the internal network first"
 }
 
 case "${1:-}" in

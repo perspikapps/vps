@@ -119,18 +119,12 @@ summary() {
     local host
 
     host="$(vps-network public-ip)"
-    cat <<EOF
- Traefik (k3s):       public: http://${host:-<public-ip>} and https://${host:-<public-ip>}
-                       (a "letsencrypt" certResolver is configured and
-                       ready to use - it won't issue anything until you
-                       add the router.tls.certresolver annotation to your
-                       own Ingress; see README)
-                       dashboard: http://$(vps-network summary-host):$(vps-network port traefik_dashboard)/dashboard/
-                       (private access only, no login - see README's Security model)
-
- kubectl / helm:      KUBECONFIG=/etc/rancher/k3s/k3s.yaml (already exported
-                       via /etc/profile.d/k3s-kubeconfig.sh for new shells)
-EOF
+    vps-network summary-block "Traefik (k3s)" \
+        "http://${host:-<public-ip>} and https://${host:-<public-ip>} (web/websecure, 80/443; Let's Encrypt resolver \"letsencrypt\")" \
+        "http://$(vps-network summary-host):$(vps-network port traefik_internal_http) and https://$(vps-network summary-host):$(vps-network port traefik_internal_https) (internal/internalsecure, internal network only)" \
+        "dashboard http://localhost:$(vps-network port traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
+        "A \"letsencrypt\" certResolver is ready: it issues nothing until your Ingress has the router.tls.certresolver annotation (see README)." \
+        "kubectl / helm: KUBECONFIG=/etc/rancher/k3s/k3s.yaml (exported via /etc/profile.d/k3s-kubeconfig.sh for new shells)"
 }
 
 case "${1:-}" in

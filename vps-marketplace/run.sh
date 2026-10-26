@@ -34,14 +34,11 @@ down() {
 }
 
 summary() {
-    cat <<EOF
- Marketplace:         Apps & Marketplace -> Repositories in Rancher should
-                       list "${MARKETPLACE_REPO_NAME}" (registered by the
-                       vps-marketplace step) - install ArgoCD, Epinio, or
-                       any other chart from this repo's catalog from
-                       Apps & Marketplace -> Charts. See README's
-                       "Rancher Marketplace" section.
-EOF
+    vps-network summary-block Marketplace \
+        "apps with ingress.access=public: https/http://<app>.<external domain> (80/443)" \
+        "apps with ingress.access=internal: http://<app>.<internal domain>:$(vps-network port traefik_internal_http)" - \
+        "Rancher: Apps & Marketplace -> Repositories lists \"${MARKETPLACE_REPO_NAME}\" (registered by the vps-marketplace step)." \
+        "Install ArgoCD, Epinio, or any other chart of this catalog from Apps & Marketplace -> Charts (README: \"Rancher Marketplace\")."
 }
 
 case "${1:-}" in

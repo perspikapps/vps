@@ -7,6 +7,7 @@
 #   internal-address                 its first IPv4 address (empty until it has one)
 #   summary-host                    that address, else <internal-ip>, for the summaries
 #   external-domain                 the external DNS domain (EXTERNAL_DOMAIN, else nip.io)
+#   summary-block <title> <public> <internal> <local> [note...]   the public/internal/local paragraph of a step summary
 #   port <name>                     a port by name (<NAME>_PORT wins over package.json)
 #   ports                           every step's ports as TSV: name port access note
 #   set-internal-interface <iface>   persist the internal interface (vps-tailscale, vps-cloudflare)
@@ -30,7 +31,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
+- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -164,6 +165,23 @@ get_access_domain() {
     esac
 }
 
+# summary_block <title> <public> <internal> <local> [note...]: the paragraph every step
+# summary prints. An empty or "-" scope reads "none"; notes follow, one per line.
+summary_block() {
+    local title="$1" scope text
+
+    printf ' %s:\n' "$title"
+    shift
+    for scope in Public Internal Local; do
+        text="${1:--}"
+        [ -n "$text" ] || text="-"
+        [ "$text" != "-" ] || text="none"
+        printf '   %-9s  %s\n' "${scope}:" "$text"
+        shift
+    done
+    for text in "$@"; do printf '   %s\n' "$text"; done
+}
+
 # list_ports: every step's ports as TSV (name, port, access, note); the port
 # honours the same environment override as get_port.
 list_ports() {
@@ -224,6 +242,7 @@ summary-host)
     ;;
 external-domain) get_external_domain ;;
 access-domain) get_access_domain "${1:-}" ;;
+summary-block) summary_block "$@" ;;
 port) get_port "${1:?usage: vps-network port <name>}" ;;
 ports) list_ports ;;
 set-internal-interface) zz-persist -f "$internal_file" VPS_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface>}" ;;
@@ -248,7 +267,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
     exit 1
     ;;
 esac

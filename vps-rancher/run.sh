@@ -120,13 +120,21 @@ down() {
 }
 
 summary() {
-    cat <<EOF
- Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik)' 2>/dev/null || echo '(no route yet)')
-                       user:     admin
-                       password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')
-                       (saved to ${VPS_SECRETS_FILE}; you'll
-                       be prompted to change it on first login)
-EOF
+    local host access pub="" int=""
+
+    host="$(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
+    access="$(vps-network visibility rancher)"
+    if [ -z "$host" ]; then
+        pub="no route yet: run vps-rancher/run.sh"
+    elif [ "$access" = "internal" ]; then
+        int="https://${host}:$(vps-network port traefik_internal_https) (internal network only; Traefik's default certificate)"
+    else
+        pub="https://${host} (Let's Encrypt)"
+    fi
+    vps-network summary-block Rancher "$pub" "$int" "none: a ClusterIP; kubectl -n cattle-system port-forward svc/rancher 8443:443" \
+        "user:     admin" \
+        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')" \
+        "(saved to ${VPS_SECRETS_FILE}; you'll be prompted to change it on first login)"
 }
 
 case "${1:-}" in

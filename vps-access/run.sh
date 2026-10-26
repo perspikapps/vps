@@ -105,42 +105,40 @@ domain_line() {
     printf '   %-16s *.%s - %s, %s\n' "$label" "$domain" "$how" "$resolved"
 }
 
-# service_lines: one line per service: its choice, host and where it can be reached from.
-service_lines() {
-    local name vis tab domain ports from
+# scope_services <public|internal>: the services of that scope, as "name (host), ...".
+scope_services() {
+    local name vis tab domain out=""
 
     tab="$(printf '\t')"
     while IFS="$tab" read -r name vis; do
-        [ -n "$name" ] || continue
-        if [ "$vis" = "internal" ]; then
-            ports="$(vps-network port traefik_internal_http)/$(vps-network port traefik_internal_https) on $(vps-network summary-host)"
-            from="over the internal network (Tailscale/Cloudflare) only"
-        else
-            ports="80/443 on $(vps-network public-ip || true)"
-            ports="${ports% on }"
-            from="from the internet"
-        fi
+        [ "$vis" = "$1" ] || continue
         domain="$(vps-network access-domain "$vis" 2>/dev/null || true)"
-        if [ -n "$domain" ]; then
-            printf '   %-10s %-8s %s.%s\n' "$name" "$vis" "$name" "$domain"
-        else
-            printf '   %-10s %-8s %s\n' "$name" "$vis" "no domain yet (set EXTERNAL_DOMAIN / INTERNAL_DOMAIN, or install a network)"
-        fi
-        printf '   %-10s %-8s HTTP/HTTPS ports %s, %s\n' "" "" "$ports" "$from"
+        out="${out:+$out, }${name} (${name}.${domain:-<no domain yet>})"
     done <<EOF
 $(vps-network visibilities)
 EOF
+    printf '%s' "$out"
+}
+
+# local_ports: the private ports (closed to the internet), as "name port, ...".
+local_ports() {
+    vps-network ports | awk -F'\t' '$3 == "private" && $1 !~ /^traefik_internal/ { printf "%s%s %s", sep, $1, $2; sep = ", " }'
 }
 
 summary() {
-    printf ' Access:              each service is public OR internal, never both\n'
-    printf '   public = server IP, Traefik web/websecure; internal = internal network, Traefik internal/internalsecure\n'
-    printf ' DNS:\n'
-    domain_line "External domain" "$(vps-network external-domain)" "$(vps-network public-ip)"
-    domain_line "Internal domain" "$(vps-network internal-domain)" "$(vps-network internal-address)"
-    printf ' Services:\n'
-    service_lines
-    printf '   (change: sudo vps-setup --only-vps-access, then re-run the service step)\n'
+    local pub int ext_ip int_ip
+
+    pub="$(scope_services public)"
+    int="$(scope_services internal)"
+    ext_ip="$(vps-network public-ip || true)"
+    int_ip="$(vps-network internal-address || true)"
+    vps-network summary-block "Access (each service is public OR internal, never both)" \
+        "${pub:+$pub - HTTP/HTTPS 80/443 on ${ext_ip:-<public-ip>}, from the internet}" \
+        "${int:+$int - HTTP/HTTPS $(vps-network port traefik_internal_http)/$(vps-network port traefik_internal_https) on ${int_ip:-<internal-ip>}, over the internal network only}" \
+        "private ports, closed to the internet, on the VPS and its internal address: $(local_ports)" \
+        "$(domain_line "External domain:" "$(vps-network external-domain)" "$ext_ip" | sed 's/^   //')" \
+        "$(domain_line "Internal domain:" "$(vps-network internal-domain)" "$int_ip" | sed 's/^   //')" \
+        "(change: sudo vps-setup --only-vps-access, then re-run the service step)"
 }
 
 case "${1:-}" in

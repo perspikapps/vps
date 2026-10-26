@@ -31,9 +31,10 @@ DIR="$REPO_ROOT/vps-access"
     [ "$status" -eq 0 ]
 }
 
-@test "summary spells out the rule, both domains and each service's host, ports and reach" {
+@test "summary spells out the rule, both domains and the public, internal and local paragraph" {
     grep -q 'each service is public OR internal, never both' "$DIR/run.sh"
     grep -q '^domain_line() {' "$DIR/run.sh"
-    grep -q '^service_lines() {' "$DIR/run.sh"
+    grep -q '^scope_services() {' "$DIR/run.sh"
     grep -q 'does NOT resolve' "$DIR/run.sh"
+    grep -q 'vps-network summary-block' "$DIR/run.sh"
 }

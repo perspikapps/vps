@@ -28,6 +28,7 @@ vps-network <command> [args...]
 | `set-visibility <service> public\|internal` | persist a choice to `/etc/vps-access.env` (`vps-access`) |
 | `set-internal-domain <domain>` | persist the internal domain there (`vps-access`) |
 | `unset-access` | forget every saved access choice |
+| `summary-block <title> <public> <internal> <local> [note...]` | the paragraph every step summary prints: a `Public:`, `Internal:` and `Local:` line (empty or `-` reads `none`), then the notes |
 | `port <name>`                   | a port by name: `<NAME>_PORT` from the environment, else what the steps declare in `config.ports` |
 | `ports`                         | every step's ports as TSV: name, port, access, note (the same override applies)  |
 | `set-internal-interface <iface>` | persist the internal interface to `/etc/vps-internal-access.env` (`vps-tailscale`, `vps-cloudflare`) |

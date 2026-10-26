@@ -76,12 +76,10 @@ down() {
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -d /etc/dokploy ] || return 0
-    cat <<EOF
- Dokploy:             http://$(vps-network summary-host):$(vps-network port dokploy_ui)
-                       (private access only; the first visit creates the
-                       admin account, so join the internal network first.
-                       Apps are served by Dokploy's own Traefik on 80/443)
-EOF
+    vps-network summary-block Dokploy \
+        "apps served by Dokploy's own Traefik on 80/443" - \
+        "http://localhost:$(vps-network port dokploy_ui) (admin UI, on the VPS; also http://$(vps-network summary-host):$(vps-network port dokploy_ui) on the internal address)" \
+        "The first visit creates the admin account: join the internal network first."
 }
 
 case "${1:-}" in
