@@ -24,7 +24,7 @@
         "default": ""
       },
       "CODER_ACCESS": {
-        "description": "Where Coder is served: public (server IP, Traefik 80/443, plain HTTP) or internal (Tailscale/Cloudflare address, Traefik's private HTTPS port), never both",
+        "description": "Where Coder is served: public (server IP, Traefik 80/443, plain HTTP) or internal (Tailscale/Cloudflare address, Traefik's private HTTP port), never both",
         "required": false,
         "default": "public"
       },

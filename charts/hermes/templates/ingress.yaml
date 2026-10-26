@@ -12,8 +12,7 @@ metadata:
         cert-manager.io/cluster-issuer: {{ .Values.dashboard.ingress.tlsIssuer }}
         {{- end }}
         {{- if eq (.Values.dashboard.ingress.access | default "public") "internal" }}
-        traefik.ingress.kubernetes.io/router.entrypoints: internalsecure
-        traefik.ingress.kubernetes.io/router.tls: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: internal,internalsecure
         {{- end }}
     {{- end }}
 spec:

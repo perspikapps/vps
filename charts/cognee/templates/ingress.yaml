@@ -9,8 +9,7 @@ metadata:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if eq (.Values.ingress.access | default "public") "internal" }}
-        traefik.ingress.kubernetes.io/router.entrypoints: internalsecure
-        traefik.ingress.kubernetes.io/router.tls: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: internal,internalsecure
         {{- end }}
     {{- end }}
 spec:

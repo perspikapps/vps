@@ -67,7 +67,8 @@ up() {
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
     TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
     TRAEFIK_DASHBOARD_PORT="$("$vps_network" port traefik_dashboard)"
-    TRAEFIK_INTERNAL_PORT="$("$vps_network" port traefik_internal_https)"
+    TRAEFIK_INTERNAL_HTTP_PORT="$("$vps_network" port traefik_internal_http)"
+    TRAEFIK_INTERNAL_HTTPS_PORT="$("$vps_network" port traefik_internal_https)"
 
     if [ "$TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
         zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
@@ -90,7 +91,7 @@ up() {
     fi
 
     zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_INTERNAL_PORT="$TRAEFIK_INTERNAL_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_INTERNAL_HTTP_PORT="$TRAEFIK_INTERNAL_HTTP_PORT" TRAEFIK_INTERNAL_HTTPS_PORT="$TRAEFIK_INTERNAL_HTTPS_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do

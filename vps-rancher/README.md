@@ -26,7 +26,7 @@ sudo zz-setup ./ -d vps-rancher
 The dashboard is also served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
 the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
 `WILDCARD_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
-`RANCHER_ACCESS` picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<private-ip>.nip.io` on Traefik's private `internalsecure` port (`TRAEFIK_INTERNAL_HTTPS_PORT`, 8444) over Tailscale/Cloudflare, with Traefik's default certificate. The private (local) ports are unchanged. Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
+`RANCHER_ACCESS` picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<private-ip>.nip.io` on Traefik's private `internal`/`internalsecure` entrypoints (the UI on `TRAEFIK_INTERNAL_HTTPS_PORT`, 8444) over Tailscale/Cloudflare, with Traefik's default certificate. The private (local) ports are unchanged. Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
 This makes the admin UI publicly reachable (the `RANCHER_HTTP(S)_PORT` ports stay private-only),
 so change the bootstrap password on first login.
 

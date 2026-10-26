@@ -62,6 +62,12 @@
         "access": "private"
       },
       {
+        "name": "traefik_internal_http",
+        "port": 8081,
+        "access": "private",
+        "note": "HTTP Traefik entrypoint for services set to internal access (Tailscale/Cloudflare address only)"
+      },
+      {
         "name": "traefik_internal_https",
         "port": 8444,
         "access": "private",

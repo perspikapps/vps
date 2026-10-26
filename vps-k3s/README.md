@@ -38,7 +38,8 @@ sudo vps-setup --down-vps-k3s
 | `TRAEFIK_ACME_EMAIL` | no | `admin@example.com` | Contact email registered with Let's Encrypt |
 | `TRAEFIK_ACME_STAGING` | no | `true` | Use Let's Encrypt's staging environment (true/false) |
 | `TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (private access only) |
-| `TRAEFIK_INTERNAL_HTTPS_PORT` | no | `8444` | Traefik `internalsecure` entrypoint (private access only): where Coder, Rancher and apps set to internal access are served, with Traefik's default certificate |
+| `TRAEFIK_INTERNAL_HTTP_PORT` | no | `8081` | Traefik `internal` (HTTP) entrypoint, private access only: the internal counterpart of `web` (80) |
+| `TRAEFIK_INTERNAL_HTTPS_PORT` | no | `8444` | Traefik `internalsecure` (HTTPS) entrypoint, private access only: the internal counterpart of `websecure` (443), with Traefik's default certificate |
 
 ## Outputs
 

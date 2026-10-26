@@ -30,7 +30,7 @@ up() {
     access="${RANCHER_ACCESS:-public}"
     case "$access" in
         public) entrypoints="web,websecure" certresolver="letsencrypt" port_suffix="" ;;
-        internal) entrypoints="internalsecure" certresolver="" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
+        internal) entrypoints="internal,internalsecure" certresolver="" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
         *) zz-log e "[vps-setup] RANCHER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
     esac
     ingress_host=""

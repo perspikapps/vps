@@ -136,7 +136,7 @@ flowchart LR
         ssh["sshd<br/>22"]
         subgraph traefik[Traefik]
             pub["web / websecure<br/>80 / 443 (public IP)"]
-            int["internalsecure<br/>8444 (private)"]
+            int["internal / internalsecure<br/>8081 / 8444 (private)"]
         end
         subgraph priv["Private ports (local)"]
             cockpit["Cockpit<br/>9080 / 9083"]
@@ -162,7 +162,7 @@ flowchart LR
 | Access   | Reached on                              | Chosen by                                     |
 | -------- | --------------------------------------- | --------------------------------------------- |
 | public   | server IP: Traefik 80/443 (Dokploy's Traefik uses the same ports), SSH 22 | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
-| internal | Tailscale/Cloudflare address, port 8444 | `internal` in those same settings             |
+| internal | Tailscale/Cloudflare address, Traefik 8081/8444 | `internal` in those same settings             |
 | private  | Tailscale/Cloudflare address, own ports | always, for `access: "private"` steps         |
 
 - **Logins.** Cockpit uses a Linux account (`VPS_ADMIN_USER`, else `root`) and

@@ -263,12 +263,12 @@ up() {
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
     # under it: both come from one domain (vps-system's WILDCARD_DOMAIN, else nip.io).
     # CODER_ACCESS picks public or internal, never both: public = Traefik 80/443 on the
-    # server IP; internal = Traefik's private "internalsecure" port on the
-    # Tailscale/Cloudflare address (default certificate).
+    # server IP; internal = Traefik's private "internal" (HTTP) port on the
+    # Tailscale/Cloudflare address. Plain HTTP either way, like public.
     access="${CODER_ACCESS:-public}"
     case "$access" in
         public) entrypoints="web,websecure" tls="false" scheme="http" port_suffix="" ;;
-        internal) entrypoints="internalsecure" tls="true" scheme="https" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
+        internal) entrypoints="internal,internalsecure" tls="false" scheme="http" port_suffix=":$("$vps_network" port traefik_internal_http)" ;;
         *) zz-log e "[vps-setup] CODER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
     esac
     wildcard="$("$vps_network" access-domain "$access")" || exit 1

@@ -33,7 +33,7 @@ sudo zz-setup ./ -d vps-coder
 
 `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose: Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
-**Public or internal, never both** (`CODER_ACCESS`): `public` (default) serves Coder on the server IP; `internal` serves `coder.<private-ip>.nip.io:8444` (and `*.<private-ip>.nip.io:8444` for workspace apps) on Traefik's private `internalsecure` port, reachable over Tailscale/Cloudflare only, with Traefik's default (self-signed) certificate. Coder is a single route, so switching is a re-run with the other value.
+**Public or internal, never both** (`CODER_ACCESS`): `public` (default) serves Coder on the server IP; `internal` serves `http://coder.<private-ip>.nip.io:8081` (and `*.<private-ip>.nip.io:8081` for workspace apps) on Traefik's private `internal` entrypoint (`TRAEFIK_INTERNAL_HTTP_PORT`), reachable over Tailscale/Cloudflare only. Coder is a single route, so switching is a re-run with the other value.
 
 **Public mode:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and set `CODER_ACCESS_URL` to the `https://` URL; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
 

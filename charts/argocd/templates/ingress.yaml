@@ -6,8 +6,7 @@ metadata:
     name: {{ .Release.Name }}-argocd
     {{- if eq (.Values.ingress.access | default "public") "internal" }}
     annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: internalsecure
-        traefik.ingress.kubernetes.io/router.tls: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: internal,internalsecure
     {{- end }}
 spec:
     ingressClassName: {{ .Values.ingress.className }}

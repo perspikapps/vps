@@ -56,7 +56,8 @@ DIR="$REPO_ROOT/vps-k3s"
     ! grep -q 'kind: HelmChartConfig' "$DIR/run.sh"
 }
 
-@test "Traefik has a private internalsecure entrypoint that is not a default one" {
+@test "Traefik has private internal and internalsecure entrypoints that are not default ones" {
+    grep -q '^          internal:' "$DIR/helm/traefik-config.yaml"
     grep -q 'internalsecure:' "$DIR/helm/traefik-config.yaml"
     grep -q 'asDefault: false' "$DIR/helm/traefik-config.yaml"
     run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'traefik_internal_https'); process.exit(p && p.access === 'private' ? 0 : 1)"
