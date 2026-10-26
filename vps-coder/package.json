@@ -16,6 +16,7 @@
     "zz-setup": "*"
   },
   "config": {
+    "visibility": "public",
     "default": false,
     "inputs": {
       "CODER_ACCESS_URL": {
@@ -24,9 +25,9 @@
         "default": ""
       },
       "CODER_ACCESS": {
-        "description": "Where Coder is served: public (server IP, Traefik 80/443, plain HTTP) or internal (Tailscale/Cloudflare address, Traefik's private HTTP port), never both",
+        "description": "Override vps-access: public (server IP) or internal (Tailscale/Cloudflare address), never both",
         "required": false,
-        "default": "public"
+        "default": ""
       },
       "CODER_ADMIN_EMAIL": {
         "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",

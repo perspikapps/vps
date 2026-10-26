@@ -96,3 +96,32 @@ setup() {
     PATH="$work/bin:$PATH" run sh "$SCRIPT" wildcard-domain
     [ "$output" = "54-37-230-112.nip.io" ]
 }
+
+@test "visibility: environment, then the saved choice, then config.visibility, else public" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    run sh "$SCRIPT" visibility alpha
+    [ "$output" = "public" ]
+    echo '{"name":"@x/alpha","bin":{"alpha":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/alpha/package.json"
+    run sh "$SCRIPT" visibility alpha
+    [ "$output" = "internal" ]
+    sh "$SCRIPT" set-visibility alpha public
+    run sh "$SCRIPT" visibility alpha
+    [ "$output" = "public" ]
+    ALPHA_ACCESS=internal run sh "$SCRIPT" visibility alpha
+    [ "$output" = "internal" ]
+}
+
+@test "set-visibility rejects anything but public or internal" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    run sh "$SCRIPT" set-visibility alpha sideways
+    [ "$status" -ne 0 ]
+}
+
+@test "internal-domain: INTERNAL_DOMAIN, else the saved one" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
+    [ "$output" = "in.example.com" ]
+    sh "$SCRIPT" set-internal-domain saved.example.com
+    run sh "$SCRIPT" internal-domain
+    [ "$output" = "saved.example.com" ]
+}

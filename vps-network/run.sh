@@ -11,7 +11,13 @@
 #   ports                           every step's ports as TSV: name port access note
 #   set-private-interface <iface>   persist the private interface (vps-tailscale, vps-cloudflare)
 #   unset-private-interface <iface> forget it again, when it is still <iface>
-#   access-domain public|internal   the domain a service is reached on (public: wildcard; internal: private address)
+#   access-domain public|internal   the domain a service is reached on (public: wildcard; internal: internal-domain)
+#   internal-domain                 INTERNAL_DOMAIN, else <private-ip>.nip.io
+#   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
+#   visibilities                    every service declaring config.visibility, as TSV: name, visibility
+#   set-visibility <service> <v>    persist a choice (vps-access)
+#   set-internal-domain <domain>    persist the internal domain (vps-access)
+#   unset-access                    forget every access choice
 #   set-wildcard-domain <domain>    persist the wildcard domain (vps-system)
 #   verify <public-ip>              run from ANOTHER machine: every private port must be closed
 #   reapply-guard                   re-insert the FORWARD guard of vps-security's private ports
@@ -24,7 +30,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, private-interface, private-address, summary-host, wildcard-domain, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard
+- command command public-ip, private-interface, private-address, summary-host, wildcard-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -40,6 +46,8 @@ root="${VPS_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 # Whoever provides that network persists it here; the environment wins.
 private_file="${VPS_PRIVATE_ACCESS_FILE:-/etc/vps-private-access.env}"
 wildcard_file="${VPS_WILDCARD_FILE:-/etc/vps-wildcard-domain.env}"
+# Access choices (vps-access): <NAME>_ACCESS per service and INTERNAL_DOMAIN; the environment wins.
+access_file="${VPS_ACCESS_FILE:-/etc/vps-access.env}"
 
 # --- functions
 
@@ -99,6 +107,46 @@ get_wildcard_domain() {
     printf '%s' "$domain"
 }
 
+# get_internal_domain: INTERNAL_DOMAIN, else the persisted one, else nip.io on the
+# private (Tailscale/Cloudflare) address.
+get_internal_domain() {
+    local domain="${INTERNAL_DOMAIN:-}" ip
+
+    if [ -z "$domain" ] && [ -f "$access_file" ]; then
+        domain="$(zz-persist -f "$access_file" -r INTERNAL_DOMAIN)"
+    fi
+    if [ -z "$domain" ]; then
+        ip="$(get_private_address)"
+        [ -z "$ip" ] || domain="$(printf '%s' "$ip" | tr . -).nip.io"
+    fi
+    printf '%s' "$domain"
+}
+
+# get_visibility <service>: public or internal. <NAME>_ACCESS from the environment,
+# else the persisted choice, else config.visibility of vps-<service>, else public.
+get_visibility() {
+    local name="$1" var value
+
+    var="$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')_ACCESS"
+    eval "value=\"\${$var:-}\""
+    if [ -z "$value" ] && [ -f "$access_file" ]; then
+        value="$(zz-persist -f "$access_file" -r "$var")"
+    fi
+    [ -n "$value" ] || value="$(jq -r '.config.visibility // empty' "$root/vps-$name/package.json" 2>/dev/null || true)"
+    printf '%s' "${value:-public}"
+}
+
+# list_visibilities: every service that declares config.visibility, as TSV: name, visibility.
+list_visibilities() {
+    local dir name
+
+    ws-list -b -e zz-setup "$root" | while IFS= read -r dir; do
+        jq -e '.config.visibility' "$root/$dir/package.json" >/dev/null 2>&1 || continue
+        name="${dir#vps-}"
+        printf '%s\t%s\n' "$name" "$(get_visibility "$name")"
+    done
+}
+
 # get_access_domain <public|internal>: the nip.io domain a service is reached on.
 # public: the wildcard domain; internal: the private (Tailscale/Cloudflare) address.
 get_access_domain() {
@@ -107,9 +155,9 @@ get_access_domain() {
     case "$1" in
         public) get_wildcard_domain ;;
         internal)
-            ip="$(get_private_address)"
+            ip="$(get_internal_domain)"
             [ -n "$ip" ] || { echo "vps-network: no private address: install vps-tailscale or vps-cloudflare for internal access" >&2 && return 1; }
-            printf '%s.nip.io' "$(printf '%s' "$ip" | tr . -)"
+            printf '%s' "$ip"
             ;;
         *) echo "usage: vps-network access-domain public|internal" >&2 && return 1 ;;
     esac
@@ -181,6 +229,15 @@ set-private-interface) zz-persist -f "$private_file" VPS_PRIVATE_INTERFACE "${1:
 unset-private-interface)
     [ "$(get_private_interface)" != "${1:?usage: vps-network unset-private-interface <iface>}" ] || zz-persist -q -f "$private_file" -u VPS_PRIVATE_INTERFACE
     ;;
+internal-domain) get_internal_domain ;;
+visibility) get_visibility "${1:?usage: vps-network visibility <service>}" ;;
+visibilities) list_visibilities ;;
+set-visibility)
+    case "${2:-}" in public | internal) ;; *) zz-log e "usage: vps-network set-visibility <service> public|internal" && exit 1 ;; esac
+    zz-persist -f "$access_file" "$(printf '%s' "${1:?usage: vps-network set-visibility <service> public|internal}" | tr '[:lower:]' '[:upper:]')_ACCESS" "$2"
+    ;;
+set-internal-domain) zz-persist -f "$access_file" INTERNAL_DOMAIN "${1:?usage: vps-network set-internal-domain <domain>}" ;;
+unset-access) rm -f "$access_file" ;;
 set-wildcard-domain) zz-persist -f "$wildcard_file" WILDCARD_DOMAIN "${1:?usage: vps-network set-wildcard-domain <domain>}" ;;
 verify) verify_ports "${1:?usage: vps-network verify <public-ip> (from another machine)}" ;;
 reapply-guard)

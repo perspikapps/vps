@@ -135,9 +135,9 @@ DIR="$REPO_ROOT/vps-rancher"
 }
 
 @test "Rancher's route is public or internal, never both: RANCHER_ACCESS picks the entrypoint" {
-    grep -q 'RANCHER_ACCESS:-public' "$DIR/run.sh"
+    grep -q 'visibility rancher' "$DIR/run.sh"
     grep -q 'internal) entrypoints="internal,internalsecure"' "$DIR/run.sh"
     grep -q 'router.entrypoints: ${ENTRYPOINTS}' "$DIR/helm/ingress.yaml"
-    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_ACCESS; process.exit(i && i.required === false && i.default === 'public' ? 0 : 1)"
+    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_ACCESS; process.exit(i && i.required === false && require('$DIR/package.json').config.visibility === 'public' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }

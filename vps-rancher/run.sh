@@ -24,10 +24,10 @@ up() {
     https_port="$("$vps_network" port rancher_https)"
     # Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
     # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
-    # RANCHER_ACCESS picks where the route is served, public or internal, never both:
+    # vps-access (or RANCHER_ACCESS) picks where the route is served, public or internal, never both:
     # public = Traefik 80/443 on the server IP (Let's Encrypt); internal = Traefik's
     # private "internalsecure" port on the Tailscale/Cloudflare address (default cert).
-    access="${RANCHER_ACCESS:-public}"
+    access="$("$vps_network" visibility rancher)"
     case "$access" in
         public) entrypoints="web,websecure" certresolver="letsencrypt" port_suffix="" ;;
         internal) entrypoints="internal,internalsecure" certresolver="" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;

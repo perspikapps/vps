@@ -44,6 +44,7 @@ Steps run in this order. Each has its own README with its variables.
 | [`vps-tailscale`](vps-tailscale/README.md)     | Installs Tailscale and joins your tailnet (the private network)      | on      |
 | [`vps-cloudflare`](vps-cloudflare/README.md)   | Cloudflare Tunnel + WARP as the private network instead of Tailscale | opt-in  |
 | [`vps-security`](vps-security/README.md)       | Admin user, firewall, SSH hardening, fail2ban, Cockpit login         | on      |
+| [`vps-access`](vps-access/README.md)           | Confirms public/internal visibility per service and the DNS domains  | on      |
 | [`vps-cockpit`](vps-cockpit/README.md)         | Cockpit web console                                                  | on      |
 | [`vps-k3s`](vps-k3s/README.md)                 | k3s, kubectl, Helm and Traefik as the public HTTP/HTTPS ingress      | on      |
 | [`vps-rancher`](vps-rancher/README.md)         | cert-manager and Rancher                                             | on      |
@@ -123,6 +124,8 @@ From the internet: SSH, and HTTP/HTTPS through Traefik. Cockpit, Rancher, the
 Traefik dashboard, the Dokploy UI and the k3s API only answer on your private
 network, so join the same tailnet first. To check from outside,
 `curl -m 5 http://<public-ip>:7083` must time out.
+
+The [`vps-access`](vps-access/README.md) step confirms each service's choice (and the DNS domains) on a terminal.
 
 Every service is reachable one of three ways. Coder, Rancher and the apps pick
 **public or internal, never both**; the private ports are a separate, local access.

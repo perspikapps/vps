@@ -1,0 +1,68 @@
+<!-- @format -->
+
+# vps-access
+
+Confirms which services are **public** or **internal**, and the DNS domains they are reached on.
+
+Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+
+## Usage
+
+Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
+
+```bash
+sudo vps-setup --only-vps-access
+```
+
+Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
+
+```bash
+sudo zz-setup ./ -o vps-access
+sudo zz-setup ./ -d vps-access
+```
+
+It runs after the private network (`vps-tailscale`/`vps-cloudflare`) and before `vps-k3s`, so the steps that expose something (`vps-rancher`, `vps-coder`) read its answers.
+
+## Visibility
+
+A service that exposes a route declares its default in `config.visibility` of its `package.json` (`public` or `internal`). A service is **public** (server IP, Traefik 80/443) or **internal** (Tailscale/Cloudflare address, Traefik's private 8081/8444), never both; the private (local) ports are unaffected.
+
+On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a private address is kept `public` with a warning. Answers are saved to `/etc/vps-access.env`; the environment (`RANCHER_ACCESS`, `CODER_ACCESS`, ...) still wins.
+
+## DNS
+
+Two prompts confirm the domains, each with a fallback:
+
+| Domain   | Set with                                | Fallback                 |
+| -------- | --------------------------------------- | ------------------------ |
+| external | `WILDCARD_DOMAIN` (`vps-system`)        | `<public-ip>.nip.io`     |
+| internal | `INTERNAL_DOMAIN`                       | `<private-ip>.nip.io`    |
+
+An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
+
+Without a terminal (or with `VPS_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
+
+## Removing (`down`)
+
+`down` forgets the saved choices (each service goes back to its `config.visibility` default).
+
+```bash
+sudo vps-setup --down-vps-access
+```
+
+## Environment variables
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `INTERNAL_DOMAIN` | no | _(unset)_ | Domain pointing at the private address, for internal services; empty = `<private-ip>.nip.io` |
+| `VPS_ACCESS_MENU` | no | `true` | `false` skips the menus and keeps the saved or default choices |
+
+## Dependencies
+
+No other step is required.
+
+## Tests
+
+```bash
+bats test.bats
+```

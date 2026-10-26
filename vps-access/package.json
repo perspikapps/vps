@@ -1,0 +1,36 @@
+{
+  "name": "@tomgrv/vps-access",
+  "version": "4.7.0",
+  "description": "Confirm which services are public or internal, and the DNS names they are reached on",
+  "bin": {
+    "vps-access": "run.sh"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": true,
+    "inputs": {
+      "INTERNAL_DOMAIN": {
+        "description": "DNS domain pointing at this VPS's private (Tailscale/Cloudflare) address, for services set to internal; empty = <private-ip>.nip.io fallback",
+        "required": false,
+        "default": ""
+      },
+      "VPS_ACCESS_MENU": {
+        "description": "Ask to confirm visibilities and DNS (true/false); false keeps the saved or default choices",
+        "required": false,
+        "default": "true"
+      }
+    },
+    "order": 3.5,
+    "outputs": {},
+    "requires": {
+      "root": true
+    },
+    "summary": true
+  }
+}

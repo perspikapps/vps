@@ -16,6 +16,7 @@
     "zz-setup": "*"
   },
   "config": {
+    "visibility": "public",
     "default": true,
     "inputs": {
       "CERT_MANAGER_VERSION": {
@@ -45,9 +46,9 @@
         "default": "true"
       },
       "RANCHER_ACCESS": {
-        "description": "Where the Traefik route is served: public (server IP, 80/443) or internal (Tailscale/Cloudflare address), never both",
+        "description": "Override vps-access: public (server IP) or internal (Tailscale/Cloudflare address), never both",
         "required": false,
-        "default": "public"
+        "default": ""
       },
       "RANCHER_INGRESS_HOST": {
         "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<WILDCARD_DOMAIN>, else rancher.<public-ip>.nip.io)",

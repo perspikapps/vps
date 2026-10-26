@@ -148,6 +148,7 @@
     "pattern": "^(main|develop){1}$|^(feature|bugfix|release|hotfix|support|copilot|claude)/.+$"
   },
   "workspaces": [
+    "vps-access",
     "vps-cert-manager",
     "vps-cloudflare",
     "vps-cockpit",
