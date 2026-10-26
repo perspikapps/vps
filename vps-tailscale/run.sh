@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install ../vps-network
 # shellcheck disable=SC1091
 . zz-colors
 

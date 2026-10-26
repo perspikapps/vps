@@ -3,7 +3,7 @@
 # Marketplace repository. Env vars: see README.
 
 set -eu
-zz-use zz-colors zz-log yaml-render
+zz-use zz-colors zz-log yaml-render ../vps-network
 # shellcheck disable=SC1091
 . zz-colors
 
