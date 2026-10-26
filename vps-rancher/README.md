@@ -26,8 +26,9 @@ sudo zz-setup ./ -d vps-rancher
 The dashboard is also served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
 the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
 `WILDCARD_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
-Rancher is public **or** private, never both: with the route (default) the Service is `ClusterIP` and the private ports are not bound; set `RANCHER_INGRESS=false` for private-only on `RANCHER_HTTP(S)_PORT` (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
-This makes the admin UI publicly reachable, so change the bootstrap password on first login.
+Set `RANCHER_INGRESS=false` to keep Rancher private-only (an existing route is removed on the next run). Rancher's server URL (`RANCHER_HOSTNAME`) defaults to this public host, else the private address.
+This makes the admin UI publicly reachable (the `RANCHER_HTTP(S)_PORT` ports stay private-only),
+so change the bootstrap password on first login.
 
 ## Installing from SUSE Rancher Prime
 

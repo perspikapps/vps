@@ -116,13 +116,6 @@ DIR="$REPO_ROOT/vps-rancher"
     [ "$add_line" -lt "$cm_line" ]
 }
 
-@test "Rancher is public or private, never both: the private-port rebind only runs without an ingress host" {
-    run awk '/kube-service-port cattle-system rancher http/ {print prev} {prev=$0}' "$DIR/run.sh"
-    [[ "$output" == *'Rebinding'* ]]
-    grep -q 'if \[ -z "\$ingress_host" \]; then' "$DIR/run.sh"
-    grep -q 'ClusterIP' "$DIR/run.sh"
-}
-
 @test "The Rancher Ingress outranks Coder's wildcard route" {
     grep -q "router.priority: '1000'" "$DIR/helm/ingress.yaml"
 }
