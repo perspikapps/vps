@@ -21,6 +21,7 @@ vps-network <command> [args...]
 | `private-address`               | its first IPv4 address (empty until it has one)                                   |
 | `summary-host`                  | that address, else `<private-ip>`, for the steps' summaries                       |
 | `wildcard-domain`               | `WILDCARD_DOMAIN`, else the persisted one, else `<public-ip>.nip.io` (public address, never the private one) |
+| `access-domain public\|internal` | `wildcard-domain`, or `<private-ip>.nip.io` (dashes) for internal access; fails without a private address |
 | `port <name>`                   | a port by name: `<NAME>_PORT` from the environment, else what the steps declare in `config.ports` |
 | `ports`                         | every step's ports as TSV: name, port, access, note (the same override applies)  |
 | `set-private-interface <iface>` | persist the private interface to `/etc/vps-private-access.env` (`vps-tailscale`, `vps-cloudflare`) |

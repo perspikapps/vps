@@ -1,6 +1,8 @@
 # Traefik (k3s's bundled chart): public ingress on 80/443, Let's Encrypt, and
-# the dashboard on a private port. ${TRAEFIK_DASHBOARD_PORT}, ${TRAEFIK_ACME_EMAIL}
-# and ${TRAEFIK_ACME_CASERVER} are filled in by run.sh.
+# the dashboard and the "internalsecure" entrypoint on private ports (services set to
+# internal access are served there, reachable over Tailscale/Cloudflare only).
+# ${TRAEFIK_DASHBOARD_PORT}, ${TRAEFIK_INTERNAL_PORT}, ${TRAEFIK_ACME_EMAIL} and
+# ${TRAEFIK_ACME_CASERVER} are filled in by run.sh.
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
@@ -14,6 +16,13 @@ spec:
             expose:
               default: true
             exposedPort: ${TRAEFIK_DASHBOARD_PORT}
+          internalsecure:
+            port: ${TRAEFIK_INTERNAL_PORT}
+            expose:
+              default: true
+            exposedPort: ${TRAEFIK_INTERNAL_PORT}
+            protocol: TCP
+            asDefault: false
         api:
           dashboard: true
           insecure: true

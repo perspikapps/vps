@@ -8,7 +8,7 @@ Rancher's global.cattle.url (a bare IP becomes <ip>.nip.io so it still resolves)
 {{- .Values.ingress.host -}}
 {{- else -}}
 {{- $d := .Values.global.domain -}}
-{{- if not $d -}}
+{{- if and (not $d) (ne (.Values.ingress.access | default "public") "internal") -}}
 {{- $d = (urlParse (.Values.global.cattle.url | default "")).hostname -}}
 {{- if regexMatch "^[0-9.]+$" $d }}{{ $d = printf "%s.nip.io" $d }}{{ end -}}
 {{- end -}}

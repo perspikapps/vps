@@ -224,7 +224,7 @@ push_coder_template() {
 }
 
 up() {
-    local db_password db_storage db_values rc=0 wildcard wildcard_host access_url host values_file chart_version
+    local db_password db_storage db_values rc=0 wildcard wildcard_host wildcard_url access_url host values_file chart_version access entrypoints tls scheme port_suffix
     local admin_email admin_user admin_password
 
     command -v kubectl >/dev/null 2>&1 || { zz-log e "[vps-setup] kubectl not found; run vps-k3s/run.sh first." && exit 1; }
@@ -262,17 +262,27 @@ up() {
     # Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
     # under it: both come from one domain (vps-system's WILDCARD_DOMAIN, else nip.io).
-    wildcard="$("$vps_network" wildcard-domain)"
-    access_url="${CODER_ACCESS_URL:-${wildcard:+http://coder.${wildcard}}}"
+    # CODER_ACCESS picks public or internal, never both: public = Traefik 80/443 on the
+    # server IP; internal = Traefik's private "internalsecure" port on the
+    # Tailscale/Cloudflare address (default certificate).
+    access="${CODER_ACCESS:-public}"
+    case "$access" in
+        public) entrypoints="web,websecure" tls="false" scheme="http" port_suffix="" ;;
+        internal) entrypoints="internalsecure" tls="true" scheme="https" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
+        *) zz-log e "[vps-setup] CODER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
+    esac
+    wildcard="$("$vps_network" access-domain "$access")" || exit 1
+    access_url="${CODER_ACCESS_URL:-${wildcard:+${scheme}://coder.${wildcard}${port_suffix}}}"
     [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or WILDCARD_DOMAIN." && exit 1; }
     host="${access_url#*://}"
     host="${host%%[:/]*}"
     values_file="$(mktemp)"
     if [ -n "$wildcard" ]; then
         wildcard_host="*.${wildcard}"
-        yaml-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" >"$values_file"
+        wildcard_url="${wildcard_host}${port_suffix}"
+        yaml-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" wildcard_url="$wildcard_url" entrypoints="$entrypoints" tls="$tls" >"$values_file"
     else
-        yaml-render "$HELM_DIR/coder-values.yaml" access_url="$access_url" host="$host" >"$values_file"
+        yaml-render "$HELM_DIR/coder-values.yaml" access_url="$access_url" host="$host" entrypoints="$entrypoints" tls="$tls" >"$values_file"
     fi
     chart_version="${CODER_CHART_VERSION:+--version ${CODER_CHART_VERSION}}"
 

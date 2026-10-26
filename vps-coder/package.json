@@ -23,6 +23,11 @@
         "required": false,
         "default": ""
       },
+      "CODER_ACCESS": {
+        "description": "Where Coder is served: public (server IP, Traefik 80/443, plain HTTP) or internal (Tailscale/Cloudflare address, Traefik's private HTTPS port), never both",
+        "required": false,
+        "default": "public"
+      },
       "CODER_ADMIN_EMAIL": {
         "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",
         "required": false,

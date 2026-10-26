@@ -1,7 +1,9 @@
 # Public dashboard through k3s's Traefik. The backend is the Service's "http"
 # port by name, so it survives the private-port rebind; Traefik terminates TLS
 # (Let's Encrypt) and sends X-Forwarded-Proto, which keeps Rancher from
-# redirecting to https again. ${INGRESS_HOST} is filled in by run.sh.
+# redirecting to https again. ${INGRESS_HOST}, ${ENTRYPOINTS} (web,websecure for
+# public, internalsecure for internal) and ${CERTRESOLVER} (empty for internal: the
+# default certificate) are filled in by run.sh.
 # router.priority: Coder's wildcard ingress (*.<domain>) becomes a longer HostRegexp
 # rule, which Traefik ranks first by default and would send rancher.<domain> to Coder.
 apiVersion: networking.k8s.io/v1
@@ -10,8 +12,8 @@ metadata:
     name: rancher-traefik
     namespace: cattle-system
     annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-        traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+        traefik.ingress.kubernetes.io/router.entrypoints: ${ENTRYPOINTS}
+        traefik.ingress.kubernetes.io/router.tls.certresolver: '${CERTRESOLVER}'
         traefik.ingress.kubernetes.io/router.priority: '1000'
 spec:
     ingressClassName: traefik

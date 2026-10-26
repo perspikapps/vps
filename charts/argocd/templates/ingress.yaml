@@ -4,6 +4,11 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
     name: {{ .Release.Name }}-argocd
+    {{- if eq (.Values.ingress.access | default "public") "internal" }}
+    annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: internalsecure
+        traefik.ingress.kubernetes.io/router.tls: "true"
+    {{- end }}
 spec:
     ingressClassName: {{ .Values.ingress.className }}
     rules:

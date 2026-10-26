@@ -17,6 +17,10 @@ global:
 ingress:
     enabled: true
     className: traefik
+    # public (server IP, Traefik 80/443) or internal (Tailscale/Cloudflare address,
+    # Traefik's private HTTPS port), never both. internal needs global.domain or host
+    # set to <private-ip>.nip.io (see `vps-network access-domain internal`).
+    access: public
     # Override the generated <app>.<domain> host.
     host: ''
 

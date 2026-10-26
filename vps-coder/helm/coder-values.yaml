@@ -16,3 +16,6 @@ coder:
         enable: true
         className: traefik
         host: '${host}'
+        annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: '${entrypoints}'
+            traefik.ingress.kubernetes.io/router.tls: '${tls}'

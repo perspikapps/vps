@@ -12,7 +12,7 @@ vps_network="$(dirname "$0")/../vps-network/run.sh"
 vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
 
 up() {
-    local http_port https_port ingress_host host password values_file chart_version dir rc=0
+    local http_port https_port ingress_host host password values_file chart_version dir rc=0 access entrypoints certresolver port_suffix
 
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     dir="$(cd "$(dirname "$0")" && pwd)"
@@ -24,9 +24,18 @@ up() {
     https_port="$("$vps_network" port rancher_https)"
     # Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
     # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
+    # RANCHER_ACCESS picks where the route is served, public or internal, never both:
+    # public = Traefik 80/443 on the server IP (Let's Encrypt); internal = Traefik's
+    # private "internalsecure" port on the Tailscale/Cloudflare address (default cert).
+    access="${RANCHER_ACCESS:-public}"
+    case "$access" in
+        public) entrypoints="web,websecure" certresolver="letsencrypt" port_suffix="" ;;
+        internal) entrypoints="internalsecure" certresolver="" port_suffix=":$("$vps_network" port traefik_internal_https)" ;;
+        *) zz-log e "[vps-setup] RANCHER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
+    esac
     ingress_host=""
     if [ "${RANCHER_INGRESS:-true}" = "true" ]; then
-        ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" wildcard-domain)}"
+        ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" access-domain "$access")}"
         case "$ingress_host" in
             *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
         esac
@@ -115,7 +124,7 @@ up() {
     # --- public dashboard, through k3s's Traefik (see ingress.yaml)
     if [ -n "$ingress_host" ]; then
         zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host}..."
-        yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" | kubectl apply -f -
+        yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" ENTRYPOINTS="$entrypoints" CERTRESOLVER="$certresolver" | kubectl apply -f -
     else
         kubectl -n cattle-system delete ingress rancher-traefik --ignore-not-found
     fi
@@ -123,7 +132,7 @@ up() {
     "$vps_network" reapply-guard
 
     zz-log s "[vps-setup] Rancher installed."
-    [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, public)"
+    [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host}${port_suffix} (via Traefik, ${access})"
     zz-log s "[vps-setup] UI (private): https://$("$vps_network" summary-host):${https_port} (also plain-port ${http_port})"
     zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
@@ -138,7 +147,7 @@ down() {
 
 summary() {
     cat <<EOF
- Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo '(no public route)')
+ Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik)' 2>/dev/null || echo '(no public route)')
                        private: https://$("$vps_network" summary-host):$("$vps_network" port rancher_https)
                        (also on plain port $("$vps_network" port rancher_http))
                        user:     admin

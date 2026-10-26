@@ -6,9 +6,15 @@ metadata:
     name: {{ include "hermes.fullname" . }}
     labels:
         {{- include "hermes.labels" . | nindent 8 }}
-    {{- if .Values.dashboard.ingress.tlsIssuer }}
+    {{- if or .Values.dashboard.ingress.tlsIssuer (eq (.Values.dashboard.ingress.access | default "public") "internal") }}
     annotations:
+        {{- if .Values.dashboard.ingress.tlsIssuer }}
         cert-manager.io/cluster-issuer: {{ .Values.dashboard.ingress.tlsIssuer }}
+        {{- end }}
+        {{- if eq (.Values.dashboard.ingress.access | default "public") "internal" }}
+        traefik.ingress.kubernetes.io/router.entrypoints: internalsecure
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        {{- end }}
     {{- end }}
 spec:
     ingressClassName: {{ .Values.dashboard.ingress.className }}

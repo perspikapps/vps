@@ -145,3 +145,10 @@ DIR="$REPO_ROOT/vps-coder"
 @test "The Coder wildcard ingress has the lowest Traefik priority so other subdomains win" {
     grep -q "router.priority: '1'" "$DIR/helm/coder-values-wildcard.yaml"
 }
+
+@test "Coder is public or internal, never both: CODER_ACCESS picks the entrypoint" {
+    grep -q 'CODER_ACCESS:-public' "$DIR/run.sh"
+    grep -q 'internal) entrypoints="internalsecure"' "$DIR/run.sh"
+    grep -q 'router.entrypoints' "$DIR/helm/coder-values.yaml"
+    grep -q 'router.entrypoints' "$DIR/helm/coder-values-wildcard.yaml"
+}

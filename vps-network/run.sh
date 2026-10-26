@@ -11,6 +11,7 @@
 #   ports                           every step's ports as TSV: name port access note
 #   set-private-interface <iface>   persist the private interface (vps-tailscale, vps-cloudflare)
 #   unset-private-interface <iface> forget it again, when it is still <iface>
+#   access-domain public|internal   the domain a service is reached on (public: wildcard; internal: private address)
 #   set-wildcard-domain <domain>    persist the wildcard domain (vps-system)
 #   verify <public-ip>              run from ANOTHER machine: every private port must be closed
 #   reapply-guard                   re-insert the FORWARD guard of vps-security's private ports
@@ -98,6 +99,22 @@ get_wildcard_domain() {
     printf '%s' "$domain"
 }
 
+# get_access_domain <public|internal>: the nip.io domain a service is reached on.
+# public: the wildcard domain; internal: the private (Tailscale/Cloudflare) address.
+get_access_domain() {
+    local ip
+
+    case "$1" in
+        public) get_wildcard_domain ;;
+        internal)
+            ip="$(get_private_address)"
+            [ -n "$ip" ] || { echo "vps-network: no private address: install vps-tailscale or vps-cloudflare for internal access" >&2 && return 1; }
+            printf '%s.nip.io' "$(printf '%s' "$ip" | tr . -)"
+            ;;
+        *) echo "usage: vps-network access-domain public|internal" >&2 && return 1 ;;
+    esac
+}
+
 # list_ports: every step's ports as TSV (name, port, access, note); the port
 # honours the same environment override as get_port.
 list_ports() {
@@ -157,6 +174,7 @@ summary-host)
     printf '%s' "${ip:-<private-ip>}"
     ;;
 wildcard-domain) get_wildcard_domain ;;
+access-domain) get_access_domain "${1:-}" ;;
 port) get_port "${1:?usage: vps-network port <name>}" ;;
 ports) list_ports ;;
 set-private-interface) zz-persist -f "$private_file" VPS_PRIVATE_INTERFACE "${1:?usage: vps-network set-private-interface <iface>}" ;;

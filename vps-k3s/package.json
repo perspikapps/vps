@@ -60,6 +60,12 @@
         "name": "traefik_dashboard",
         "port": 8088,
         "access": "private"
+      },
+      {
+        "name": "traefik_internal_https",
+        "port": 8444,
+        "access": "private",
+        "note": "HTTPS Traefik entrypoint for services set to internal access (Tailscale/Cloudflare address only)"
       }
     ],
     "requires": {
