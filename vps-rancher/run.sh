@@ -23,7 +23,8 @@ up() {
     http_port="$("$vps_network" port rancher_http)"
     https_port="$("$vps_network" port rancher_https)"
     # Public dashboard host (Traefik, same domain source as Coder): rancher.<wildcard domain>.
-    # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports).
+    # RANCHER_INGRESS=false keeps Rancher private-only (ufw-guarded ports). Public or
+    # private, never both: the private ports are only bound when there is no public host.
     ingress_host=""
     if [ "${RANCHER_INGRESS:-true}" = "true" ]; then
         ingress_host="${RANCHER_INGRESS_HOST:-rancher.$("$vps_network" wildcard-domain)}"
@@ -72,7 +73,8 @@ up() {
     # string; got int64"); --set also splits on commas and shows in `ps`.
     values_file="$(mktemp)"
     jq -n --arg hostname "$host" --arg bootstrapPassword "$password" \
-        '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' >"$values_file"
+        --arg svc "$([ -n "$ingress_host" ] && echo ClusterIP || echo LoadBalancer)" \
+        '{hostname: $hostname, bootstrapPassword: $bootstrapPassword, service: {type: $svc}}' >"$values_file"
     # No --wait here: helm would wait for the LoadBalancer Service to get an
     # address, but k3s's ServiceLB cannot place it while Traefik holds host ports
     # 80/443, and it is the rebind below that frees them - waiting first deadlocks
@@ -102,9 +104,11 @@ up() {
     fi
 
     # --- private ports and rollout
-    zz-log i "[vps-setup] Rebinding the rancher Service to ports ${http_port}/${https_port}..."
-    kube-service-port cattle-system rancher http "$http_port" || true
-    kube-service-port cattle-system rancher https "$https_port" || true
+    if [ -z "$ingress_host" ]; then
+        zz-log i "[vps-setup] Rebinding the rancher Service to ports ${http_port}/${https_port}..."
+        kube-service-port cattle-system rancher http "$http_port" || true
+        kube-service-port cattle-system rancher https "$https_port" || true
+    fi
 
     zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
     if ! kube-progress cattle-system "Rancher rollout" kubectl -n cattle-system rollout status deploy/rancher --timeout=10m; then
@@ -124,7 +128,7 @@ up() {
 
     zz-log s "[vps-setup] Rancher installed."
     [ -z "$ingress_host" ] || zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, public)"
-    zz-log s "[vps-setup] UI (private): https://$("$vps_network" summary-host):${https_port} (also plain-port ${http_port})"
+    [ -n "$ingress_host" ] || zz-log s "[vps-setup] UI (private): https://$("$vps_network" summary-host):${https_port} (also plain-port ${http_port})"
     zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
 
@@ -138,9 +142,7 @@ down() {
 
 summary() {
     cat <<EOF
- Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo '(no public route)')
-                       private: https://$("$vps_network" summary-host):$("$vps_network" port rancher_https)
-                       (also on plain port $("$vps_network" port rancher_http))
+ Rancher:             $(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='https://{.spec.rules[0].host} (through Traefik - public)' 2>/dev/null || echo "private: https://$("$vps_network" summary-host):$("$vps_network" port rancher_https) (also on plain port $("$vps_network" port rancher_http))")
                        user:     admin
                        password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run vps-rancher/run.sh')
                        (saved to ${VPS_SECRETS_FILE}; you'll
