@@ -141,3 +141,7 @@ DIR="$REPO_ROOT/vps-coder"
         printf '%s' "$out" | python3 -c 'import sys, yaml; list(yaml.safe_load_all(sys.stdin))'
     done
 }
+
+@test "The Coder wildcard ingress has the lowest Traefik priority so other subdomains win" {
+    grep -q "router.priority: '1'" "$DIR/helm/coder-values-wildcard.yaml"
+}

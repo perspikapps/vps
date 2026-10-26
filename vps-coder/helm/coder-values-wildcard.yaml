@@ -19,3 +19,7 @@ coder:
         className: traefik
         host: '${host}'
         wildcardHost: '${wildcard_host}'
+        # Lowest priority: the *.<domain> catch-all becomes a long HostRegexp rule that
+        # Traefik ranks first by default, shadowing rancher., argocd., ... on the same domain.
+        annotations:
+            traefik.ingress.kubernetes.io/router.priority: '1'
