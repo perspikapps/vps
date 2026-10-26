@@ -5,7 +5,7 @@
 # run with up, down or summary as its first argument. The menus only run on a terminal.
 
 set -eu
-zz-use zz-colors zz-log zz-menu zz-prompt perspikapps/vps/vps-network
+zz-use zz-colors zz-log zz-menu zz-prompt ../vps-network
 # shellcheck disable=SC1091
 . zz-colors
 

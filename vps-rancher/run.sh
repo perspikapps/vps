@@ -4,7 +4,7 @@
 # so there is no zz-args block; run with up, down or summary as its first argument.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown perspikapps/vps/vps-network
+zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-teardown ../vps-network
 # shellcheck disable=SC1091
 . zz-colors
 vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"

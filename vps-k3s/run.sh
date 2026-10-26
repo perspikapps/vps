@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress perspikapps/vps/vps-network
+zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress ../vps-network
 # shellcheck disable=SC1091
 . zz-colors
 
