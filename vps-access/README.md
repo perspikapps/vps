@@ -25,7 +25,7 @@ It runs after the internal network (`vps-tailscale`/`vps-cloudflare`) and before
 
 ## Visibility
 
-A service that exposes a route declares its default in `config.visibility` of its `package.json` (`public` or `internal`). A service is **public** (server IP, Traefik 80/443) or **internal** (Tailscale/Cloudflare address, Traefik's internal 8081/8444), never both; the private (local) ports are unaffected.
+A service that exposes a route declares its default in `config.visibility` of its `package.json` (`public` or `internal`). A service is **public** (server IP, Traefik 80/443) or **internal** (a host on the internal domain, same Traefik 80/443, behind the `internal-only` middleware: only clients of the internal network get through), never both; the private (local) ports are unaffected.
 
 On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a internal address is kept `public` with a warning. Answers are saved to `/etc/vps-access.env`; the environment (`RANCHER_ACCESS`, `CODER_ACCESS`, ...) still wins.
 
@@ -44,12 +44,12 @@ Without a terminal (or with `VPS_ACCESS_MENU=false`) nothing is asked: saved or 
 
 ## Summary
 
-Every step summary has the same paragraph (`vps-network summary-block`): a `Public:`, `Internal:` and `Local:` line with the URLs and what to know for each, then notes (credentials, DNS). Public is the server IP on 80/443, internal is the internal network on Traefik's 8081/8444, local is the private ports (closed to the internet). The `vps-access` one lists which services are in which scope and the DNS state:
+Every step summary has the same paragraph (`vps-network summary-block`): a `Public:`, `Internal:` and `Local:` line with the URLs and what to know for each, then notes (credentials, DNS). Public is the server IP on 80/443, internal is the same 80/443 for internal-network clients only, local is the private ports (closed to the internet). The `vps-access` one lists which services are in which scope and the DNS state:
 
 ```text
  Access (each service is public OR internal, never both):
    Public:    coder (coder.apps.example.com) - HTTP/HTTPS 80/443 on 203.0.113.7, from the internet
-   Internal:  rancher (rancher.100-64-0-1.nip.io) - HTTP/HTTPS 8081/8444 on 100.64.0.1, over the internal network only
+   Internal:  rancher (rancher.100-64-0-1.nip.io) - HTTP/HTTPS 80/443 on 100.64.0.1, clients of the internal network only (source range 100.64.0.0/10)
    Local:     private ports, closed to the internet, on the VPS and its internal address: cockpit_http 9080, ...
    External domain: *.apps.example.com - custom, resolves to 203.0.113.7
    Internal domain: *.100-64-0-1.nip.io - fallback (nip.io), resolves to 100.64.0.1

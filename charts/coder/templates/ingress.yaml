@@ -6,7 +6,7 @@ metadata:
     name: {{ .Release.Name }}-coder
     {{- if eq (.Values.ingress.access | default "public") "internal" }}
     annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: internal,internalsecure
+        traefik.ingress.kubernetes.io/router.middlewares: kube-system-internal-only@kubernetescrd
     {{- end }}
 spec:
     ingressClassName: {{ .Values.ingress.className }}

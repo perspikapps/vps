@@ -280,7 +280,7 @@ down() {
 summary() {
     vps-network summary-block "Firewall (${firewall})" \
         "SSH 22 (key-only) and Traefik 80/443" \
-        "internal services: Traefik internal/internalsecure, on the internal interface only ($(vps-network internal-interface || true))" \
+        "internal services: Traefik 80/443 too, behind the internal-only middleware (clients of the internal network, interface $(vps-network internal-interface || true))" \
         "private ports (Cockpit, Traefik dashboard, Dokploy UI, k3s API): closed to the internet, open on the internal address only - connect to the internal network first"
 }
 

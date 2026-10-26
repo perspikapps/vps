@@ -23,6 +23,7 @@ vps-network <command> [args...]
 | `external-domain`               | `EXTERNAL_DOMAIN`, else the persisted one, else `<public-ip>.nip.io` (public address, never the internal one) |
 | `access-domain public\|internal` | `external-domain`, or `<internal-ip>.nip.io` (dashes) for internal access; fails without a internal address |
 | `internal-domain` | `INTERNAL_DOMAIN`, else the saved one, else `<internal-ip>.nip.io` |
+| `internal-range` | source CIDRs of the internal network's clients: `INTERNAL_SOURCE_RANGE`, else Tailscale's `100.64.0.0/10`, else the internal address and loopback (used by the `internal-only` Traefik middleware) |
 | `visibility <service>` | `public` or `internal`: `<NAME>_ACCESS`, else the saved choice, else `config.visibility` of `vps-<service>`, else `public` |
 | `visibilities` | every service declaring `config.visibility`, as TSV: name, visibility |
 | `set-visibility <service> public\|internal` | persist a choice to `/etc/vps-access.env` (`vps-access`) |

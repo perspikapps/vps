@@ -17,5 +17,6 @@ coder:
         className: traefik
         host: '${host}'
         annotations:
-            traefik.ingress.kubernetes.io/router.entrypoints: '${entrypoints}'
-            traefik.ingress.kubernetes.io/router.tls: '${tls}'
+            traefik.ingress.kubernetes.io/router.entrypoints: 'web,websecure'
+            traefik.ingress.kubernetes.io/router.tls: 'false'
+            traefik.ingress.kubernetes.io/router.middlewares: '${middlewares}'

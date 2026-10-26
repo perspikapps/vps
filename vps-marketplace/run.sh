@@ -36,7 +36,7 @@ down() {
 summary() {
     vps-network summary-block Marketplace \
         "apps with ingress.access=public: https/http://<app>.<external domain> (80/443)" \
-        "apps with ingress.access=internal: http://<app>.<internal domain>:$(vps-network port traefik_internal_http)" - \
+        "apps with ingress.access=internal: http://<app>.<internal domain> (80/443, internal network clients only)" - \
         "Rancher: Apps & Marketplace -> Repositories lists \"${MARKETPLACE_REPO_NAME}\" (registered by the vps-marketplace step)." \
         "Install ArgoCD, Epinio, or any other chart of this catalog from Apps & Marketplace -> Charts (README: \"Rancher Marketplace\")."
 }

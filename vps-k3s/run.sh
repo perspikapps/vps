@@ -65,8 +65,6 @@ up() {
     TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
     TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
     TRAEFIK_DASHBOARD_PORT="$(vps-network port traefik_dashboard)"
-    TRAEFIK_INTERNAL_HTTP_PORT="$(vps-network port traefik_internal_http)"
-    TRAEFIK_INTERNAL_HTTPS_PORT="$(vps-network port traefik_internal_https)"
 
     if [ "$TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
         zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
@@ -89,7 +87,7 @@ up() {
     fi
 
     zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_INTERNAL_HTTP_PORT="$TRAEFIK_INTERNAL_HTTP_PORT" TRAEFIK_INTERNAL_HTTPS_PORT="$TRAEFIK_INTERNAL_HTTPS_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
@@ -98,6 +96,15 @@ up() {
     done
     kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
         zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
+
+    # The middleware every internal route uses: only the internal network's clients get through.
+    INTERNAL_RANGE="$(vps-network internal-range | sed 's/[^,][^,]*/"&"/g; s/,/, /g')"
+    if [ -n "$INTERNAL_RANGE" ]; then
+        yaml-render "$(dirname "$0")/helm/internal-middleware.yaml" INTERNAL_RANGE="$INTERNAL_RANGE" | kubectl apply -f - ||
+            zz-log w "[vps-setup] Could not create the internal-only middleware (Traefik CRDs not ready?): re-run vps-k3s."
+    else
+        zz-log w "[vps-setup] No internal network yet: internal routes would have no source limit, so none is created (run vps-tailscale or vps-cloudflare, then re-run vps-k3s)."
+    fi
 
     vps-network reapply-guard
 
@@ -121,7 +128,7 @@ summary() {
     host="$(vps-network public-ip)"
     vps-network summary-block "Traefik (k3s)" \
         "http://${host:-<public-ip>} and https://${host:-<public-ip>} (web/websecure, 80/443; Let's Encrypt resolver \"letsencrypt\")" \
-        "http://$(vps-network summary-host):$(vps-network port traefik_internal_http) and https://$(vps-network summary-host):$(vps-network port traefik_internal_https) (internal/internalsecure, internal network only)" \
+        "the same 80/443 on $(vps-network summary-host), for internal hosts only (internal-only middleware: sources $(vps-network internal-range || true))" \
         "dashboard http://localhost:$(vps-network port traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
         "A \"letsencrypt\" certResolver is ready: it issues nothing until your Ingress has the router.tls.certresolver annotation (see README)." \
         "kubectl / helm: KUBECONFIG=/etc/rancher/k3s/k3s.yaml (exported via /etc/profile.d/k3s-kubeconfig.sh for new shells)"

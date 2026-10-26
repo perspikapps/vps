@@ -26,7 +26,7 @@ sudo zz-setup ./ -d vps-rancher
 The dashboard is served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
 the `letsencrypt` resolver; staging certs until `TRAEFIK_ACME_STAGING=false`). `<domain>` is
 `EXTERNAL_DOMAIN`, else `<public-ip>.nip.io`; set `RANCHER_INGRESS_HOST` to use another host.
-`vps-access` (or `RANCHER_ACCESS`, which wins) picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<internal-ip>.nip.io` on Traefik's private `internal`/`internalsecure` entrypoints (the UI on `TRAEFIK_INTERNAL_HTTPS_PORT`, 8444) over Tailscale/Cloudflare, with Traefik's default certificate. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL (`RANCHER_HOSTNAME`) defaults to the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
+`vps-access` (or `RANCHER_ACCESS`, which wins) picks where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<internal-ip>.nip.io` on the same 80/443, behind the `internal-only` Traefik middleware (see `vps-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through, with Traefik's default certificate. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL (`RANCHER_HOSTNAME`) defaults to the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
 
 ## Installing from SUSE Rancher Prime
 

@@ -1,7 +1,7 @@
 # coder-values.yaml plus workspace apps on subdomains. The cookie Coder sets is
 # scoped to the wildcard domain, so the dashboard host sits under it. ${access_url},
-# ${host}, ${wildcard_host} (*.<domain>), ${wildcard_url} (that, plus the port for internal access),
-# ${entrypoints} and ${tls} are filled in by run.sh.
+# ${host}, ${wildcard_host} (*.<domain>), ${wildcard_url} (the same),
+# and ${middlewares} (the internal-only middleware for internal access, else empty) are filled in by run.sh.
 coder:
     env:
         - name: CODER_PG_CONNECTION_URL
@@ -24,5 +24,6 @@ coder:
         # Traefik ranks first by default, shadowing rancher., argocd., ... on the same domain.
         annotations:
             traefik.ingress.kubernetes.io/router.priority: '1'
-            traefik.ingress.kubernetes.io/router.entrypoints: '${entrypoints}'
-            traefik.ingress.kubernetes.io/router.tls: '${tls}'
+            traefik.ingress.kubernetes.io/router.entrypoints: 'web,websecure'
+            traefik.ingress.kubernetes.io/router.tls: 'false'
+            traefik.ingress.kubernetes.io/router.middlewares: '${middlewares}'

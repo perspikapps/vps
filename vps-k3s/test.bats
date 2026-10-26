@@ -56,10 +56,11 @@ DIR="$REPO_ROOT/vps-k3s"
     ! grep -q 'kind: HelmChartConfig' "$DIR/run.sh"
 }
 
-@test "Traefik has private internal and internalsecure entrypoints that are not default ones" {
-    grep -q '^          internal:' "$DIR/helm/traefik-config.yaml"
-    grep -q 'internalsecure:' "$DIR/helm/traefik-config.yaml"
-    grep -q 'asDefault: false' "$DIR/helm/traefik-config.yaml"
-    run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'traefik_internal_https'); process.exit(p && p.access === 'private' ? 0 : 1)"
-    [ "$status" -eq 0 ]
+@test "internal routes share 80/443: a shared internal-only ipAllowList middleware, and the client address is kept" {
+    [ -f "$DIR/helm/internal-middleware.yaml" ]
+    grep -q 'ipAllowList' "$DIR/helm/internal-middleware.yaml"
+    grep -q 'externalTrafficPolicy: Local' "$DIR/helm/traefik-config.yaml"
+    grep -q 'allowCrossNamespace=true' "$DIR/helm/traefik-config.yaml"
+    ! grep -q 'internalsecure' "$DIR/helm/traefik-config.yaml"
+    grep -q 'yaml-render "\$(dirname "\$0")/helm/internal-middleware.yaml"' "$DIR/run.sh"
 }

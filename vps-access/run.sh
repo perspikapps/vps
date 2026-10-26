@@ -122,7 +122,7 @@ EOF
 
 # local_ports: the private ports (closed to the internet), as "name port, ...".
 local_ports() {
-    vps-network ports | awk -F'\t' '$3 == "private" && $1 !~ /^traefik_internal/ { printf "%s%s %s", sep, $1, $2; sep = ", " }'
+    vps-network ports | awk -F'\t' '$3 == "private" { printf "%s%s %s", sep, $1, $2; sep = ", " }'
 }
 
 summary() {
@@ -134,7 +134,7 @@ summary() {
     int_ip="$(vps-network internal-address || true)"
     vps-network summary-block "Access (each service is public OR internal, never both)" \
         "${pub:+$pub - HTTP/HTTPS 80/443 on ${ext_ip:-<public-ip>}, from the internet}" \
-        "${int:+$int - HTTP/HTTPS $(vps-network port traefik_internal_http)/$(vps-network port traefik_internal_https) on ${int_ip:-<internal-ip>}, over the internal network only}" \
+        "${int:+$int - HTTP/HTTPS 80/443 on ${int_ip:-<internal-ip>}, clients of the internal network only (source range $(vps-network internal-range || true))}" \
         "private ports, closed to the internet, on the VPS and its internal address: $(local_ports)" \
         "$(domain_line "External domain:" "$(vps-network external-domain)" "$ext_ip" | sed 's/^   //')" \
         "$(domain_line "Internal domain:" "$(vps-network internal-domain)" "$int_ip" | sed 's/^   //')" \

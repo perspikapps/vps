@@ -148,7 +148,7 @@ DIR="$REPO_ROOT/vps-coder"
 
 @test "Coder is public or internal, never both: CODER_ACCESS picks the entrypoint" {
     grep -q 'visibility coder' "$DIR/run.sh"
-    grep -q 'internal) entrypoints="internal,internalsecure"' "$DIR/run.sh"
-    grep -q 'router.entrypoints' "$DIR/helm/coder-values.yaml"
-    grep -q 'router.entrypoints' "$DIR/helm/coder-values-wildcard.yaml"
+    grep -q 'internal) middlewares="kube-system-internal-only@kubernetescrd"' "$DIR/run.sh"
+    grep -q 'router.middlewares' "$DIR/helm/coder-values.yaml"
+    grep -q 'router.middlewares' "$DIR/helm/coder-values-wildcard.yaml"
 }

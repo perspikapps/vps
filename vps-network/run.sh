@@ -13,6 +13,7 @@
 #   set-internal-interface <iface>   persist the internal interface (vps-tailscale, vps-cloudflare)
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
+#   internal-range                  source CIDRs of the internal network (INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
 #   internal-domain                 INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
@@ -31,7 +32,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
+- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -149,6 +150,25 @@ list_visibilities() {
     done
 }
 
+# get_internal_range: the source CIDRs of the internal network's clients (comma separated):
+# INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
+# and loopback. Empty until there is an internal network.
+get_internal_range() {
+    local iface ip
+
+    if [ -n "${INTERNAL_SOURCE_RANGE:-}" ]; then
+        printf '%s' "$INTERNAL_SOURCE_RANGE"
+        return 0
+    fi
+    iface="$(get_internal_interface)"
+    ip="$(get_internal_address)"
+    case "$iface" in
+        "") ;;
+        tailscale*) printf '100.64.0.0/10' ;;
+        *) [ -z "$ip" ] || printf '%s/32,127.0.0.1/32' "$ip" ;;
+    esac
+}
+
 # get_access_domain <public|internal>: the nip.io domain a service is reached on.
 # public: the external domain; internal: the internal (Tailscale/Cloudflare) address.
 get_access_domain() {
@@ -250,6 +270,7 @@ unset-internal-interface)
     [ "$(get_internal_interface)" != "${1:?usage: vps-network unset-internal-interface <iface>}" ] || zz-persist -q -f "$internal_file" -u VPS_INTERNAL_INTERFACE
     ;;
 internal-domain) get_internal_domain ;;
+internal-range) get_internal_range ;;
 visibility) get_visibility "${1:?usage: vps-network visibility <service>}" ;;
 visibilities) list_visibilities ;;
 set-visibility)
@@ -267,7 +288,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
     exit 1
     ;;
 esac

@@ -99,7 +99,7 @@ need and remembers your answers in `/etc/vps.env`.
 | `TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
 | `TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
 | `EXTERNAL_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
-| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT`, `TRAEFIK_INTERNAL_HTTPS_PORT` |
+| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT` |
 
 To keep a set of inputs in a file instead, use `/etc/vps-setup.env`
 (`KEY=VALUE`, or the file named by `VPS_SETUP_ENV_FILE`); it is read on every
@@ -138,8 +138,8 @@ flowchart LR
         direction LR
         ssh["sshd<br/>22"]
         subgraph traefik[Traefik]
-            pub["web / websecure<br/>80 / 443 (public IP)"]
-            int["internal / internalsecure<br/>8081 / 8444 (private)"]
+            pub["web / websecure<br/>80 / 443"]
+            mw["internal-only middleware<br/>(internal hosts: internal network sources only)"]
         end
         subgraph priv["Private ports (local)"]
             cockpit["Cockpit<br/>9080 / 9083"]
@@ -153,18 +153,19 @@ flowchart LR
     end
     net -->|"SSH"| ssh
     net -->|"HTTP / HTTPS"| pub
-    pub -->|"public routes"| apps
-    vpn -->|"internal address"| int
-    int -->|"internal routes"| apps
+    pub -->|"public hosts"| apps
+    vpn -->|"internal address, 80 / 443"| pub
+    pub -->|"internal hosts"| mw
+    mw -->|"internal network sources only"| apps
     vpn -->|"internal address"| priv
-    net -. "blocked by ufw and FORWARD guard" .-> int
+    net -. "internal hosts: 403" .-> mw
     net -. "blocked by ufw and FORWARD guard" .-> priv
 ```
 
 | Access   | Reached on                              | Chosen by                                     |
 | -------- | --------------------------------------- | --------------------------------------------- |
 | public   | server IP: Traefik 80/443 (Dokploy's Traefik uses the same ports), SSH 22 | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
-| internal | Tailscale/Cloudflare address, Traefik 8081/8444 | `internal` in those same settings             |
+| internal | Tailscale/Cloudflare address, Traefik 80/443, internal network sources only | `internal` in those same settings             |
 | private  | Tailscale/Cloudflare address, own ports | always, for `access: "private"` steps         |
 
 - **Logins.** Cockpit uses a Linux account (`VPS_ADMIN_USER`, else `root`) and

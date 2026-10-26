@@ -10,7 +10,7 @@ zz-use zz-colors zz-log zz-persist yaml-render kube-progress kube-diagnose kube-
 vps_cert_manager="$(dirname "$0")/../vps-cert-manager/run.sh"
 
 up() {
-    local ingress_host host password values_file chart_version dir rc=0 access entrypoints certresolver port_suffix
+    local ingress_host host password values_file chart_version dir rc=0 access middlewares certresolver
 
     export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
     dir="$(cd "$(dirname "$0")" && pwd)"
@@ -20,12 +20,12 @@ up() {
     # --- parameters: dashboard host, server URL, bootstrap password
     # Rancher is only reached through Traefik: rancher.<domain> (same domain sources as Coder).
     # vps-access (or RANCHER_ACCESS) picks where the route is served, public or internal, never both:
-    # public = Traefik 80/443 on the server IP (Let's Encrypt); internal = Traefik's private
-    # "internal"/"internalsecure" ports on the Tailscale/Cloudflare address (default cert).
+    # Both are Traefik 80/443: public has Let's Encrypt; internal is a host on the internal domain
+    # behind the internal-only middleware (internal network clients only, default certificate).
     access="$(vps-network visibility rancher)"
     case "$access" in
-        public) entrypoints="web,websecure" certresolver="letsencrypt" port_suffix="" ;;
-        internal) entrypoints="internal,internalsecure" certresolver="" port_suffix=":$(vps-network port traefik_internal_https)" ;;
+        public) middlewares="" certresolver="letsencrypt" ;;
+        internal) middlewares="kube-system-internal-only@kubernetescrd" certresolver="" ;;
         *) zz-log e "[vps-setup] RANCHER_ACCESS must be public or internal (got '${access}')." && exit 1 ;;
     esac
     ingress_host="${RANCHER_INGRESS_HOST:-rancher.$(vps-network access-domain "$access")}"
@@ -104,10 +104,10 @@ up() {
 
     # --- dashboard route, through k3s's Traefik (see ingress.yaml)
     zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host} (${access})..."
-    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" ENTRYPOINTS="$entrypoints" CERTRESOLVER="$certresolver" | kubectl apply -f -
+    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" CERTRESOLVER="$certresolver" | kubectl apply -f -
 
     zz-log s "[vps-setup] Rancher installed."
-    zz-log s "[vps-setup] UI: https://${ingress_host}${port_suffix} (via Traefik, ${access})"
+    zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, ${access})"
     zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
 }
 
@@ -127,7 +127,7 @@ summary() {
     if [ -z "$host" ]; then
         pub="no route yet: run vps-rancher/run.sh"
     elif [ "$access" = "internal" ]; then
-        int="https://${host}:$(vps-network port traefik_internal_https) (internal network only; Traefik's default certificate)"
+        int="https://${host} (internal network clients only; Traefik's default certificate)"
     else
         pub="https://${host} (Let's Encrypt)"
     fi
