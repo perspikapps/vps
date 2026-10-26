@@ -62,5 +62,6 @@ DIR="$REPO_ROOT/vps-k3s"
     grep -q 'externalTrafficPolicy: Local' "$DIR/helm/traefik-config.yaml"
     grep -q 'allowCrossNamespace=true' "$DIR/helm/traefik-config.yaml"
     ! grep -q 'internalsecure' "$DIR/helm/traefik-config.yaml"
+    grep -q 'redirectScheme' "$DIR/helm/redirect-middleware.yaml"
     grep -q 'yaml-render "\$(dirname "\$0")/helm/internal-middleware.yaml"' "$DIR/run.sh"
 }

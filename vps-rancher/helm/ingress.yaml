@@ -1,21 +1,48 @@
 # Dashboard through k3s's Traefik (80/443). The backend is the Service's "http" port by
 # name; Traefik terminates TLS and sends X-Forwarded-Proto, which keeps Rancher from
-# redirecting to https again. ${INGRESS_HOST}, ${MIDDLEWARES} (empty for public, the
-# internal-only middleware for internal) and ${CERTRESOLVER} (empty for internal: the
-# default certificate) are filled in by run.sh.
+# redirecting to https again. Two routes: HTTPS serves Rancher, plain HTTP only redirects to
+# HTTPS (a TLS route has no plain-HTTP router, so *.<domain> catch-alls such as Coder's would
+# answer http://rancher.<domain> otherwise). Priority 1000 keeps both ahead of any catch-all.
+# ${INGRESS_HOST}, ${MIDDLEWARES} (empty for public, the internal-only middleware for
+# internal), ${HTTP_MIDDLEWARES} (the same plus the https redirect) and ${CERTRESOLVER}
+# (empty for internal: the default certificate) are filled in by run.sh.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
     name: rancher-traefik
     namespace: cattle-system
     annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.priority: '1000'
         traefik.ingress.kubernetes.io/router.middlewares: '${MIDDLEWARES}'
         traefik.ingress.kubernetes.io/router.tls.certresolver: '${CERTRESOLVER}'
 spec:
     ingressClassName: traefik
     tls:
         - hosts: ['${INGRESS_HOST}']
+    rules:
+        - host: ${INGRESS_HOST}
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: rancher
+                            port:
+                                name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: rancher-traefik-http
+    namespace: cattle-system
+    annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+        traefik.ingress.kubernetes.io/router.priority: '1000'
+        traefik.ingress.kubernetes.io/router.middlewares: '${HTTP_MIDDLEWARES}'
+spec:
+    ingressClassName: traefik
     rules:
         - host: ${INGRESS_HOST}
           http:

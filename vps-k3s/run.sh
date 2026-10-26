@@ -97,6 +97,9 @@ up() {
     kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
         zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
 
+    kubectl apply -f "$(dirname "$0")/helm/redirect-middleware.yaml" ||
+        zz-log w "[vps-setup] Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run vps-k3s."
+
     # The middleware every internal route uses: only the internal network's clients get through.
     INTERNAL_RANGE="$(vps-network internal-range | sed 's/[^,][^,]*/"&"/g; s/,/, /g')"
     if [ -n "$INTERNAL_RANGE" ]; then

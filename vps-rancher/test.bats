@@ -128,3 +128,10 @@ DIR="$REPO_ROOT/vps-rancher"
     run node -e "const p = require('$DIR/package.json'); process.exit(p.config.ports || p.config.inputs.RANCHER_INGRESS ? 1 : 0)"
     [ "$status" -eq 0 ]
 }
+
+@test "Rancher has an https route and an http route that only redirects, both ahead of any catch-all" {
+    grep -q 'name: rancher-traefik-http' "$DIR/helm/ingress.yaml"
+    grep -q 'router.entrypoints: websecure' "$DIR/helm/ingress.yaml"
+    [ "$(grep -c "router.priority: '1000'" "$DIR/helm/ingress.yaml")" -eq 2 ]
+    grep -q 'kube-system-redirect-https@kubernetescrd' "$DIR/run.sh"
+}

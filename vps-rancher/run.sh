@@ -104,7 +104,7 @@ up() {
 
     # --- dashboard route, through k3s's Traefik (see ingress.yaml)
     zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host} (${access})..."
-    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" CERTRESOLVER="$certresolver" | kubectl apply -f -
+    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" HTTP_MIDDLEWARES="${middlewares:+$middlewares,}kube-system-redirect-https@kubernetescrd" CERTRESOLVER="$certresolver" | kubectl apply -f -
 
     zz-log s "[vps-setup] Rancher installed."
     zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, ${access})"
