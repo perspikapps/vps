@@ -1,24 +1,24 @@
 #!/bin/sh
 # vps-network <command> [args...] - the network facts and state of this VPS, in
 # one place (a script, not a step): where it is reachable, which interface
-# carries the private network, which ports every step declares. Commands:
+# carries the internal network, which ports every step declares. Commands:
 #   public-ip                       public IPv4 (behind NAT: what an echo service sees)
-#   private-interface               interface carrying the private-only services
-#   private-address                 its first IPv4 address (empty until it has one)
-#   summary-host                    that address, else <private-ip>, for the summaries
-#   wildcard-domain                 the wildcard DNS domain (WILDCARD_DOMAIN, else nip.io)
+#   internal-interface               interface carrying the internal network (private-port services)
+#   internal-address                 its first IPv4 address (empty until it has one)
+#   summary-host                    that address, else <internal-ip>, for the summaries
+#   external-domain                 the external DNS domain (EXTERNAL_DOMAIN, else nip.io)
 #   port <name>                     a port by name (<NAME>_PORT wins over package.json)
 #   ports                           every step's ports as TSV: name port access note
-#   set-private-interface <iface>   persist the private interface (vps-tailscale, vps-cloudflare)
-#   unset-private-interface <iface> forget it again, when it is still <iface>
-#   access-domain public|internal   the domain a service is reached on (public: wildcard; internal: internal-domain)
-#   internal-domain                 INTERNAL_DOMAIN, else <private-ip>.nip.io
+#   set-internal-interface <iface>   persist the internal interface (vps-tailscale, vps-cloudflare)
+#   unset-internal-interface <iface> forget it again, when it is still <iface>
+#   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
+#   internal-domain                 INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
 #   set-visibility <service> <v>    persist a choice (vps-access)
 #   set-internal-domain <domain>    persist the internal domain (vps-access)
 #   unset-access                    forget every access choice
-#   set-wildcard-domain <domain>    persist the wildcard domain (vps-system)
+#   set-external-domain <domain>    persist the external domain (vps-system)
 #   verify <public-ip>              run from ANOTHER machine: every private port must be closed
 #   reapply-guard                   re-insert the FORWARD guard of vps-security's private ports
 
@@ -30,7 +30,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, private-interface, private-address, summary-host, wildcard-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard
+- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -42,10 +42,10 @@ if [ -z "$command" ]; then
 fi
 # Where the steps are: this checkout, else VPS_SETUP_ROOT.
 root="${VPS_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-# Private access: ports with access "private" are only reachable over one interface.
+# Internal network: ports with access "private" are only reachable over one interface.
 # Whoever provides that network persists it here; the environment wins.
-private_file="${VPS_PRIVATE_ACCESS_FILE:-/etc/vps-private-access.env}"
-wildcard_file="${VPS_WILDCARD_FILE:-/etc/vps-wildcard-domain.env}"
+internal_file="${VPS_INTERNAL_ACCESS_FILE:-/etc/vps-internal-access.env}"
+external_file="${VPS_EXTERNAL_DOMAIN_FILE:-/etc/vps-external-domain.env}"
 # Access choices (vps-access): <NAME>_ACCESS per service and INTERNAL_DOMAIN; the environment wins.
 access_file="${VPS_ACCESS_FILE:-/etc/vps-access.env}"
 
@@ -73,32 +73,32 @@ get_public_ip() {
     printf '%s' "$ip"
 }
 
-# get_private_interface: VPS_PRIVATE_INTERFACE, else the persisted one.
-get_private_interface() {
-    if [ -n "${VPS_PRIVATE_INTERFACE:-}" ]; then
-        printf '%s' "$VPS_PRIVATE_INTERFACE"
-    elif [ -f "$private_file" ]; then
-        zz-persist -f "$private_file" -r VPS_PRIVATE_INTERFACE
+# get_internal_interface: VPS_INTERNAL_INTERFACE, else the persisted one.
+get_internal_interface() {
+    if [ -n "${VPS_INTERNAL_INTERFACE:-}" ]; then
+        printf '%s' "$VPS_INTERNAL_INTERFACE"
+    elif [ -f "$internal_file" ]; then
+        zz-persist -f "$internal_file" -r VPS_INTERNAL_INTERFACE
     fi
 }
 
-# get_private_address: first IPv4 address of the private interface.
-get_private_address() {
+# get_internal_address: first IPv4 address of the internal interface.
+get_internal_address() {
     local iface
 
-    iface="$(get_private_interface)"
+    iface="$(get_internal_interface)"
     [ -z "$iface" ] || ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1 || true
 }
 
-# get_wildcard_domain: apps that need per-app subdomains (Coder's workspace apps)
-# take one domain: WILDCARD_DOMAIN, the persisted one, else nip.io on the PUBLIC
-# address (never the private/Tailscale one: the apps are served by the public
+# get_external_domain: apps that need per-app subdomains (Coder's workspace apps)
+# take one domain: EXTERNAL_DOMAIN, the persisted one, else nip.io on the PUBLIC
+# address (never the internal/Tailscale one: the apps are served by the public
 # ingress), which resolves any <a-b-c-d>.nip.io and *.<a-b-c-d>.nip.io to that IP.
-get_wildcard_domain() {
-    local domain="${WILDCARD_DOMAIN:-}" ip
+get_external_domain() {
+    local domain="${EXTERNAL_DOMAIN:-}" ip
 
-    if [ -z "$domain" ] && [ -f "$wildcard_file" ]; then
-        domain="$(zz-persist -f "$wildcard_file" -r WILDCARD_DOMAIN)"
+    if [ -z "$domain" ] && [ -f "$external_file" ]; then
+        domain="$(zz-persist -f "$external_file" -r EXTERNAL_DOMAIN)"
     fi
     if [ -z "$domain" ]; then
         ip="$(get_public_ip)"
@@ -108,7 +108,7 @@ get_wildcard_domain() {
 }
 
 # get_internal_domain: INTERNAL_DOMAIN, else the persisted one, else nip.io on the
-# private (Tailscale/Cloudflare) address.
+# internal (Tailscale/Cloudflare) address.
 get_internal_domain() {
     local domain="${INTERNAL_DOMAIN:-}" ip
 
@@ -116,7 +116,7 @@ get_internal_domain() {
         domain="$(zz-persist -f "$access_file" -r INTERNAL_DOMAIN)"
     fi
     if [ -z "$domain" ]; then
-        ip="$(get_private_address)"
+        ip="$(get_internal_address)"
         [ -z "$ip" ] || domain="$(printf '%s' "$ip" | tr . -).nip.io"
     fi
     printf '%s' "$domain"
@@ -149,15 +149,15 @@ list_visibilities() {
 }
 
 # get_access_domain <public|internal>: the nip.io domain a service is reached on.
-# public: the wildcard domain; internal: the private (Tailscale/Cloudflare) address.
+# public: the external domain; internal: the internal (Tailscale/Cloudflare) address.
 get_access_domain() {
     local ip
 
     case "$1" in
-        public) get_wildcard_domain ;;
+        public) get_external_domain ;;
         internal)
             ip="$(get_internal_domain)"
-            [ -n "$ip" ] || { echo "vps-network: no private address: install vps-tailscale or vps-cloudflare for internal access" >&2 && return 1; }
+            [ -n "$ip" ] || { echo "vps-network: no internal address: install vps-tailscale or vps-cloudflare for internal access" >&2 && return 1; }
             printf '%s' "$ip"
             ;;
         *) echo "usage: vps-network access-domain public|internal" >&2 && return 1 ;;
@@ -216,19 +216,19 @@ EOF
 # --- run
 case "$command" in
 public-ip) get_public_ip ;;
-private-interface) get_private_interface ;;
-private-address) get_private_address ;;
+internal-interface) get_internal_interface ;;
+internal-address) get_internal_address ;;
 summary-host)
-    ip="$(get_private_address)"
-    printf '%s' "${ip:-<private-ip>}"
+    ip="$(get_internal_address)"
+    printf '%s' "${ip:-<internal-ip>}"
     ;;
-wildcard-domain) get_wildcard_domain ;;
+external-domain) get_external_domain ;;
 access-domain) get_access_domain "${1:-}" ;;
 port) get_port "${1:?usage: vps-network port <name>}" ;;
 ports) list_ports ;;
-set-private-interface) zz-persist -f "$private_file" VPS_PRIVATE_INTERFACE "${1:?usage: vps-network set-private-interface <iface>}" ;;
-unset-private-interface)
-    [ "$(get_private_interface)" != "${1:?usage: vps-network unset-private-interface <iface>}" ] || zz-persist -q -f "$private_file" -u VPS_PRIVATE_INTERFACE
+set-internal-interface) zz-persist -f "$internal_file" VPS_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface>}" ;;
+unset-internal-interface)
+    [ "$(get_internal_interface)" != "${1:?usage: vps-network unset-internal-interface <iface>}" ] || zz-persist -q -f "$internal_file" -u VPS_INTERNAL_INTERFACE
     ;;
 internal-domain) get_internal_domain ;;
 visibility) get_visibility "${1:?usage: vps-network visibility <service>}" ;;
@@ -239,7 +239,7 @@ set-visibility)
     ;;
 set-internal-domain) zz-persist -f "$access_file" INTERNAL_DOMAIN "${1:?usage: vps-network set-internal-domain <domain>}" ;;
 unset-access) rm -f "$access_file" ;;
-set-wildcard-domain) zz-persist -f "$wildcard_file" WILDCARD_DOMAIN "${1:?usage: vps-network set-wildcard-domain <domain>}" ;;
+set-external-domain) zz-persist -f "$external_file" EXTERNAL_DOMAIN "${1:?usage: vps-network set-external-domain <domain>}" ;;
 verify) verify_ports "${1:?usage: vps-network verify <public-ip> (from another machine)}" ;;
 reapply-guard)
     # ufw only filters INPUT; the guard unit of vps-security re-inserts its FORWARD rule
@@ -248,7 +248,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, private-interface, private-address, summary-host, wildcard-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-private-interface, unset-private-interface, set-wildcard-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
     exit 1
     ;;
 esac

@@ -34,7 +34,7 @@ fw_d() {
 
 up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
-    local name port access note tab spec private_iface private_ip
+    local name port access note tab spec internal_iface internal_ip
 
     ssh_port="$(vps-network port ssh)"
 
@@ -133,27 +133,27 @@ EOF
     # that reset and rebuilt): one reset to start clean.
     ufw_state=/var/lib/vps-security-ufw.rules
     wanted="$(mktemp)"
-    private_iface="$(vps-network private-interface)"
-    private_ip="$(vps-network private-address)"
+    internal_iface="$(vps-network internal-interface)"
+    internal_ip="$(vps-network internal-address)"
     if [ "$firewall" = ufw ]; then
         [ -f "$ufw_state" ] || ufw --force reset >/dev/null
         ufw default deny incoming
         ufw default allow outgoing
     else
         # Only the ports listed below stay open: drop the zones' default services (ssh, cockpit...)
-        # and bind the private interface to the internal zone, so private ports never open on the public one.
+        # and bind the internal interface to the internal zone, so private ports never open on the public one.
         systemctl enable --now firewalld
         for f in public internal; do
             for spec in $(firewall-cmd --permanent --zone="$f" --list-services); do
                 firewall-cmd -q --permanent --zone="$f" --remove-service="$spec"
             done
         done
-        [ -z "$private_iface" ] || firewall-cmd -q --permanent --zone=internal --change-interface="$private_iface"
+        [ -z "$internal_iface" ] || firewall-cmd -q --permanent --zone=internal --change-interface="$internal_iface"
     fi
-    if [ -z "$private_iface" ]; then
-        zz-log w "[vps-setup] No private interface (VPS_PRIVATE_INTERFACE unset, and no step persisted one): private-access ports stay closed."
-    elif [ -z "$private_ip" ]; then
-        zz-log w "[vps-setup] ${private_iface} has no IPv4 address yet: private-access ports stay closed."
+    if [ -z "$internal_iface" ]; then
+        zz-log w "[vps-setup] No internal interface (VPS_INTERNAL_INTERFACE unset, and no step persisted one): private-access ports stay closed."
+    elif [ -z "$internal_ip" ]; then
+        zz-log w "[vps-setup] ${internal_iface} has no IPv4 address yet: private-access ports stay closed."
     fi
 
     tab="$(printf '\t')"
@@ -163,7 +163,7 @@ EOF
                 if [ "$firewall" = ufw ]; then fw "${port}/tcp" comment "${note:-$name}"; else fw_d public "${port}/tcp"; fi
                 ;;
             private)
-                [ -z "$private_ip" ] || if [ "$firewall" = firewalld ]; then fw_d internal "${port}/tcp"; else fw in on "$private_iface" to "$private_ip" port "$port" proto tcp comment "vps-setup: private-only (${name})"; fi || true
+                [ -z "$internal_ip" ] || if [ "$firewall" = firewalld ]; then fw_d internal "${port}/tcp"; else fw in on "$internal_iface" to "$internal_ip" port "$port" proto tcp comment "vps-setup: private-only (${name})"; fi || true
                 ;;
             *)
                 zz-log w "[vps-setup] unknown access '${access}' for port '${name}' - skipping."
@@ -187,12 +187,12 @@ EOF
     mv "$wanted" "$ufw_state"
 
     if [ "$firewall" = ufw ]; then ufw --force enable; else firewall-cmd -q --reload; fi
-    zz-log s "[vps-setup] ${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${private_ip:-<no private address>} (${private_iface:-no private interface})."
+    zz-log s "[vps-setup] ${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${internal_ip:-<no internal address>} (${internal_iface:-no internal interface})."
 
     # The guard calls iptables and ip; minimal images (Amazon Linux, SUSE) may lack them.
     zz-install -m iptables
     zz-install -m iproute2 dnf=iproute
-    install_private_guard "${private_iface:--}" "$(vps-network ports | awk -F'\t' '$3 == "private" { print $2 }')"
+    install_private_guard "${internal_iface:--}" "$(vps-network ports | awk -F'\t' '$3 == "private" { print $2 }')"
 }
 
 # ufw only filters INPUT. Ports published by k3s's ServiceLB or by Docker are
@@ -207,7 +207,7 @@ install_private_guard() {
 
     cat >"$GUARD_BIN" <<'GUARD'
 #!/bin/sh
-# usage: vps-private-ports-guard add|del <private-interface|-> <port>...
+# usage: vps-private-ports-guard add|del <internal-interface|-> <port>...
 action="$1" private="$2"
 shift 2
 iface="$(ip -4 route show default | awk '{print $5; exit}')"
@@ -282,7 +282,7 @@ summary() {
  Firewall:            ${firewall} is enabled; SSH/HTTP/HTTPS are public (Traefik is
                        this VPS's ingress). Cockpit, Rancher, the Traefik
                        dashboard, the Dokploy admin UI, and the k3s API are reachable ONLY over
-                       the private interface ($(vps-network private-interface || true)) - connect
+                       the internal interface ($(vps-network internal-interface || true)) - connect
                        to that network first.
 EOF
 }

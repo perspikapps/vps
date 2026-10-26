@@ -52,9 +52,9 @@ DIR="$REPO_ROOT/vps-tailscale"
 }
 
 
-@test "run.sh persists the private interface for the other steps, and forgets it on down" {
-    grep -q 'vps-network set-private-interface tailscale0' "$DIR/run.sh"
-    grep -q 'vps-network unset-private-interface tailscale0' "$DIR/run.sh"
+@test "run.sh persists the internal interface for the other steps, and forgets it on down" {
+    grep -q 'vps-network set-internal-interface tailscale0' "$DIR/run.sh"
+    grep -q 'vps-network unset-internal-interface tailscale0' "$DIR/run.sh"
 }
 
 @test "vps.order puts tailscale before the firewall step that reads the persisted interface" {

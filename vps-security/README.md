@@ -23,11 +23,11 @@ sudo zz-setup ./ -d vps-security
 
 ## Private ports and the FORWARD guard
 
-ufw filters INPUT only. Ports that k3s's ServiceLB (the Traefik dashboard and its internal 8081/8444 entrypoints) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `vps-k3s`, `vps-coder` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the private network: `curl -m 5 http://<public-ip>:9083` must time out.
+ufw filters INPUT only. Ports that k3s's ServiceLB (the Traefik dashboard and its internal 8081/8444 entrypoints) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `vps-k3s`, `vps-coder` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the internal network: `curl -m 5 http://<public-ip>:9083` must time out.
 
 ## Removing (`down`)
 
-On dnf and zypper systems (Amazon Linux, SUSE) `up` uses firewalld instead of ufw: public ports go to the `public` zone, private ports to the `internal` zone bound to the private interface, and the zones' default services are removed. The sshd unit is `sshd` there (`ssh` on Debian), and the admin user is created with `useradd`. fail2ban must be available in the distribution's repositories.
+On dnf and zypper systems (Amazon Linux, SUSE) `up` uses firewalld instead of ufw: public ports go to the `public` zone, private ports to the `internal` zone bound to the internal interface, and the zones' default services are removed. The sshd unit is `sshd` there (`ssh` on Debian), and the admin user is created with `useradd`. fail2ban must be available in the distribution's repositories.
 
 `down` removes ufw rules (disables ufw entirely), the private-ports guard, sshd hardening, and the fail2ban jail. Leaves the admin user/password `up` created (if any) in place.
 
@@ -44,7 +44,7 @@ sudo vps-setup --down-vps-security
 | `VPS_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for VPS_ADMIN_USER (or root if unset) |
 | `VPS_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for VPS_ADMIN_USER and root |
 | `VPS_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
-| `VPS_PRIVATE_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
+| `VPS_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
 
 ## Outputs
 

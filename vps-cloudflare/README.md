@@ -2,11 +2,11 @@
 
 # vps-cloudflare
 
-Cloudflare Tunnel (`cloudflared`) plus WARP private network routes, as the VPS's private network.
+Cloudflare Tunnel (`cloudflared`) plus WARP internal network routes, as the VPS's internal network.
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
-**Opt-in** (`config.default: false`), and an **alternative to `vps-tailscale`**, not an addition: both provide the private network that `access: "private"` ports (Cockpit, Rancher, the Traefik dashboard, the k3s API) are reachable on. `config.conflicts` (declared on both sides) makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while Tailscale is up or persisted as the private interface (a host set up by an earlier run): run `sudo vps-setup --down-vps-tailscale` first, mind your SSH path.
+**Opt-in** (`config.default: false`), and an **alternative to `vps-tailscale`**, not an addition: both provide the internal network that `access: "private"` ports (Cockpit, Rancher, the Traefik dashboard, the k3s API) are reachable on. `config.conflicts` (declared on both sides) makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while Tailscale is up or persisted as the internal interface (a host set up by an earlier run): run `sudo vps-setup --down-vps-tailscale` first, mind your SSH path.
 
 ## Usage
 
@@ -26,11 +26,11 @@ sudo zz-setup ./ -d vps-cloudflare
 1. Installs `cloudflared` from Cloudflare's release binary (any distribution).
 2. Creates `vps-cloudflare-private.service`: a dummy interface `vpscf0` holding `CLOUDFLARE_PRIVATE_IP`/32.
 3. Creates `cloudflared.service` running the remotely-managed tunnel; the token is kept in `/etc/cloudflared/tunnel.env` (owner-only), not on the unit's command line.
-4. Persists `VPS_PRIVATE_INTERFACE=vpscf0` (see [Private access](../README.md#private-access)); this step runs before `vps-security` for that reason.
+4. Persists `VPS_INTERNAL_INTERFACE=vpscf0` (see [Internal access](../README.md#private-access)); this step runs before `vps-security` for that reason.
 
 ## Cloudflare side (manual, once)
 
-In Zero Trust: add a **private network route** `<CLOUDFLARE_PRIVATE_IP>/32` to the tunnel, enroll your devices with the WARP client, and make sure that range is not in WARP's split-tunnel _Exclude_ list (the default excludes the RFC 1918 ranges, which includes the default `10.254.254.1`). Then browse `https://<CLOUDFLARE_PRIVATE_IP>:9080` (Cockpit), etc.
+In Zero Trust: add a **internal network route** `<CLOUDFLARE_PRIVATE_IP>/32` to the tunnel, enroll your devices with the WARP client, and make sure that range is not in WARP's split-tunnel _Exclude_ list (the default excludes the RFC 1918 ranges, which includes the default `10.254.254.1`). Then browse `https://<CLOUDFLARE_PRIVATE_IP>:9080` (Cockpit), etc.
 
 ## SSH
 
@@ -48,7 +48,7 @@ Fails if any `access: "private"` port answers on the public address.
 
 ## Removing (`down`)
 
-Stops and removes both units and the token file, and forgets the private interface. Leaves the `cloudflared` package installed unless `PURGE_CLOUDFLARED=true`.
+Stops and removes both units and the token file, and forgets the internal interface. Leaves the `cloudflared` package installed unless `PURGE_CLOUDFLARED=true`.
 
 ```bash
 sudo vps-setup --down-vps-cloudflare

@@ -43,10 +43,10 @@ DIR="$REPO_ROOT/vps-system"
 
 
 
-@test "WILDCARD_DOMAIN is validated, persisted for vps-network's wildcard-domain, and optional" {
-    grep -q 'vps-network set-wildcard-domain' "$DIR/run.sh"
+@test "EXTERNAL_DOMAIN is validated, persisted for vps-network's external-domain, and optional" {
+    grep -q 'vps-network set-external-domain' "$DIR/run.sh"
     grep -q 'nip.io' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs.WILDCARD_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
+    run node -e "const i = require('$DIR/package.json').config.inputs.EXTERNAL_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

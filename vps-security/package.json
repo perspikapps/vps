@@ -26,8 +26,8 @@
         "required": false,
         "default": ""
       },
-      "VPS_PRIVATE_INTERFACE": {
-        "description": "Interface carrying private-only services (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
+      "VPS_INTERNAL_INTERFACE": {
+        "description": "Interface carrying the internal network (private-port services) (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
         "required": false,
         "default": ""
       },

@@ -21,7 +21,7 @@ DIR="$REPO_ROOT/vps-access"
     grep -q '\[ -t 0 \] || (: </dev/tty)' "$DIR/run.sh"
 }
 
-@test "runs after the private network and before k3s, with the DNS inputs declared" {
+@test "runs after the internal network and before k3s, with the DNS inputs declared" {
     run node -e "const p = require('$DIR/package.json'); const t = require('$REPO_ROOT/vps-tailscale/package.json'); const k = require('$REPO_ROOT/vps-k3s/package.json'); process.exit(p.bin['vps-access'] === 'run.sh' && p.config.order > t.config.order && p.config.order < k.config.order && p.config.inputs.INTERNAL_DOMAIN && p.config.inputs.VPS_ACCESS_MENU ? 0 : 1)"
     [ "$status" -eq 0 ]
 }

@@ -15,7 +15,7 @@
   "config": {
     "default": true,
     "inputs": {
-      "WILDCARD_DOMAIN": {
+      "EXTERNAL_DOMAIN": {
         "description": "Wildcard DNS domain pointing at this VPS (e.g. apps.example.com for *.apps.example.com); empty = nip.io fallback",
         "required": false,
         "default": ""

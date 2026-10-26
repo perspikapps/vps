@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cloudflare Tunnel + WARP private network routes, as the private network.
+# Cloudflare Tunnel + WARP internal network routes, as the internal network.
 # Mutually exclusive with vps-tailscale. Env vars: see README.
 
 set -eu
@@ -14,11 +14,11 @@ TUNNEL_UNIT=/etc/systemd/system/cloudflared.service
 TUNNEL_ENV=/etc/cloudflared/tunnel.env
 
 up() {
-    local private_ip
+    local internal_ip
 
     # conflicts only guards one run: a host a previous run set up with Tailscale is
     # caught here.
-    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$(vps-network private-interface)" = "tailscale0" ]; then
+    if systemctl is-active --quiet tailscaled 2>/dev/null || [ "$(vps-network internal-interface)" = "tailscale0" ]; then
         zz-log e "[vps-setup] Tailscale is set up on this host and is mutually exclusive with vps-cloudflare. Run 'sudo vps-setup --down-vps-tailscale' first (mind your SSH path), then re-run." && exit 1
     fi
 
@@ -40,19 +40,19 @@ up() {
         fi
     fi
 
-    # --- private interface unit
+    # --- internal interface unit
     # WARP clients reach the VPS at this address through the tunnel's private
     # network route; it lives on a dummy interface so it exists before and without
     # any public traffic.
-    private_ip="${CLOUDFLARE_PRIVATE_IP:-10.254.254.1}"
+    internal_ip="${CLOUDFLARE_PRIVATE_IP:-10.254.254.1}"
     cat >"$IF_UNIT" <<UNIT
 [Unit]
-Description=vps-setup private interface for Cloudflare WARP routes
+Description=vps-setup internal interface for Cloudflare WARP routes
 Before=network.target cloudflared.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c 'ip link add ${IFACE} type dummy 2>/dev/null || true; ip addr replace ${private_ip}/32 dev ${IFACE}; ip link set ${IFACE} up'
+ExecStart=/bin/sh -c 'ip link add ${IFACE} type dummy 2>/dev/null || true; ip addr replace ${internal_ip}/32 dev ${IFACE}; ip link set ${IFACE} up'
 ExecStop=/bin/sh -c 'ip link delete ${IFACE} 2>/dev/null || true'
 [Install]
 WantedBy=multi-user.target
@@ -85,19 +85,19 @@ UNIT
     systemctl enable --now vps-cloudflare-private.service
     systemctl enable --now cloudflared.service
     systemctl is-active --quiet cloudflared || { zz-log e "[vps-setup] cloudflared is not active after 'systemctl enable --now cloudflared' (check the token)." && exit 1; }
-    zz-log s "[vps-setup] cloudflared is running as a service; private address ${private_ip} on ${IFACE}."
+    zz-log s "[vps-setup] cloudflared is running as a service; internal address ${internal_ip} on ${IFACE}."
 
-    # Tell the other steps which interface carries the private network (ufw rules
+    # Tell the other steps which interface carries the internal network (ufw rules
     # for access:"private" ports, the final summary); see vps-network.
-    vps-network set-private-interface "$IFACE"
+    vps-network set-internal-interface "$IFACE"
 }
 
 down() {
-    zz-log i "[vps-setup] Stopping the Cloudflare tunnel and removing its private interface..."
+    zz-log i "[vps-setup] Stopping the Cloudflare tunnel and removing its internal interface..."
     systemctl disable --now cloudflared.service vps-cloudflare-private.service 2>/dev/null || true
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
-    vps-network unset-private-interface "$IFACE"
+    vps-network unset-internal-interface "$IFACE"
     if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
         # Installed as a plain binary (no package to remove); also drop the apt repo of earlier installs.
@@ -112,7 +112,7 @@ down() {
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -f "$IF_UNIT" ] || return 0
-    echo " Private network:     $(vps-network private-address) (${IFACE}) via Cloudflare Tunnel - add a private network"
+    echo " Internal network:     $(vps-network internal-address) (${IFACE}) via Cloudflare Tunnel - add a internal network"
     echo "                       route for this /32 to the tunnel, and connect with the WARP client"
 }
 

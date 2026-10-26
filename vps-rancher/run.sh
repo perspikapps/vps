@@ -32,7 +32,7 @@ up() {
     case "$ingress_host" in
         *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
     esac
-    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or WILDCARD_DOMAIN." && exit 1; }
+    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or EXTERNAL_DOMAIN." && exit 1; }
     # Rancher's server URL follows that host.
     host="${RANCHER_HOSTNAME:-$ingress_host}"
 

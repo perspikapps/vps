@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# vps-network: ports, private interface and wildcard state against a fixture
+# vps-network: ports, internal interface and wildcard state against a fixture
 # tree; the address commands need a live host.
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
@@ -15,7 +15,7 @@ setup() {
     echo '{"name":"@x/beta","bin":{"beta":"run.sh"},"engines":{"zz-setup":"*"},"config":{"ports":[{"name":"beta_http","port":2222,"access":"private"}]}}' >"$work/beta/package.json"
     # not a step: no engines.zz-setup, so its ports must not count
     echo '{"name":"@x/lib","config":{"ports":[{"name":"lib_http","port":3333,"access":"public"}]}}' >"$work/lib/package.json"
-    export VPS_SETUP_ROOT="$work" VPS_PRIVATE_ACCESS_FILE="$work/private.env" VPS_WILDCARD_FILE="$work/wildcard.env"
+    export VPS_SETUP_ROOT="$work" VPS_INTERNAL_ACCESS_FILE="$work/internal.env" VPS_EXTERNAL_DOMAIN_FILE="$work/external.env"
 }
 
 @test "run.sh parses as POSIX sh and is a script, not a step" {
@@ -46,54 +46,54 @@ setup() {
     [[ "$output" != *"lib_http"* ]]
 }
 
-@test "private interface: the environment wins, then the persisted file, else empty" {
-    run sh "$SCRIPT" private-interface
+@test "internal interface: the environment wins, then the persisted file, else empty" {
+    run sh "$SCRIPT" internal-interface
     [ -z "$output" ]
-    run sh "$SCRIPT" set-private-interface wg0
+    run sh "$SCRIPT" set-internal-interface wg0
     [ "$status" -eq 0 ]
-    run sh "$SCRIPT" private-interface
+    run sh "$SCRIPT" internal-interface
     [ "$output" = "wg0" ]
-    VPS_PRIVATE_INTERFACE=eth9 run sh "$SCRIPT" private-interface
+    VPS_INTERNAL_INTERFACE=eth9 run sh "$SCRIPT" internal-interface
     [ "$output" = "eth9" ]
 }
 
-@test "unset-private-interface forgets the interface only when it is still the given one" {
-    sh "$SCRIPT" set-private-interface wg0 >/dev/null 2>&1
-    run sh "$SCRIPT" unset-private-interface tailscale0
-    run sh "$SCRIPT" private-interface
+@test "unset-internal-interface forgets the interface only when it is still the given one" {
+    sh "$SCRIPT" set-internal-interface wg0 >/dev/null 2>&1
+    run sh "$SCRIPT" unset-internal-interface tailscale0
+    run sh "$SCRIPT" internal-interface
     [ "$output" = "wg0" ]
-    run sh "$SCRIPT" unset-private-interface wg0
-    run sh "$SCRIPT" private-interface
+    run sh "$SCRIPT" unset-internal-interface wg0
+    run sh "$SCRIPT" internal-interface
     [ -z "$output" ]
 }
 
-@test "private-address is empty without an interface, or when it has no address; summary-host falls back" {
-    run sh "$SCRIPT" private-address
+@test "internal-address is empty without an interface, or when it has no address; summary-host falls back" {
+    run sh "$SCRIPT" internal-address
     [ -z "$output" ]
-    VPS_PRIVATE_INTERFACE=nonexistent9 run sh "$SCRIPT" private-address
+    VPS_INTERNAL_INTERFACE=nonexistent9 run sh "$SCRIPT" internal-address
     [ -z "$output" ]
     run sh "$SCRIPT" summary-host
-    [ "$output" = "<private-ip>" ]
+    [ "$output" = "<internal-ip>" ]
 }
 
-@test "wildcard-domain: the environment wins, then the persisted file" {
-    WILDCARD_DOMAIN=apps.example.com run sh "$SCRIPT" wildcard-domain
+@test "external-domain: the environment wins, then the persisted file" {
+    EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" external-domain
     [ "$output" = "apps.example.com" ]
-    sh "$SCRIPT" set-wildcard-domain saved.example.com >/dev/null 2>&1
-    run sh "$SCRIPT" wildcard-domain
+    sh "$SCRIPT" set-external-domain saved.example.com >/dev/null 2>&1
+    run sh "$SCRIPT" external-domain
     [ "$output" = "saved.example.com" ]
 }
 
-@test "wildcard-domain: the nip.io fallback uses the public address, never the private interface" {
+@test "external-domain: the nip.io fallback uses the public address, never the internal interface" {
     mkdir -p "$work/bin"
     printf '#!/bin/sh\necho 203.0.113.9\n' >"$work/bin/curl"
     printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
     chmod +x "$work/bin/curl" "$work/bin/ip"
-    # NAT'd default-route address -> asks the echo service; a private interface is set but ignored
-    PATH="$work/bin:$PATH" VPS_PRIVATE_INTERFACE=tailscale0 run sh "$SCRIPT" wildcard-domain
+    # NAT'd default-route address -> asks the echo service; a internal interface is set but ignored
+    PATH="$work/bin:$PATH" VPS_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
     [ "$output" = "203-0-113-9.nip.io" ]
     printf '#!/bin/sh\necho "1.1.1.1 via 54.37.230.1 dev eth0 src 54.37.230.112"\n' >"$work/bin/ip"
-    PATH="$work/bin:$PATH" run sh "$SCRIPT" wildcard-domain
+    PATH="$work/bin:$PATH" run sh "$SCRIPT" external-domain
     [ "$output" = "54-37-230-112.nip.io" ]
 }
 

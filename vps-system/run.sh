@@ -38,14 +38,14 @@ EOF2
     fi
 
     # Wildcard DNS for apps that need subdomains; unset = nip.io, worked out where it is used.
-    if [ -n "${WILDCARD_DOMAIN:-}" ]; then
-        domain="${WILDCARD_DOMAIN#\*.}"
+    if [ -n "${EXTERNAL_DOMAIN:-}" ]; then
+        domain="${EXTERNAL_DOMAIN#\*.}"
         printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
-            { zz-log e "[vps-setup] WILDCARD_DOMAIN must be a bare domain like apps.example.com (got '${WILDCARD_DOMAIN}')." && exit 1; }
-        vps-network set-wildcard-domain "$domain"
+            { zz-log e "[vps-setup] EXTERNAL_DOMAIN must be a bare domain like apps.example.com (got '${EXTERNAL_DOMAIN}')." && exit 1; }
+        vps-network set-external-domain "$domain"
         zz-log i "[vps-setup] Wildcard DNS: *.${domain} (point it at this VPS)."
     else
-        zz-log i "[vps-setup] No WILDCARD_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."
+        zz-log i "[vps-setup] No EXTERNAL_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."
     fi
 
     zz-log s "[vps-setup] Base system is up to date."

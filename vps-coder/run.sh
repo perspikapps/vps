@@ -259,7 +259,7 @@ up() {
     # --- Coder (helm/coder-values.yaml, or coder-values-wildcard.yaml)
     # Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
-    # under it: both come from one domain (vps-system's WILDCARD_DOMAIN, else nip.io).
+    # under it: both come from one domain (vps-system's EXTERNAL_DOMAIN, else nip.io).
     # vps-access (or CODER_ACCESS) picks public or internal, never both: public = Traefik 80/443 on the
     # server IP; internal = Traefik's private "internal" (HTTP) port on the
     # Tailscale/Cloudflare address. Plain HTTP either way, like public.
@@ -271,7 +271,7 @@ up() {
     esac
     wildcard="$(vps-network access-domain "$access")" || exit 1
     access_url="${CODER_ACCESS_URL:-${wildcard:+${scheme}://coder.${wildcard}${port_suffix}}}"
-    [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or WILDCARD_DOMAIN." && exit 1; }
+    [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or EXTERNAL_DOMAIN." && exit 1; }
     host="${access_url#*://}"
     host="${host%%[:/]*}"
     values_file="$(mktemp)"

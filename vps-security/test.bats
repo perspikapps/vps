@@ -44,7 +44,7 @@ DIR="$REPO_ROOT/vps-security"
 
 
 @test "run.sh opens private-access ports on the interface vps-network reports, not a hard-coded one" {
-    grep -q 'private_iface="\$(vps-network private-interface)"' "$DIR/run.sh"
+    grep -q 'internal_iface="\$(vps-network internal-interface)"' "$DIR/run.sh"
     ! grep -q 'tailscale0' "$DIR/run.sh"
     ! grep -q '^    tailscale)' "$DIR/run.sh"
 }
@@ -79,7 +79,7 @@ guard_setup() {
     grep -qx -- '-I FORWARD 1 -i eth0 -p tcp -m conntrack --ctstate DNAT --ctorigdstport 3000 -j DROP' "$IPT_LOG"
 }
 
-@test "the guard re-inserts instead of stacking, does nothing when the private network is the default route, and deletes on del" {
+@test "the guard re-inserts instead of stacking, does nothing when the internal network is the default route, and deletes on del" {
     guard_setup
     run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" sh "$BATS_TEST_TMPDIR/guard.sh" add tailscale0 7080
     # -D first (a previous copy is removed), then -I
@@ -94,14 +94,14 @@ guard_setup() {
 }
 
 @test "run.sh feeds the guard every access:private port of every feature, and down removes it" {
-    grep -q 'install_private_guard "\${private_iface:--}" "\$(vps-network ports | awk' "$DIR/run.sh"
+    grep -q 'install_private_guard "\${internal_iface:--}" "\$(vps-network ports | awk' "$DIR/run.sh"
     grep -q '"\$GUARD_BIN" del -' "$DIR/run.sh"
 }
 
-@test "private ports are opened only to the private address, with no blanket allow on the interface" {
-    grep -q 'private_ip="\$(vps-network private-address)"' "$DIR/run.sh"
-    grep -q 'to "\$private_ip" port' "$DIR/run.sh"
-    ! grep -q 'ufw allow in on "\$private_iface" comment' "$DIR/run.sh"
+@test "private ports are opened only to the internal address, with no blanket allow on the interface" {
+    grep -q 'internal_ip="\$(vps-network internal-address)"' "$DIR/run.sh"
+    grep -q 'to "\$internal_ip" port' "$DIR/run.sh"
+    ! grep -q 'ufw allow in on "\$internal_iface" comment' "$DIR/run.sh"
 }
 
 @test "ufw rules are upserted via fw(), not rebuilt after a reset on every run" {

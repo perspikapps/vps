@@ -1,7 +1,7 @@
 {
   "name": "@tomgrv/vps-cloudflare",
   "version": "4.7.0",
-  "description": "Cloudflare Tunnel as the private network (alternative to Tailscale)",
+  "description": "Cloudflare Tunnel as the internal network (alternative to Tailscale)",
   "bin": {
     "vps-cloudflare": "run.sh"
   },

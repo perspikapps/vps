@@ -21,15 +21,15 @@ sudo zz-setup ./ -o vps-tailscale
 sudo zz-setup ./ -d vps-tailscale
 ```
 
-## Private access
+## Internal access
 
-On install this step persists `VPS_PRIVATE_INTERFACE=tailscale0` to
-`/etc/vps-private-access.env` (removed again on `down`). `vps-security` and the
+On install this step persists `VPS_INTERNAL_INTERFACE=tailscale0` to
+`/etc/vps-internal-access.env` (removed again on `down`). `vps-security` and the
 final summary read it, so they never mention Tailscale themselves; it is also why
 this step runs before `vps-security`. See the root README's
-[Private access](../README.md#private-access).
+[Internal access](../README.md#private-access).
 
-`vps-tailscale` and [`vps-cloudflare`](../vps-cloudflare/README.md) are **mutually exclusive** (`config.conflicts` on both sides): pick one private network per VPS.
+`vps-tailscale` and [`vps-cloudflare`](../vps-cloudflare/README.md) are **mutually exclusive** (`config.conflicts` on both sides): pick one internal network per VPS.
 
 ## Removing (`down`)
 

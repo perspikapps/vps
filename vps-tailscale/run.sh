@@ -21,9 +21,9 @@ up() {
     systemctl is-active --quiet tailscaled || { zz-log e "[vps-setup] tailscaled is not active after 'systemctl enable --now tailscaled'." && exit 1; }
     zz-log s "[vps-setup] tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
-    # Tell the other steps which interface carries the private network (ufw rules
+    # Tell the other steps which interface carries the internal network (ufw rules
     # for access:"private" ports, the final summary); see vps-network.
-    vps-network set-private-interface tailscale0
+    vps-network set-internal-interface tailscale0
 
     if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
         zz-log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
@@ -44,7 +44,7 @@ down() {
     zz-log i "[vps-setup] Logging out of the tailnet..."
     tailscale logout || true
     systemctl disable --now tailscaled || true
-    vps-network unset-private-interface tailscale0
+    vps-network unset-internal-interface tailscale0
     if [ "${PURGE_TAILSCALE:-false}" = "true" ]; then
         zz-log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
         zz-install -r tailscale || true
@@ -58,14 +58,14 @@ down() {
 summary() {
     local iface ip
 
-    iface="$(vps-network private-interface)"
-    ip="$(vps-network private-address)"
+    iface="$(vps-network internal-interface)"
+    ip="$(vps-network internal-address)"
     if [ -z "$iface" ]; then
-        echo " Private network:     none - private-access ports are closed (set VPS_PRIVATE_INTERFACE, or run vps-tailscale)"
+        echo " Internal network:     none - private-access ports are closed (set VPS_INTERNAL_INTERFACE, or run vps-tailscale)"
     elif [ -z "$ip" ]; then
-        echo " Private network:     ${iface} (no address yet - join the private network)"
+        echo " Internal network:     ${iface} (no address yet - join the internal network)"
     else
-        echo " Private network:     ${ip} (${iface})"
+        echo " Internal network:     ${ip} (${iface})"
     fi
 }
 

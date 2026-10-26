@@ -36,7 +36,7 @@ DIR="$REPO_ROOT/vps-cloudflare"
     [ "$status" -eq 0 ]
 }
 
-@test "up refuses on a host where Tailscale is already the private network" {
+@test "up refuses on a host where Tailscale is already the internal network" {
     grep -q 'is-active --quiet tailscaled' "$DIR/run.sh"
     grep -q '= "tailscale0"' "$DIR/run.sh"
 }
@@ -48,9 +48,9 @@ DIR="$REPO_ROOT/vps-cloudflare"
     ! grep -q 'service install' "$DIR/run.sh"
 }
 
-@test "run.sh persists the private interface for the other steps, and forgets it on down" {
-    grep -q 'vps-network set-private-interface "\$IFACE"' "$DIR/run.sh"
-    grep -q 'vps-network unset-private-interface "\$IFACE"' "$DIR/run.sh"
+@test "run.sh persists the internal interface for the other steps, and forgets it on down" {
+    grep -q 'vps-network set-internal-interface "\$IFACE"' "$DIR/run.sh"
+    grep -q 'vps-network unset-internal-interface "\$IFACE"' "$DIR/run.sh"
 }
 
 @test "vps.order puts cloudflare before the firewall step, after nothing it needs" {

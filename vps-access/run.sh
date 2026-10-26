@@ -31,8 +31,8 @@ EOF
     out="$(zz-menu -t "Visibility (a number cycles public/internal, Enter confirms, q keeps)" -c public,internal "$@")" || return 0
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
-        if [ "$state" = "internal" ] && [ -z "$(vps-network private-address)" ]; then
-            zz-log w "[vps-setup] ${key}: no private address (install vps-tailscale or vps-cloudflare); keeping it public."
+        if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
+            zz-log w "[vps-setup] ${key}: no internal address (install vps-tailscale or vps-cloudflare); keeping it public."
             state=public
         fi
         vps-network set-visibility "$key" "$state"
@@ -70,7 +70,7 @@ hosts() {
 
     tab="$(printf '\t')"
     while IFS="$tab" read -r name vis; do
-        [ -z "$name" ] || printf '%s: %s.%s (%s)\n' "$name" "$name" "$(vps-network access-domain "$vis" 2>/dev/null || echo '<no private address>')" "$vis"
+        [ -z "$name" ] || printf '%s: %s.%s (%s)\n' "$name" "$name" "$(vps-network access-domain "$vis" 2>/dev/null || echo '<no internal address>')" "$vis"
     done <<EOF
 $(vps-network visibilities)
 EOF
@@ -78,8 +78,8 @@ EOF
 
 up() {
     confirm_visibility
-    confirm_domain External "$(vps-network wildcard-domain)" "$(vps-network public-ip)" set-wildcard-domain
-    confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network private-address)" set-internal-domain
+    confirm_domain External "$(vps-network external-domain)" "$(vps-network public-ip)" set-external-domain
+    confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain
     zz-log s "[vps-setup] Access confirmed:"
     hosts | while IFS= read -r line; do zz-log s "[vps-setup]   ${line}"; done
 }

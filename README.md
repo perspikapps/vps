@@ -3,7 +3,7 @@
 # vps
 
 Turn a fresh Ubuntu VPS into a secured management box with one command. It
-hardens the server, joins it to your private network and installs Cockpit, k3s,
+hardens the server, joins it to your internal network and installs Cockpit, k3s,
 Rancher and a catalog of ready-to-install apps. Every step is idempotent: re-run
 it at any time, and take any step down again without touching the others.
 
@@ -41,8 +41,8 @@ Steps run in this order. Each has its own README with its variables.
 | Step                                           | What it does                                                         | Default |
 | ---------------------------------------------- | -------------------------------------------------------------------- | ------- |
 | [`vps-system`](vps-system/README.md)           | System update, base tools, unattended security upgrades              | on      |
-| [`vps-tailscale`](vps-tailscale/README.md)     | Installs Tailscale and joins your tailnet (the private network)      | on      |
-| [`vps-cloudflare`](vps-cloudflare/README.md)   | Cloudflare Tunnel + WARP as the private network instead of Tailscale | opt-in  |
+| [`vps-tailscale`](vps-tailscale/README.md)     | Installs Tailscale and joins your tailnet (the internal network)      | on      |
+| [`vps-cloudflare`](vps-cloudflare/README.md)   | Cloudflare Tunnel + WARP as the internal network instead of Tailscale | opt-in  |
 | [`vps-security`](vps-security/README.md)       | Admin user, firewall, SSH hardening, fail2ban, Cockpit login         | on      |
 | [`vps-access`](vps-access/README.md)           | Confirms public/internal visibility per service and the DNS domains  | on      |
 | [`vps-cockpit`](vps-cockpit/README.md)         | Cockpit web console                                                  | on      |
@@ -93,12 +93,12 @@ need and remembers your answers in `/etc/vps.env`.
 | `SSH_PORT`                   | `22`                     | SSH port kept open publicly                                                  |
 | `TAILSCALE_AUTHKEY`          | none                     | **Required** with `vps-tailscale` (or pass `--skip-vps-tailscale`)           |
 | `CLOUDFLARE_TUNNEL_TOKEN`    | none                     | **Required** with `vps-cloudflare`                                           |
-| `VPS_PRIVATE_INTERFACE`      | `tailscale0`             | Private network interface, e.g. `wg0` when you bring your own                |
-| `RANCHER_HOSTNAME`           | private IP, else node IP | Hostname in Rancher's certificate                                            |
+| `VPS_INTERNAL_INTERFACE`      | `tailscale0`             | Internal network interface, e.g. `wg0` when you bring your own                |
+| `RANCHER_HOSTNAME`           | internal IP, else node IP | Hostname in Rancher's certificate                                            |
 | `RANCHER_BOOTSTRAP_PASSWORD` | random                   | Rancher `admin` initial password                                             |
 | `TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
 | `TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
-| `WILDCARD_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
+| `EXTERNAL_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
 | `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT`, `TRAEFIK_INTERNAL_HTTPS_PORT` |
 
 To keep a set of inputs in a file instead, use `/etc/vps-setup.env`
@@ -121,7 +121,7 @@ run and wins over `/etc/vps.env`.
 ## What is reachable
 
 From the internet: SSH, and HTTP/HTTPS through Traefik. Cockpit, the
-Traefik dashboard, the Dokploy UI and the k3s API only answer on your private
+Traefik dashboard, the Dokploy UI and the k3s API only answer on your internal
 network, so join the same tailnet first. To check from outside,
 `curl -m 5 http://<public-ip>:9083` must time out.
 
@@ -154,9 +154,9 @@ flowchart LR
     net -->|"SSH"| ssh
     net -->|"HTTP / HTTPS"| pub
     pub -->|"public routes"| apps
-    vpn -->|"private address"| int
+    vpn -->|"internal address"| int
     int -->|"internal routes"| apps
-    vpn -->|"private address"| priv
+    vpn -->|"internal address"| priv
     net -. "blocked by ufw and FORWARD guard" .-> int
     net -. "blocked by ufw and FORWARD guard" .-> priv
 ```
@@ -174,8 +174,8 @@ flowchart LR
   `Ingress` that declares it. To get a Let's Encrypt certificate, annotate the
   `Ingress` with `traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt`.
   Certificates are staging ones until you set `TRAEFIK_ACME_STAGING=false`.
-- **Traefik dashboard.** `http://<private-ip>:8088/dashboard/` (trailing slash
-  required), private network only.
+- **Traefik dashboard.** `http://<internal-ip>:8088/dashboard/` (trailing slash
+  required), internal network only.
 
 ## App catalog
 

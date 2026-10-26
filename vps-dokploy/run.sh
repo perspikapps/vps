@@ -79,7 +79,7 @@ summary() {
     cat <<EOF
  Dokploy:             http://$(vps-network summary-host):$(vps-network port dokploy_ui)
                        (private access only; the first visit creates the
-                       admin account, so join the private network first.
+                       admin account, so join the internal network first.
                        Apps are served by Dokploy's own Traefik on 80/443)
 EOF
 }
