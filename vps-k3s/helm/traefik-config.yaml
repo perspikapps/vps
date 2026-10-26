@@ -20,8 +20,6 @@ spec:
             port: ${TRAEFIK_INTERNAL_PORT}
             expose:
               default: true
-            exposedPort: ${TRAEFIK_INTERNAL_PORT}
-            protocol: TCP
             asDefault: false
         api:
           dashboard: true

@@ -4,8 +4,6 @@
 # redirecting to https again. ${INGRESS_HOST}, ${ENTRYPOINTS} (web,websecure for
 # public, internalsecure for internal) and ${CERTRESOLVER} (empty for internal: the
 # default certificate) are filled in by run.sh.
-# router.priority: Coder's wildcard ingress (*.<domain>) becomes a longer HostRegexp
-# rule, which Traefik ranks first by default and would send rancher.<domain> to Coder.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -14,7 +12,6 @@ metadata:
     annotations:
         traefik.ingress.kubernetes.io/router.entrypoints: ${ENTRYPOINTS}
         traefik.ingress.kubernetes.io/router.tls.certresolver: '${CERTRESOLVER}'
-        traefik.ingress.kubernetes.io/router.priority: '1000'
 spec:
     ingressClassName: traefik
     tls:
