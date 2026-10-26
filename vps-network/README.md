@@ -4,7 +4,7 @@
 
 The network facts and state of this VPS, in one place. A **script, not a step**:
 its `package.json` has a `bin` but no `engines.zz-setup`, so `zz-setup` never lists it.
-Each step puts it on `PATH` with `zz-use ../vps-network` (a path relative to the step's own folder, where `zz-setup` runs it; `zz-setup` itself only installs steps, and this is not one), then calls `vps-network <command>`, never sourcing it.
+`zz-setup` puts every workspace bin on `PATH` (a copy, which finds the steps through `ZZ_SETUP_ROOT`, or `VPS_SETUP_ROOT`), so the steps call `vps-network <command>` and never source it. Run by hand outside `zz-setup`, set `VPS_SETUP_ROOT` to the checkout.
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
 
@@ -39,7 +39,7 @@ vps-network <command> [args...]
 
 ## Environment
 
-`VPS_SETUP_ROOT` (the checkout holding the steps; default: this one),
+`VPS_SETUP_ROOT` / `ZZ_SETUP_ROOT` (the checkout holding the steps; default: the one the script sits in),
 `VPS_INTERNAL_ACCESS_FILE`, `VPS_EXTERNAL_DOMAIN_FILE`, `VPS_INTERNAL_INTERFACE`, `EXTERNAL_DOMAIN`.
 
 ## Tests

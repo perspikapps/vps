@@ -42,8 +42,9 @@ if [ -z "$command" ]; then
     zz-log e "Usage: vps-network <command> [args...] (-h lists the commands)"
     exit 1
 fi
-# Where the steps are: this checkout, else VPS_SETUP_ROOT.
-root="${VPS_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Where the steps are: VPS_SETUP_ROOT, else ZZ_SETUP_ROOT (zz-setup exports it: an installed
+# bin is a copy), else the checkout this script sits in.
+root="${VPS_SETUP_ROOT:-${ZZ_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}}"
 # Internal network: ports with access "private" are only reachable over one interface.
 # Whoever provides that network persists it here; the environment wins.
 internal_file="${VPS_INTERNAL_ACCESS_FILE:-/etc/vps-internal-access.env}"
