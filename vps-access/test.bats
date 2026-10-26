@@ -18,7 +18,7 @@ DIR="$REPO_ROOT/vps-access"
 
 @test "menus only run on a terminal and can be switched off with VPS_ACCESS_MENU" {
     grep -q 'VPS_ACCESS_MENU:-true' "$DIR/run.sh"
-    grep -q '\[ -t 0 \]' "$DIR/run.sh"
+    grep -q '\[ -t 0 \] || (: </dev/tty)' "$DIR/run.sh"
 }
 
 @test "runs after the private network and before k3s, with the DNS inputs declared" {

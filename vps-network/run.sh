@@ -142,7 +142,8 @@ list_visibilities() {
 
     ws-list -b -e zz-setup "$root" | while IFS= read -r dir; do
         jq -e '.config.visibility' "$root/$dir/package.json" >/dev/null 2>&1 || continue
-        name="${dir#vps-}"
+        name="${dir#./}"
+        name="${name#vps-}"
         printf '%s\t%s\n' "$name" "$(get_visibility "$name")"
     done
 }

@@ -11,15 +11,17 @@ zz-use zz-colors zz-log zz-menu zz-prompt
 # Scripts of this checkout, called (never sourced): addresses, domains, saved choices.
 vps_network="$(dirname "$0")/../vps-network/run.sh"
 
-# ask: menus only on a terminal and unless VPS_ACCESS_MENU=false.
+# ask: menus only with a terminal to ask on (stdin, else /dev/tty, as zz-prompt reads it)
+# and unless VPS_ACCESS_MENU=false.
 ask() {
-    [ "${VPS_ACCESS_MENU:-true}" = "true" ] && [ -t 0 ]
+    [ "${VPS_ACCESS_MENU:-true}" = "true" ] && { [ -t 0 ] || (: </dev/tty) 2>/dev/null; }
 }
 
 # confirm_visibility: public or internal for every service declaring config.visibility.
 confirm_visibility() {
     local name vis out key state tab
 
+    ask || return 0
     tab="$(printf '\t')"
     set --
     while IFS="$tab" read -r name vis; do

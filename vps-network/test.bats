@@ -125,3 +125,14 @@ setup() {
     run sh "$SCRIPT" internal-domain
     [ "$output" = "saved.example.com" ]
 }
+
+@test "visibilities: the service names, without the vps- prefix or ./, with their visibility" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    mkdir -p "$work/vps-gamma"
+    : >"$work/vps-gamma/run.sh"
+    echo '{"workspaces":["alpha","beta","lib","vps-gamma"]}' >"$work/package.json"
+    echo '{"name":"@x/vps-gamma","bin":{"vps-gamma":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/vps-gamma/package.json"
+    run sh "$SCRIPT" visibilities
+    [ "$status" -eq 0 ]
+    [ "$output" = "$(printf 'gamma\tinternal')" ]
+}
