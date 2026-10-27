@@ -25,7 +25,7 @@ up() {
     vps-network set-internal-interface tailscale0 100.64.0.0/10
 
     if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
-        zz-log w "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: the step"
+        zz-log w "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run this step"
         exit 0
     fi
 
