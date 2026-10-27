@@ -29,6 +29,10 @@ A service that exposes a route declares its default in `config.visibility` of it
 
 On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a internal address is kept `public` with a warning. Answers are saved to `/etc/vps-access.env`; `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` (for unattended runs) win over them. There is no per-app access, host or hostname variable: the apps read the system config.
 
+## Internal interface
+
+When no step declared the internal interface and `SYSTEM_INTERNAL_INTERFACE` is not set, a menu lists the host's interfaces (the default-route one is marked as the public side, `none` leaves the internal network off) and saves the choice with `vps-network set-internal-interface`. Without a terminal nothing is asked.
+
 ## DNS
 
 Two prompts confirm the domains, each with a fallback:

@@ -50,3 +50,8 @@ DIR="$REPO_ROOT/vps-access"
     grep -q 'the external domain, by default' "$DIR/run.sh"
     grep -q 'default (the external domain)' "$DIR/run.sh"
 }
+
+@test "the internal interface is picked from the host's interfaces when none is set" {
+    grep -q '^confirm_interface() {' "$DIR/run.sh"
+    grep -q 'vps-network set-internal-interface "\$choice"' "$DIR/run.sh"
+}

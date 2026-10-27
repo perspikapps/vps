@@ -15,6 +15,26 @@ ask() {
     [ "${SYSTEM_ACCESS_MENU:-true}" = "true" ] && { [ -t 0 ] || (: </dev/tty) 2>/dev/null; }
 }
 
+# confirm_interface: when no step declared the internal interface and SYSTEM_INTERNAL_INTERFACE is
+# not set, pick it from the host's interfaces (the default-route one is the public side, marked).
+confirm_interface() {
+    local iface default choice
+
+    ask || return 0
+    [ -z "$(vps-network internal-interface)" ] || return 0
+    default="$(ip -4 route show default 2>/dev/null | awk '{print $5; exit}')"
+    set --
+    for iface in $(ip -o link show 2>/dev/null | awk -F': ' '{sub(/@.*/, "", $2); print $2}'); do
+        [ "$iface" != lo ] || continue
+        set -- "$@" "${iface}=${iface}${default:+$([ "$iface" != "$default" ] || printf ' (default route, public)')}"
+    done
+    [ "$#" -gt 0 ] || return 0
+    choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" "$@" "none=None (no internal network)")" || return 0
+    [ -n "$choice" ] && [ "$choice" != none ] || return 0
+    vps-network set-internal-interface "$choice"
+    zz-log i "Internal interface: ${choice}"
+}
+
 # confirm_visibility: public or internal for every service declaring config.visibility.
 confirm_visibility() {
     local name vis out key state tab
@@ -95,6 +115,7 @@ validate_external() {
 
 up() {
     validate_external
+    confirm_interface
     confirm_visibility
     confirm_domain External "$(vps-network external-domain)" "$(vps-network public-ip)" set-external-domain
     confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain "$(vps-network external-domain)"
