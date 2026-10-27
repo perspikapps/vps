@@ -14,10 +14,8 @@ up() {
     domain="$(vps-network access-domain public)" || exit 1
     [ -n "$domain" ] || { zz-log e "No domain: set SYSTEM_EXTERNAL_DOMAIN." && exit 1; }
     host="infisical.${domain}"
-    enc="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -r INFISICAL_ENCRYPTION_KEY | grep . || openssl rand -hex 16)"
-    auth="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -r INFISICAL_AUTH_SECRET | grep . || openssl rand -base64 32)"
-    zz-persist -s -f "$SYSTEM_SECRETS_FILE" INFISICAL_ENCRYPTION_KEY "$enc" >/dev/null
-    zz-persist -s -f "$SYSTEM_SECRETS_FILE" INFISICAL_AUTH_SECRET "$auth" >/dev/null
+    enc="$(zz-persist -S -g 32 -t hex INFISICAL_ENCRYPTION_KEY)"
+    auth="$(zz-persist -S -g 44 INFISICAL_AUTH_SECRET)"
     # the root credentials Secret the chart requires, in the release namespace
     kubectl create namespace infisical --dry-run=client -o yaml | kubectl apply -f -
     kubectl -n infisical create secret generic infisical-secrets \
@@ -31,8 +29,7 @@ up() {
 
 down() {
     app-helm down infisical
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u INFISICAL_ENCRYPTION_KEY
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u INFISICAL_AUTH_SECRET
+    zz-persist -S -q -u "INFISICAL_ENCRYPTION_KEY INFISICAL_AUTH_SECRET"
 }
 
 summary() {

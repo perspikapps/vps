@@ -30,7 +30,7 @@ DIR="$REPO_ROOT/app-coder"
 }
 
 @test "the database password is generated and stored, never a fixed value or a --set argument" {
-    grep -q 'zz-persist -f "\$SYSTEM_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD' "$DIR/run.sh"
+    grep -q 'zz-persist -S -g 24 CODER_DB_PASSWORD' "$DIR/run.sh"
     ! grep -q 'random_password' "$DIR/run.sh"
     ! grep -q 'auth.password=' "$DIR/run.sh"
 }
@@ -54,7 +54,7 @@ DIR="$REPO_ROOT/app-coder"
 @test "creates the first admin and the devcontainer template, best effort, with the password stored" {
     grep -q '/users/first' "$DIR/run.sh"
     grep -q 'kubernetes-devcontainer' "$DIR/run.sh"
-    grep -q 'zz-persist -f "\$SYSTEM_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD' "$DIR/run.sh"
+    grep -q 'zz-persist -S -g 24 CODER_ADMIN_PASSWORD' "$DIR/run.sh"
     grep -q 'bootstrap_coder' "$DIR/run.sh"
     grep -q 'finish it in the UI' "$DIR/run.sh"
 }

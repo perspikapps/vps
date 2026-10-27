@@ -39,7 +39,7 @@ sudo vps-setup --down-vps-security
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `SYSTEM_SSH_PORT` | no | `22` | SSH port to keep open |
 | `SYSTEM_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for SYSTEM_ADMIN_USER (or root if unset) |
 | `SYSTEM_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for SYSTEM_ADMIN_USER and root |

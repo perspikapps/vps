@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-rollout
+zz-use zz-colors zz-log zz-persist zz-install kube-apply kube-rollout systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -30,7 +30,7 @@ up() {
         zz-install -u https://get.k3s.io -x sh k3s
     fi
 
-    systemctl enable --now k3s
+    systemd-service up k3s
 
     zz-log i "Waiting for k3s node to become Ready..."
     for i in $(seq 1 30); do
@@ -87,7 +87,7 @@ up() {
     fi
 
     zz-log i "Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
-    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    kube-apply "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER"
 
     zz-log i "Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
@@ -102,7 +102,7 @@ up() {
     # The middleware every internal route uses: only the internal network's clients get through.
     INTERNAL_RANGE="$(vps-network internal-range | sed 's/[^,][^,]*/"&"/g; s/,/, /g')"
     if [ -n "$INTERNAL_RANGE" ]; then
-        yaml-render "$(dirname "$0")/helm/internal-middleware.yaml" INTERNAL_RANGE="$INTERNAL_RANGE" | kubectl apply -f - ||
+        kube-apply "$(dirname "$0")/helm/internal-middleware.yaml" INTERNAL_RANGE="$INTERNAL_RANGE" ||
             zz-log w "Could not create the internal-only middleware (Traefik CRDs not ready?): re-run svc-k3s."
     else
         zz-log w "No internal network yet: internal routes would have no source limit, so none is created (run svc-tailscale or svc-cloudflare, then re-run svc-k3s)."

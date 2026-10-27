@@ -71,7 +71,7 @@ DIR="$REPO_ROOT/app-rancher"
     [ -f "$DIR/helm/values.yaml" ]
     [ -f "$DIR/helm/ingress.yaml" ]
     grep -q -- '--values "\${dir}/helm/values.yaml"' "$DIR/run.sh"
-    grep -q 'yaml-render "\${dir}/helm/ingress.yaml" INGRESS_HOST=' "$DIR/run.sh"
+    grep -q 'kube-apply "\${dir}/helm/ingress.yaml" INGRESS_HOST=' "$DIR/run.sh"
     ! grep -q -- '--set ' "$DIR/run.sh"
     ! grep -q '^kind: Ingress' "$DIR/run.sh"
 }

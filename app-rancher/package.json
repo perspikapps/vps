@@ -40,7 +40,7 @@
         "required": false,
         "default": ""
       },
-      "SYSTEM_SECRETS_FILE": {
+      "ZZ_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
         "default": "/root/.vps-secrets.env"

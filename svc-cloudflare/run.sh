@@ -4,7 +4,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -82,9 +82,7 @@ WantedBy=multi-user.target
 UNIT
 
     systemctl daemon-reload
-    systemctl enable --now svc-cloudflare-private.service
-    systemctl enable --now cloudflared.service
-    systemctl is-active --quiet cloudflared || { zz-log e "cloudflared is not active after 'systemctl enable --now cloudflared' (check the token)." && exit 1; }
+    systemd-service up svc-cloudflare-private.service cloudflared.service
     zz-log s "cloudflared is running as a service; internal address ${internal_ip} on ${IFACE}."
 
     # Tell the other steps which interface carries the internal network (ufw rules
@@ -94,7 +92,7 @@ UNIT
 
 down() {
     zz-log i "Stopping the Cloudflare tunnel and removing its internal interface..."
-    systemctl disable --now cloudflared.service svc-cloudflare-private.service 2>/dev/null || true
+    systemd-service down cloudflared.service svc-cloudflare-private.service
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
     vps-network unset-internal-interface "$IFACE"

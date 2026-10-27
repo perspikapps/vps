@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -26,15 +26,14 @@ ListenStream=${https_port}
 EOF2
 
     systemctl daemon-reload
-    systemctl enable --now cockpit.socket
-    systemctl restart cockpit.socket
+    systemd-service -r up cockpit.socket
 
     zz-log s "Cockpit installed. Reachable at https://$(vps-network summary-host):${http_port} and :${https_port} (self-signed cert)."
 }
 
 down() {
     zz-log i "Disabling Cockpit..."
-    systemctl disable --now cockpit.socket 2>/dev/null || true
+    systemd-service down cockpit.socket
     rm -rf /etc/systemd/system/cockpit.socket.d
     systemctl daemon-reload
     zz-log i "Removing Cockpit packages..."
@@ -49,9 +48,9 @@ summary() {
     vps-network summary-block Cockpit - \
         "https://${host}:$(vps-network port cockpit_http) and https://${host}:$(vps-network port cockpit_https) (internal address, private port)" \
         "https://localhost:$(vps-network port cockpit_http) and https://localhost:$(vps-network port cockpit_https) (on the VPS)" \
-        "user:     $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r COCKPIT_ADMIN_USER | grep . || echo 'not set - run vps-security/run.sh')" \
-        "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r COCKPIT_ADMIN_PASSWORD | grep . || echo 'not set - run vps-security/run.sh')" \
-        "(saved to ${SYSTEM_SECRETS_FILE}; PAM login, same account you'd use on the local console - separate from SSH, which stays key-only)"
+        "user:     $(zz-persist -S -r -v 'not set - run vps-security/run.sh' COCKPIT_ADMIN_USER)" \
+        "password: $(zz-persist -S -r -v 'not set - run vps-security/run.sh' COCKPIT_ADMIN_PASSWORD)" \
+        "(saved to ${ZZ_SECRETS_FILE}; PAM login, same account you'd use on the local console - separate from SSH, which stays key-only)"
 }
 
 case "${1:-}" in

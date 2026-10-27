@@ -4,7 +4,7 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install
+zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install kube-apply
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -28,7 +28,7 @@ ensure_workspace_namespace() {
     [ "$WORKSPACE_NAMESPACE" != "$CODER_NAMESPACE" ] || return 0
     zz-log i "Preparing the workspace namespace '${WORKSPACE_NAMESPACE}' (Coder's service account may manage workspaces there)..."
     kubectl create namespace "$WORKSPACE_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-    yaml-render "$HELM_DIR/workspace-rbac.yaml" coder_namespace="$coder_namespace" | kubectl apply -n "$WORKSPACE_NAMESPACE" -f -
+    kube-apply -n "$WORKSPACE_NAMESPACE" "$HELM_DIR/workspace-rbac.yaml" coder_namespace="$coder_namespace"
 }
 
 # Creates the first admin (once) and the "devcontainer" template (once), through
@@ -90,7 +90,7 @@ deploy_local_registry() {
     zz-log i "Deploying the in-cluster image registry at ${addr}..."
     kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
-    yaml-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
+    kube-apply -n devcontainer-builder "$HELM_DIR/registry.yaml" registry_port="$registry_port"
     kube-rollout devcontainer-builder registry
     vps-network reapply-guard
     if [ ! -f "$cfg" ]; then
@@ -117,7 +117,7 @@ deploy_buildkit() {
     config_sha="$(printf '%s' "$toml" | sha256sum | cut -c1-16)"
     kubectl -n devcontainer-builder create configmap buildkitd-config --from-literal=buildkitd.toml="$toml" \
         --dry-run=client -o yaml | kubectl apply -f -
-    yaml-render "$HELM_DIR/buildkit.yaml" config_sha="$config_sha" | kubectl apply -n devcontainer-builder -f -
+    kube-apply -n devcontainer-builder "$HELM_DIR/buildkit.yaml" config_sha="$config_sha"
     kube-rollout devcontainer-builder buildkit
 }
 
@@ -235,7 +235,7 @@ up() {
 
     # --- PostgreSQL (helm/postgresql-values.yaml)
     # alphanumeric only, so it can sit in the connection URL unescaped
-    db_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
+    db_password="$(zz-persist -S -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
     db_storage="${CODER_DB_STORAGE:-10Gi}"
 
     zz-log i "Installing PostgreSQL (coder-db)..."
@@ -288,22 +288,19 @@ up() {
     # --- admin user and template
     admin_email="${CODER_ADMIN_EMAIL:-admin@${wildcard:-coder.local}}"
     admin_user="${CODER_ADMIN_USERNAME:-admin}"
-    admin_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD "${CODER_ADMIN_PASSWORD:-}")"
-    zz-persist -s -f "$SYSTEM_SECRETS_FILE" CODER_ADMIN_EMAIL "$admin_email"
-    zz-persist -s -f "$SYSTEM_SECRETS_FILE" CODER_ADMIN_USERNAME "$admin_user"
+    admin_password="$(zz-persist -S -g 24 CODER_ADMIN_PASSWORD "${CODER_ADMIN_PASSWORD:-}")"
+    zz-persist -S CODER_ADMIN_EMAIL "$admin_email"
+    zz-persist -S CODER_ADMIN_USERNAME "$admin_user"
     bootstrap_coder "$admin_email" "$admin_user" "$admin_password"
 
-    zz-log s "Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${SYSTEM_SECRETS_FILE}."
+    zz-log s "Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${ZZ_SECRETS_FILE}."
 }
 
 down() {
     eval "$(kube-require -d)"
     zz-log w "Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
     kube-teardown "$CODER_NAMESPACE" coder
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_DB_PASSWORD
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_EMAIL
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_USERNAME
+    zz-persist -S -q -u "CODER_DB_PASSWORD CODER_ADMIN_PASSWORD CODER_ADMIN_EMAIL CODER_ADMIN_USERNAME"
     zz-log s "Coder removed."
 }
 
@@ -324,9 +321,9 @@ summary() {
         reg="image registry ${ip}:${REGISTRY_PORT} (in-cluster, no login; catalog http://${ip}:${REGISTRY_PORT}/v2/_catalog)"
     fi
     vps-network summary-block Coder "$pub" "$int" "${reg:--}" \
-        "user:     $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run app-coder/run.sh')" \
-        "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run app-coder/run.sh')" \
-        "(saved to ${SYSTEM_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
+        "user:     $(zz-persist -S -r -v 'not set - run app-coder/run.sh' CODER_ADMIN_EMAIL)" \
+        "password: $(zz-persist -S -r -v 'not set - run app-coder/run.sh' CODER_ADMIN_PASSWORD)" \
+        "(saved to ${ZZ_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
 }
 
 case "${1:-}" in

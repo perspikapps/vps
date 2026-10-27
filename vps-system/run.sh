@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive # apt only; ignored elsewhere
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -25,7 +25,7 @@ EOF2
     elif command -v dnf >/dev/null 2>&1; then
         zz-install -m dnf-automatic
         sed -i -e 's/^upgrade_type *=.*/upgrade_type = security/' -e 's/^apply_updates *=.*/apply_updates = yes/' /etc/dnf/automatic.conf
-        systemctl enable --now dnf-automatic.timer
+        systemd-service up dnf-automatic.timer
     else
         zz-log w "No unattended security upgrades on this distribution: run 'zypper patch' on your own schedule."
     fi

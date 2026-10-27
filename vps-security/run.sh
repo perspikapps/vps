@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install
+zz-use zz-colors zz-log zz-persist zz-install systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -76,10 +76,10 @@ up() {
 
     # --- Cockpit login
     cockpit_user="${SYSTEM_ADMIN_USER:-root}"
-    cockpit_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 COCKPIT_ADMIN_PASSWORD "${SYSTEM_ADMIN_PASSWORD:-}")"
+    cockpit_password="$(zz-persist -S -g 24 COCKPIT_ADMIN_PASSWORD "${SYSTEM_ADMIN_PASSWORD:-}")"
     echo "${cockpit_user}:${cockpit_password}" | chpasswd
-    zz-persist -s -f "$SYSTEM_SECRETS_FILE" COCKPIT_ADMIN_USER "$cockpit_user"
-    zz-log s "Cockpit login set: user=${cockpit_user} (password saved to ${SYSTEM_SECRETS_FILE})."
+    zz-persist -S COCKPIT_ADMIN_USER "$cockpit_user"
+    zz-log s "Cockpit login set: user=${cockpit_user} (password saved to ${ZZ_SECRETS_FILE})."
 
     for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
         if [ -s "$f" ]; then has_key=1; fi
@@ -121,8 +121,7 @@ maxretry = 5
 bantime = 1h
 findtime = 10m
 EOF
-        systemctl enable --now fail2ban
-        systemctl restart fail2ban
+        systemd-service -r up fail2ban
     fi
 
     # --- firewall
@@ -142,7 +141,7 @@ EOF
     else
         # Only the ports listed below stay open: drop the zones' default services (ssh, cockpit...)
         # and bind the internal interface to the internal zone, so private ports never open on the public one.
-        systemctl enable --now firewalld
+        systemd-service up firewalld
         for f in public internal; do
             for spec in $(firewall-cmd --permanent --zone="$f" --list-services); do
                 firewall-cmd -q --permanent --zone="$f" --remove-service="$spec"
@@ -234,8 +233,7 @@ ExecStart=${GUARD_BIN} add ${private} $(printf '%s ' $ports)
 WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
-    systemctl enable vps-private-ports-guard.service
-    systemctl restart vps-private-ports-guard.service
+    systemd-service -r up vps-private-ports-guard.service
 }
 
 down() {
@@ -244,14 +242,14 @@ down() {
         # The rules are in iptables, not in the unit: delete them with the ports the unit added.
         # shellcheck disable=SC2046
         "$GUARD_BIN" del - $(sed -n 's/^ExecStart=[^ ]* add [^ ]* //p' "$GUARD_UNIT") || true
-        systemctl disable vps-private-ports-guard.service 2>/dev/null || true
+        systemd-service down vps-private-ports-guard.service
         rm -f "$GUARD_UNIT" "$GUARD_BIN"
         systemctl daemon-reload
     fi
 
     zz-log i "Disabling fail2ban's sshd jail..."
     rm -f /etc/fail2ban/jail.d/sshd.local
-    systemctl disable --now fail2ban 2>/dev/null || true
+    systemd-service down fail2ban
 
     zz-log i "Restoring sshd to its distro default config..."
     rm -f /etc/ssh/sshd_config.d/99-vps-setup.conf
@@ -266,7 +264,7 @@ down() {
     fi
 
     zz-log i "Disabling ${firewall}..."
-    if [ "$firewall" = ufw ]; then ufw --force disable || true; else systemctl disable --now firewalld || true; fi
+    if [ "$firewall" = ufw ]; then ufw --force disable || true; else systemd-service down firewalld; fi
     rm -f /var/lib/vps-security-ufw.rules
 
     zz-log w "Security hardening reverted: the firewall is disabled (no firewall at all) and" \

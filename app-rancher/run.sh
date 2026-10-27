@@ -4,7 +4,7 @@
 # so there is no zz-args block; run with up, down or summary as its first argument.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install
+zz-use zz-colors zz-log zz-persist kube-apply kube-require kube-rollout kube-teardown helm-repo helm-install
 # shellcheck disable=SC1091
 . zz-colors
 app_cert_manager="$(dirname "$0")/../app-cert-manager/run.sh"
@@ -27,7 +27,7 @@ up() {
     # Rancher's server URL is that host.
     host="$ingress_host"
 
-    password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
+    password="$(zz-persist -S -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
 
     # --- chart repositories
     # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
@@ -73,17 +73,17 @@ up() {
 
     # --- dashboard route, through k3s's Traefik (see ingress.yaml)
     zz-log i "Exposing Rancher through Traefik at ${ingress_host} (${access})..."
-    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" HTTP_MIDDLEWARES="${middlewares:+$middlewares,}kube-system-redirect-https@kubernetescrd" CERTRESOLVER="$certresolver" | kubectl apply -f -
+    kube-apply "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" HTTP_MIDDLEWARES="${middlewares:+$middlewares,}kube-system-redirect-https@kubernetescrd" CERTRESOLVER="$certresolver"
 
     zz-log s "Rancher installed."
     zz-log s "UI: https://${ingress_host} (via Traefik, ${access})"
-    zz-log s "Bootstrap password saved to ${SYSTEM_SECRETS_FILE}: ${password}"
+    zz-log s "Bootstrap password saved to ${ZZ_SECRETS_FILE}: ${password}"
 }
 
 down() {
     eval "$(kube-require -d)"
     kube-teardown cattle-system rancher
-    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
+    zz-persist -S -q -u RANCHER_BOOTSTRAP_PASSWORD
     zz-log s "Rancher removed."
 }
 
@@ -101,8 +101,8 @@ summary() {
     fi
     vps-network summary-block Rancher "$pub" "$int" "none: a ClusterIP; kubectl -n cattle-system port-forward svc/rancher 8443:443" \
         "user:     admin" \
-        "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run app-rancher/run.sh')" \
-        "(saved to ${SYSTEM_SECRETS_FILE}; you'll be prompted to change it on first login)"
+        "password: $(zz-persist -S -r -v 'not set - run app-rancher/run.sh' RANCHER_BOOTSTRAP_PASSWORD)" \
+        "(saved to ${ZZ_SECRETS_FILE}; you'll be prompted to change it on first login)"
 }
 
 case "${1:-}" in

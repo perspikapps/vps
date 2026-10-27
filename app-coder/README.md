@@ -91,7 +91,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `CODER_ADMIN_EMAIL` | no | `admin@<wildcard domain>` | Email of the first Coder admin |
 | `CODER_ADMIN_PASSWORD` | no | _(generated)_ | Password of the first Coder admin |
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |

@@ -33,7 +33,7 @@ sudo vps-setup --down-svc-cockpit
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `COCKPIT_HTTPS_PORT` | no | `9083` | Cockpit HTTPS port |
 | `COCKPIT_HTTP_PORT` | no | `9080` | Cockpit HTTP port |
 

@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install systemd-service
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -17,8 +17,7 @@ up() {
     fi
 
     zz-log i "Enabling tailscaled as a systemd service..."
-    systemctl enable --now tailscaled
-    systemctl is-active --quiet tailscaled || { zz-log e "tailscaled is not active after 'systemctl enable --now tailscaled'." && exit 1; }
+    systemd-service up tailscaled
     zz-log s "tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
     # Tell the other steps which interface carries the internal network (ufw rules
@@ -43,7 +42,7 @@ down() {
     fi
     zz-log i "Logging out of the tailnet..."
     tailscale logout || true
-    systemctl disable --now tailscaled || true
+    systemd-service down tailscaled
     vps-network unset-internal-interface tailscale0
     zz-log i "Removing the tailscale package..."
     zz-install -r tailscale || true
