@@ -182,21 +182,29 @@ install_devcontainer_builder() {
     DEVCONTAINER_IMAGE_REGISTRY="$mapped"
 }
 
+# Coder's "Kubernetes (Devcontainer)" starter is pushed as the "devcontainer" template, then
+# patched (helm/devcontainer-vscode.tf, the icons below) and named TEMPLATE_REV: bump it when
+# the patch changes, so an existing template gets a new version.
+TEMPLATE_REV=vps-r2
+
 # push_coder_template TOKEN KIND: pushes once (an existing template is left as is), from inside
 # the Coder pod (its `coder` CLI matches the server). Token goes in on stdin, not argv.
 push_coder_template() {
-    local token="$1" kind="$2" name vars src tpl ver cur
+    local token="$1" kind="$2" name vars src tpl ver cur rev
 
     if [ "$kind" = "kubernetes-devcontainer" ]; then name=kubernetes-devcontainer; else name=devcontainer; fi
     tpl="$(curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templates" | jq -c --arg n "$name" '.[] | select(.name == $n)')" || tpl=""
     if [ -n "$tpl" ]; then
         ver="$(printf '%s' "$tpl" | jq -r '.active_version_id')"
         cur="$(curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templateversions/${ver}/variables" 2>/dev/null | jq -r '.[] | select(.name == "namespace") | .value // empty')" || cur=""
-        if [ "$cur" = "$WORKSPACE_NAMESPACE" ]; then
-            zz-log i "[vps-setup] Template '${name}' already exists (namespace ${cur}); leaving it as is."
+        rev="$(curl -fsS -H "Coder-Session-Token: $token" "$CODER_API/templateversions/${ver}" 2>/dev/null | jq -r '.name // empty')" || rev=""
+        # only the patched starter carries a revision; the third-party template is left alone
+        [ "$kind" = "kubernetes-devcontainer" ] && rev="$TEMPLATE_REV"
+        if [ "$cur" = "$WORKSPACE_NAMESPACE" ] && [ "$rev" = "$TEMPLATE_REV" ]; then
+            zz-log i "[vps-setup] Template '${name}' already exists (namespace ${cur}, ${rev}); leaving it as is."
             return 0
         fi
-        zz-log i "[vps-setup] Template '${name}' uses namespace '${cur:-unknown}', not '${WORKSPACE_NAMESPACE}': pushing a new version."
+        zz-log i "[vps-setup] Template '${name}' is namespace '${cur:-unknown}', revision '${rev:-unknown}' (wanted '${WORKSPACE_NAMESPACE}', ${TEMPLATE_REV}): pushing a new version."
     fi
     zz-log i "[vps-setup] Creating the '${name}' template..."
     if [ "$kind" = "kubernetes-devcontainer" ]; then
@@ -213,10 +221,17 @@ push_coder_template() {
       read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
       coder templates push kubernetes-devcontainer -d /tmp/dcb -y ${vars}"
     else
-        printf '%s\n' "$token" | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c '
+        # init, then patch the starter inside the pod: working icons for CPU, volume size and
+        # repository (the CPU emoji 404s), and VS Code Desktop as an IDE beside code-server
+        # stdin: the token line, then the patch for main.tf
+        { printf '%s\n' "$token"; cat "$HELM_DIR/devcontainer-vscode.tf"; } | kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c '
       read -r CODER_SESSION_TOKEN; export CODER_SESSION_TOKEN CODER_URL=http://127.0.0.1:8080
-      coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
-      coder templates push devcontainer -d /tmp/devcontainer -y \
+      cat >/tmp/devcontainer-vscode.tf
+      rm -rf /tmp/devcontainer && coder templates init --id kubernetes-devcontainer /tmp/devcontainer &&
+      sed -i -e "s#/emojis/1f5a5.png#/emojis/1f4bb.png#" -e "s#/emojis/1f4be.png#/icon/database.svg#" \
+        -e "s#^\( *\)display_name = \"Repository (auto)\"#\1display_name = \"Repository (auto)\"\n\1icon         = \"/icon/git.svg\"#" /tmp/devcontainer/main.tf &&
+      cat /tmp/devcontainer-vscode.tf >>/tmp/devcontainer/main.tf &&
+      coder templates push devcontainer -d /tmp/devcontainer -y --name '"$TEMPLATE_REV"' \
         --var namespace='"$WORKSPACE_NAMESPACE"' --var use_kubeconfig=false'
     fi
 }

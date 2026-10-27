@@ -152,3 +152,13 @@ DIR="$REPO_ROOT/vps-coder"
     grep -q 'router.middlewares' "$DIR/helm/coder-values.yaml"
     grep -q 'router.middlewares' "$DIR/helm/coder-values-wildcard.yaml"
 }
+
+@test "the Kubernetes (Devcontainer) starter is patched: VS Code Desktop, working icons, and a revision that re-pushes an existing template" {
+    grep -q 'vscode-desktop' "$DIR/helm/devcontainer-vscode.tf"
+    grep -q 'agent_id = coder_agent.main.id' "$DIR/helm/devcontainer-vscode.tf"
+    grep -q '/emojis/1f5a5.png#/emojis/1f4bb.png' "$DIR/run.sh"
+    grep -q '/icon/database.svg' "$DIR/run.sh"
+    grep -q '/icon/git.svg' "$DIR/run.sh"
+    grep -q '^TEMPLATE_REV=' "$DIR/run.sh"
+    grep -q -- '--name '"'"'"\$TEMPLATE_REV"'"'"'' "$DIR/run.sh"
+}
