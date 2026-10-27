@@ -25,7 +25,7 @@ up() {
     vps-network set-internal-interface tailscale0 100.64.0.0/10
 
     if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
-        zz-log w "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-svc-tailscale"
+        zz-log w "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: the step"
         exit 0
     fi
 
@@ -46,8 +46,7 @@ down() {
     vps-network unset-internal-interface tailscale0
     zz-log i "Removing the tailscale package..."
     zz-install -r tailscale || true
-    zz-log w "Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
-        "dashboard, and the k3s API (all private-access) are now unreachable" \
+    zz-log w "Tailscale is disconnected. Private-access services are now unreachable" \
         "until you re-run this step's 'up' action."
     zz-log s "Tailscale brought down."
 }
