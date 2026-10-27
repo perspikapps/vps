@@ -163,3 +163,22 @@ setup() {
     SYSTEM_INTERNAL_APPS=alpha run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"exit 1" ]]
 }
+
+@test "internal-range: what the provider declared with the interface, forgotten with it; no environment variable" {
+    export NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env"
+    sh "$SCRIPT" set-internal-interface wg0 10.9.0.0/24 >/dev/null 2>&1
+    run sh "$SCRIPT" internal-range
+    [ "$output" = "10.9.0.0/24" ]
+    SYSTEM_INTERNAL_SOURCE_RANGE=1.2.3.0/24 K3S_INTERNAL_SOURCE_RANGE=1.2.3.0/24 run sh "$SCRIPT" internal-range
+    [ "$output" = "10.9.0.0/24" ]
+    sh "$SCRIPT" unset-internal-interface wg0 >/dev/null 2>&1
+    run sh "$SCRIPT" internal-range
+    [ -z "$output" ]
+}
+
+@test "internal-range: Tailscale's CGNAT range when the provider declared none" {
+    export NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env"
+    sh "$SCRIPT" set-internal-interface tailscale0 >/dev/null 2>&1
+    run sh "$SCRIPT" internal-range
+    [ "$output" = "100.64.0.0/10" ]
+}

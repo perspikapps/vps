@@ -35,7 +35,6 @@ sudo vps-setup --down-svc-k3s
 | --- | --- | --- | --- |
 | `K3S_EXTRA_ARGS` | no | _(unset)_ | Extra flags passed to the k3s installer |
 | `K3S_VERSION` | no | _(unset)_ | Pin a k3s version |
-| `K3S_INTERNAL_SOURCE_RANGE` | no | _(Tailscale `100.64.0.0/10`, else the internal address)_ | Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes (the `internal-only` middleware) |
 | `K3S_TRAEFIK_ACME_EMAIL` | no | `admin@example.com` | Contact email registered with Let's Encrypt |
 | `K3S_TRAEFIK_ACME_STAGING` | no | `true` | Use Let's Encrypt's staging environment (true/false) |
 | `K3S_TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (private access only) |

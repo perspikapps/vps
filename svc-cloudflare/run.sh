@@ -89,7 +89,7 @@ UNIT
 
     # Tell the other steps which interface carries the internal network (ufw rules
     # for access:"private" ports, the final summary); see vps-network.
-    vps-network set-internal-interface "$IFACE"
+    vps-network set-internal-interface "$IFACE" "${internal_ip}/32,127.0.0.1/32"
 }
 
 down() {

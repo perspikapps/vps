@@ -15,11 +15,6 @@
   "config": {
     "default": true,
     "inputs": {
-      "K3S_INTERNAL_SOURCE_RANGE": {
-        "description": "Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes; empty = Tailscale's 100.64.0.0/10, else the internal address",
-        "required": false,
-        "default": ""
-      },
       "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",
         "required": false,

@@ -10,11 +10,11 @@
 #   summary-block <title> <public> <internal> <local> [note...]   the public/internal/local paragraph of a step summary
 #   port <name>                     a port by name (<NAME>_PORT wins over package.json)
 #   ports                           every step's ports as TSV: name port access note
-#   set-internal-interface <iface>   persist the internal interface (svc-tailscale, svc-cloudflare)
+#   set-internal-interface <iface> [<range>]  persist the internal interface and, optionally, the source CIDRs of its clients (svc-tailscale, svc-cloudflare)
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
 #   access-route <service>          shell to eval: route_access, route_domain, route_middlewares, route_certresolver of a service
-#   internal-range                  source CIDRs of the internal network (K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
+#   internal-range                  source CIDRs of the internal network's clients: what the provider declared, else Tailscale's 100.64.0.0/10, else the internal address and loopback
 #   internal-domain                 SYSTEM_INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
@@ -170,13 +170,15 @@ list_visibilities() {
 }
 
 # get_internal_range: the source CIDRs of the internal network's clients (comma separated):
-# K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
-# and loopback. Empty until there is an internal network.
+# the range the provider declared when it set the interface (SYSTEM_INTERNAL_SOURCE_RANGE), else
+# Tailscale's 100.64.0.0/10, else this host's internal address and loopback. Empty until there is
+# an internal network.
 get_internal_range() {
-    local iface ip
+    local iface ip range
 
-    if [ -n "${K3S_INTERNAL_SOURCE_RANGE:-}" ]; then
-        printf '%s' "$K3S_INTERNAL_SOURCE_RANGE"
+    [ ! -f "$internal_file" ] || range="$(zz-persist -f "$internal_file" -r SYSTEM_INTERNAL_SOURCE_RANGE)"
+    if [ -n "${range:-}" ]; then
+        printf '%s' "$range"
         return 0
     fi
     iface="$(get_internal_interface)"
@@ -301,9 +303,16 @@ access-domain) get_access_domain "${1:-}" ;;
 summary-block) summary_block "$@" ;;
 port) get_port "${1:?usage: vps-network port <name>}" ;;
 ports) list_ports ;;
-set-internal-interface) zz-persist -f "$internal_file" SYSTEM_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface>}" ;;
+set-internal-interface)
+    zz-persist -f "$internal_file" SYSTEM_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface> [<source-range>]}"
+    # the source CIDRs of the network's clients, declared by the provider (used by the internal-only middleware)
+    [ -z "${2:-}" ] || zz-persist -f "$internal_file" SYSTEM_INTERNAL_SOURCE_RANGE "$2"
+    ;;
 unset-internal-interface)
-    [ "$(get_internal_interface)" != "${1:?usage: vps-network unset-internal-interface <iface>}" ] || zz-persist -q -f "$internal_file" -u SYSTEM_INTERNAL_INTERFACE
+    if [ "$(get_internal_interface)" = "${1:?usage: vps-network unset-internal-interface <iface>}" ]; then
+        zz-persist -q -f "$internal_file" -u SYSTEM_INTERNAL_INTERFACE
+        zz-persist -q -f "$internal_file" -u SYSTEM_INTERNAL_SOURCE_RANGE
+    fi
     ;;
 internal-domain) get_internal_domain ;;
 internal-range) get_internal_range ;;

@@ -49,7 +49,7 @@ DIR="$REPO_ROOT/svc-cloudflare"
 }
 
 @test "run.sh persists the internal interface for the other steps, and forgets it on down" {
-    grep -q 'vps-network set-internal-interface "\$IFACE"' "$DIR/run.sh"
+    grep -q 'vps-network set-internal-interface "\$IFACE" "\${internal_ip}/32,127.0.0.1/32"' "$DIR/run.sh"
     grep -q 'vps-network unset-internal-interface "\$IFACE"' "$DIR/run.sh"
 }
 

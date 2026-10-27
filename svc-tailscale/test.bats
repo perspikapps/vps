@@ -53,7 +53,7 @@ DIR="$REPO_ROOT/svc-tailscale"
 
 
 @test "run.sh persists the internal interface for the other steps, and forgets it on down" {
-    grep -q 'vps-network set-internal-interface tailscale0' "$DIR/run.sh"
+    grep -q 'vps-network set-internal-interface tailscale0 100.64.0.0/10' "$DIR/run.sh"
     grep -q 'vps-network unset-internal-interface tailscale0' "$DIR/run.sh"
 }
 
