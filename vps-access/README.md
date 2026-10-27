@@ -35,12 +35,12 @@ Two prompts confirm the domains, each with a fallback:
 
 | Domain   | Set with                                | Fallback                 |
 | -------- | --------------------------------------- | ------------------------ |
-| external | `EXTERNAL_DOMAIN` (`vps-system`)        | `<public-ip>.nip.io`     |
-| internal | `INTERNAL_DOMAIN`                       | `<internal-ip>.nip.io`    |
+| external | `ACCESS_EXTERNAL_DOMAIN` (`vps-system`)        | `<public-ip>.nip.io`     |
+| internal | `ACCESS_INTERNAL_DOMAIN`                       | `<internal-ip>.nip.io`    |
 
 An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
 
-Without a terminal (or with `VPS_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
+Without a terminal (or with `ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
 
 ## Summary
 
@@ -67,8 +67,9 @@ sudo vps-setup --down-vps-access
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `INTERNAL_DOMAIN` | no | _(unset)_ | Domain pointing at the internal address, for internal services; empty = `<internal-ip>.nip.io` |
-| `VPS_ACCESS_MENU` | no | `true` | `false` skips the menus and keeps the saved or default choices |
+| `ACCESS_EXTERNAL_DOMAIN` | no | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); empty = `<public-ip>.nip.io` fallback. Validated and saved by this step |
+| `ACCESS_INTERNAL_DOMAIN` | no | _(unset)_ | Domain pointing at the internal address, for internal services; empty = `<internal-ip>.nip.io` |
+| `ACCESS_MENU` | no | `true` | `false` skips the menus and keeps the saved or default choices |
 
 ## Dependencies
 

@@ -15,12 +15,7 @@
   "config": {
     "default": true,
     "inputs": {
-      "EXTERNAL_DOMAIN": {
-        "description": "Wildcard DNS domain pointing at this VPS (e.g. apps.example.com for *.apps.example.com); empty = nip.io fallback",
-        "required": false,
-        "default": ""
-      },
-      "TZ": {
+      "SYSTEM_TZ": {
         "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
         "required": false,
         "default": ""

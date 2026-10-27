@@ -15,7 +15,7 @@ setup() {
     echo '{"name":"@x/beta","bin":{"beta":"run.sh"},"engines":{"zz-setup":"*"},"config":{"ports":[{"name":"beta_http","port":2222,"access":"private"}]}}' >"$work/beta/package.json"
     # not a step: no engines.zz-setup, so its ports must not count
     echo '{"name":"@x/lib","config":{"ports":[{"name":"lib_http","port":3333,"access":"public"}]}}' >"$work/lib/package.json"
-    export VPS_SETUP_ROOT="$work" VPS_INTERNAL_ACCESS_FILE="$work/internal.env" VPS_EXTERNAL_DOMAIN_FILE="$work/external.env"
+    export VPS_SETUP_ROOT="$work" NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env" NETWORK_EXTERNAL_DOMAIN_FILE="$work/external.env"
 }
 
 @test "run.sh parses as POSIX sh and is a script, not a step" {
@@ -53,7 +53,7 @@ setup() {
     [ "$status" -eq 0 ]
     run sh "$SCRIPT" internal-interface
     [ "$output" = "wg0" ]
-    VPS_INTERNAL_INTERFACE=eth9 run sh "$SCRIPT" internal-interface
+    SECURITY_INTERNAL_INTERFACE=eth9 run sh "$SCRIPT" internal-interface
     [ "$output" = "eth9" ]
 }
 
@@ -70,14 +70,14 @@ setup() {
 @test "internal-address is empty without an interface, or when it has no address; summary-host falls back" {
     run sh "$SCRIPT" internal-address
     [ -z "$output" ]
-    VPS_INTERNAL_INTERFACE=nonexistent9 run sh "$SCRIPT" internal-address
+    SECURITY_INTERNAL_INTERFACE=nonexistent9 run sh "$SCRIPT" internal-address
     [ -z "$output" ]
     run sh "$SCRIPT" summary-host
     [ "$output" = "<internal-ip>" ]
 }
 
 @test "external-domain: the environment wins, then the persisted file" {
-    EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" external-domain
+    ACCESS_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" external-domain
     [ "$output" = "apps.example.com" ]
     sh "$SCRIPT" set-external-domain saved.example.com >/dev/null 2>&1
     run sh "$SCRIPT" external-domain
@@ -90,7 +90,7 @@ setup() {
     printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
     chmod +x "$work/bin/curl" "$work/bin/ip"
     # NAT'd default-route address -> asks the echo service; a internal interface is set but ignored
-    PATH="$work/bin:$PATH" VPS_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
+    PATH="$work/bin:$PATH" SECURITY_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
     [ "$output" = "203-0-113-9.nip.io" ]
     printf '#!/bin/sh\necho "1.1.1.1 via 54.37.230.1 dev eth0 src 54.37.230.112"\n' >"$work/bin/ip"
     PATH="$work/bin:$PATH" run sh "$SCRIPT" external-domain
@@ -98,7 +98,7 @@ setup() {
 }
 
 @test "visibility: environment, then the saved choice, then config.visibility, else public" {
-    export VPS_ACCESS_FILE="$work/access.env"
+    export NETWORK_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" visibility alpha
     [ "$output" = "public" ]
     echo '{"name":"@x/alpha","bin":{"alpha":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/alpha/package.json"
@@ -112,14 +112,14 @@ setup() {
 }
 
 @test "set-visibility rejects anything but public or internal" {
-    export VPS_ACCESS_FILE="$work/access.env"
+    export NETWORK_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" set-visibility alpha sideways
     [ "$status" -ne 0 ]
 }
 
-@test "internal-domain: INTERNAL_DOMAIN, else the saved one" {
-    export VPS_ACCESS_FILE="$work/access.env"
-    INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
+@test "internal-domain: ACCESS_INTERNAL_DOMAIN, else the saved one" {
+    export NETWORK_ACCESS_FILE="$work/access.env"
+    ACCESS_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
     [ "$output" = "in.example.com" ]
     sh "$SCRIPT" set-internal-domain saved.example.com
     run sh "$SCRIPT" internal-domain
@@ -127,7 +127,7 @@ setup() {
 }
 
 @test "visibilities: the service names, without the vps- prefix or ./, with their visibility" {
-    export VPS_ACCESS_FILE="$work/access.env"
+    export NETWORK_ACCESS_FILE="$work/access.env"
     mkdir -p "$work/vps-gamma"
     : >"$work/vps-gamma/run.sh"
     echo '{"workspaces":["alpha","beta","lib","vps-gamma"]}' >"$work/package.json"
@@ -138,14 +138,14 @@ setup() {
 }
 
 @test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
-    export VPS_ACCESS_FILE="$work/access.env"
-    EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
+    export NETWORK_ACCESS_FILE="$work/access.env"
+    ACCESS_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
     [ "$status" -eq 0 ]
     [[ "$output" == *"route_access='public'"* ]]
     [[ "$output" == *"route_domain='apps.example.com'"* ]]
     [[ "$output" == *"route_middlewares=''"* ]]
     [[ "$output" == *"route_certresolver='letsencrypt'"* ]]
-    ALPHA_ACCESS=internal INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" access-route alpha
+    ALPHA_ACCESS=internal ACCESS_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"route_access='internal'"* ]]
     [[ "$output" == *"route_domain='in.example.com'"* ]]
     [[ "$output" == *"route_middlewares='kube-system-internal-only@kubernetescrd'"* ]]
@@ -153,7 +153,7 @@ setup() {
 }
 
 @test "access-route makes the caller exit 1 on a bad choice or a missing domain" {
-    export VPS_ACCESS_FILE="$work/access.env"
+    export NETWORK_ACCESS_FILE="$work/access.env"
     ALPHA_ACCESS=sideways run sh "$SCRIPT" access-route alpha
     [ "$output" = "exit 1" ] || [[ "$output" == *"exit 1" ]]
     ALPHA_ACCESS=internal run sh "$SCRIPT" access-route alpha

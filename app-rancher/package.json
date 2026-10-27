@@ -19,7 +19,7 @@
     "visibility": "public",
     "default": true,
     "inputs": {
-      "CERT_MANAGER_VERSION": {
+      "RANCHER_CERT_MANAGER_VERSION": {
         "description": "Pin cert-manager's chart version",
         "required": false,
         "default": ""
@@ -46,7 +46,7 @@
         "default": ""
       },
       "RANCHER_INGRESS_HOST": {
-        "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<EXTERNAL_DOMAIN>, else rancher.<public-ip>.nip.io)",
+        "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<ACCESS_EXTERNAL_DOMAIN>, else rancher.<public-ip>.nip.io)",
         "required": false,
         "default": ""
       },
@@ -55,7 +55,7 @@
         "required": false,
         "default": ""
       },
-      "VPS_SECRETS_FILE": {
+      "SYSTEM_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
         "default": "/root/.vps-secrets.env"

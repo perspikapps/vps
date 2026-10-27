@@ -10,11 +10,11 @@ zz-use zz-colors zz-log zz-args kube-require helm-repo helm-install
 
 eval "$(
     zz-args "Install cert-manager unless it is already installed" "$0" "$@" <<help
-v version version Chart version to pin (default: CERT_MANAGER_VERSION, else the latest)
+v version version Chart version to pin (default: RANCHER_CERT_MANAGER_VERSION, else the latest)
 help
 )"
 
-version=${version:-${CERT_MANAGER_VERSION:-}}
+version=${version:-${RANCHER_CERT_MANAGER_VERSION:-}}
 
 eval "$(kube-require)"
 

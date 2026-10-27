@@ -24,17 +24,17 @@ sudo zz-setup ./ -d vps-cloudflare
 ## What it does
 
 1. Installs `cloudflared` from Cloudflare's release binary (any distribution).
-2. Creates `vps-cloudflare-private.service`: a dummy interface `vpscf0` holding `CLOUDFLARE_PRIVATE_IP`/32.
+2. Creates `vps-cloudflare-private.service`: a dummy interface `vpscf0` holding `CLOUDFLARE_INTERNAL_IP`/32.
 3. Creates `cloudflared.service` running the remotely-managed tunnel; the token is kept in `/etc/cloudflared/tunnel.env` (owner-only), not on the unit's command line.
-4. Persists `VPS_INTERNAL_INTERFACE=vpscf0` (see [Internal access](../README.md#private-access)); this step runs before `vps-security` for that reason.
+4. Persists `SECURITY_INTERNAL_INTERFACE=vpscf0` (see [Internal access](../README.md#private-access)); this step runs before `vps-security` for that reason.
 
 ## Cloudflare side (manual, once)
 
-In Zero Trust: add a **internal network route** `<CLOUDFLARE_PRIVATE_IP>/32` to the tunnel, enroll your devices with the WARP client, and make sure that range is not in WARP's split-tunnel _Exclude_ list (the default excludes the RFC 1918 ranges, which includes the default `10.254.254.1`). Then browse `https://<CLOUDFLARE_PRIVATE_IP>:9080` (Cockpit), etc.
+In Zero Trust: add a **internal network route** `<CLOUDFLARE_INTERNAL_IP>/32` to the tunnel, enroll your devices with the WARP client, and make sure that range is not in WARP's split-tunnel _Exclude_ list (the default excludes the RFC 1918 ranges, which includes the default `10.254.254.1`). Then browse `https://<CLOUDFLARE_INTERNAL_IP>:9080` (Cockpit), etc.
 
 ## SSH
 
-SSH needs no extra step here: the private route to `CLOUDFLARE_PRIVATE_IP` already carries port 22 for WARP clients (`ssh user@<CLOUDFLARE_PRIVATE_IP>`). Unlike Tailscale's `--ssh`, this step does not replace sshd's authentication, and it does not close the public SSH port - that stays `vps-security`'s decision (`SSH_PORT`).
+SSH needs no extra step here: the private route to `CLOUDFLARE_INTERNAL_IP` already carries port 22 for WARP clients (`ssh user@<CLOUDFLARE_INTERNAL_IP>`). Unlike Tailscale's `--ssh`, this step does not replace sshd's authentication, and it does not close the public SSH port - that stays `vps-security`'s decision (`SECURITY_SSH_PORT`).
 
 ## Verifying that private ports stay closed
 
@@ -48,7 +48,7 @@ Fails if any `access: "private"` port answers on the public address.
 
 ## Removing (`down`)
 
-Stops and removes both units and the token file, and forgets the internal interface. Leaves the `cloudflared` package installed unless `PURGE_CLOUDFLARED=true`.
+Stops and removes both units and the token file, and forgets the internal interface. Leaves the `cloudflared` package installed unless `CLOUDFLARE_PURGE=true`.
 
 ```bash
 sudo vps-setup --down-vps-cloudflare
@@ -58,11 +58,11 @@ sudo vps-setup --down-vps-cloudflare
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `CLOUDFLARE_PRIVATE_IP` | no | `10.254.254.1` | Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface) |
+| `CLOUDFLARE_INTERNAL_IP` | no | `10.254.254.1` | Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface) |
 | `CLOUDFLARE_TUNNEL_TOKEN` | yes | _(unset)_ | Cloudflare Tunnel token (Zero Trust > Networks > Tunnels) |
-| `CLOUDFLARED_VERSION` | no | _(latest)_ | cloudflared release to install, e.g. `2025.1.0` |
-| `CLOUDFLARED_SHA256` | no | _(not checked)_ | sha256 of that release's binary, or a JSON object keyed `<os>_<arch>` |
-| `PURGE_CLOUDFLARED` | no | `false` | Also remove the cloudflared package on down (true/false) |
+| `CLOUDFLARE_VERSION` | no | _(latest)_ | cloudflared release to install, e.g. `2025.1.0` |
+| `CLOUDFLARE_SHA256` | no | _(not checked)_ | sha256 of that release's binary, or a JSON object keyed `<os>_<arch>` |
+| `CLOUDFLARE_PURGE` | no | `false` | Also remove the cloudflared package on down (true/false) |
 
 ## Dependencies
 
@@ -70,7 +70,7 @@ Conflicts with `vps-tailscale` (see above).
 
 ## Not verified on a live host
 
-Traffic from `cloudflared` to `CLOUDFLARE_PRIVATE_IP` is host-local, so it arrives on `lo` and the per-interface ufw rules for `vpscf0` are not what admits it; the public side stays closed because ufw and `vps-security`'s FORWARD guard still drop everything from the internet. Check that ports published by k3s (ServiceLB) or Docker answer on `CLOUDFLARE_PRIVATE_IP` through the tunnel, and that `curl -m 5 http://<public-ip>:<private-port>` still times out.
+Traffic from `cloudflared` to `CLOUDFLARE_INTERNAL_IP` is host-local, so it arrives on `lo` and the per-interface ufw rules for `vpscf0` are not what admits it; the public side stays closed because ufw and `vps-security`'s FORWARD guard still drop everything from the internet. Check that ports published by k3s (ServiceLB) or Docker answer on `CLOUDFLARE_INTERNAL_IP` through the tunnel, and that `curl -m 5 http://<public-ip>:<private-port>` still times out.
 
 ## Tests
 

@@ -21,7 +21,7 @@ The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds t
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `EPINIO_ADMIN_PASSWORD` | no | _(unset)_ | Epinio admin password (generated and saved when empty) |
-| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 
 ## Dependencies
 

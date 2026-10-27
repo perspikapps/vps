@@ -26,11 +26,11 @@ up() {
     case "$ingress_host" in
         *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
     esac
-    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or EXTERNAL_DOMAIN." && exit 1; }
+    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or ACCESS_EXTERNAL_DOMAIN." && exit 1; }
     # Rancher's server URL follows that host.
     host="${RANCHER_HOSTNAME:-$ingress_host}"
 
-    password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
+    password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
 
     # --- chart repositories
     # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
@@ -80,13 +80,13 @@ up() {
 
     zz-log s "[vps-setup] Rancher installed."
     zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, ${access})"
-    zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
+    zz-log s "[vps-setup] Bootstrap password saved to ${SYSTEM_SECRETS_FILE}: ${password}"
 }
 
 down() {
     eval "$(kube-require -d)"
     kube-teardown cattle-system rancher
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
     zz-log s "[vps-setup] Rancher removed."
 }
 
@@ -104,8 +104,8 @@ summary() {
     fi
     vps-network summary-block Rancher "$pub" "$int" "none: a ClusterIP; kubectl -n cattle-system port-forward svc/rancher 8443:443" \
         "user:     admin" \
-        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run app-rancher/run.sh')" \
-        "(saved to ${VPS_SECRETS_FILE}; you'll be prompted to change it on first login)"
+        "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run app-rancher/run.sh')" \
+        "(saved to ${SYSTEM_SECRETS_FILE}; you'll be prompted to change it on first login)"
 }
 
 case "${1:-}" in

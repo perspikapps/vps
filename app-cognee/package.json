@@ -25,7 +25,7 @@
         "default": "",
         "secret": true
       },
-      "VPS_SECRETS_FILE": {
+      "SYSTEM_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
         "default": "/root/.vps-secrets.env"

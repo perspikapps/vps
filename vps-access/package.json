@@ -15,12 +15,17 @@
   "config": {
     "default": true,
     "inputs": {
-      "INTERNAL_DOMAIN": {
+      "ACCESS_EXTERNAL_DOMAIN": {
+        "description": "Wildcard DNS domain pointing at this VPS (e.g. apps.example.com for *.apps.example.com); empty = <public-ip>.nip.io fallback",
+        "required": false,
+        "default": ""
+      },
+      "ACCESS_INTERNAL_DOMAIN": {
         "description": "DNS domain pointing at this VPS's internal (Tailscale/Cloudflare) address, for services set to internal; empty = <internal-ip>.nip.io fallback",
         "required": false,
         "default": ""
       },
-      "VPS_ACCESS_MENU": {
+      "ACCESS_MENU": {
         "description": "Ask to confirm visibilities and DNS (true/false); false keeps the saved or default choices",
         "required": false,
         "default": "true"

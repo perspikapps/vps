@@ -38,9 +38,9 @@ up() {
         # The installer calls openssl unconditionally and installs Docker itself when missing.
         command -v openssl >/dev/null 2>&1 || zz-install openssl
         # Upstream variable names: the installer reads them from its environment.
-        export ADVERTISE_ADDR="${ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
-        export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${DOCKER_SWARM_INIT_ARGS:-}"
-        zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${ADVERTISE_ADDR}); it installs Docker if needed..."
+        export DOKPLOY_ADVERTISE_ADDR="${DOKPLOY_ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
+        export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOKPLOY_DOCKER_SWARM_INIT_ARGS="${DOKPLOY_DOCKER_SWARM_INIT_ARGS:-}"
+        zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${DOKPLOY_ADVERTISE_ADDR}); it installs Docker if needed..."
         # The official installer needs bash.
         zz-install -u "$DOKPLOY_INSTALL_URL" -x bash dokploy
         is_dokploy_installed || { zz-log e "[vps-setup] The Dokploy installer finished but the dokploy service/Traefik are not there." && exit 1; }
@@ -64,8 +64,8 @@ down() {
         zz-log w "[vps-setup] Docker not found; nothing to remove besides /etc/dokploy."
     fi
     rm -rf /etc/dokploy
-    if [ "${REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
+    if [ "${DOKPLOY_REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
+        zz-log i "[vps-setup] Removing Docker (DOKPLOY_REMOVE_DOCKER=true)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
         zz-install -r docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true

@@ -30,7 +30,7 @@ DIR="$REPO_ROOT/app-coder"
 }
 
 @test "the database password is generated and stored, never a fixed value or a --set argument" {
-    grep -q 'zz-persist -f "\$VPS_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD' "$DIR/run.sh"
+    grep -q 'zz-persist -f "\$SYSTEM_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD' "$DIR/run.sh"
     ! grep -q 'random_password' "$DIR/run.sh"
     ! grep -q 'auth.password=' "$DIR/run.sh"
 }
@@ -54,7 +54,7 @@ DIR="$REPO_ROOT/app-coder"
 @test "creates the first admin and the devcontainer template, best effort, with the password stored" {
     grep -q '/users/first' "$DIR/run.sh"
     grep -q 'kubernetes-devcontainer' "$DIR/run.sh"
-    grep -q 'zz-persist -f "\$VPS_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD' "$DIR/run.sh"
+    grep -q 'zz-persist -f "\$SYSTEM_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD' "$DIR/run.sh"
     grep -q 'bootstrap_coder' "$DIR/run.sh"
     grep -q 'finish it in the UI' "$DIR/run.sh"
 }
@@ -76,10 +76,10 @@ DIR="$REPO_ROOT/app-coder"
 
 @test "devcontainer-builder is third-party: latest chart is resolved and logged, the template ref must be pinned, never a default branch" {
     grep -q 'helm show chart' "$DIR/run.sh"
-    grep -q 'Pin it with DEVCONTAINER_BUILDER_VERSION' "$DIR/run.sh"
-    grep -q 'fetch -q --depth 1 .* "\$DEVCONTAINER_BUILDER_REF"' "$DIR/run.sh"
+    grep -q 'Pin it with CODER_DEVCONTAINER_BUILDER_VERSION' "$DIR/run.sh"
+    grep -q 'fetch -q --depth 1 .* "\$CODER_DEVCONTAINER_BUILDER_REF"' "$DIR/run.sh"
     ! grep -q 'git clone' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(i.DEVCONTAINER_REGISTRY_TOKEN.secret === true ? 0 : 1)"
+    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(i.CODER_DEVCONTAINER_REGISTRY_TOKEN.secret === true ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -87,7 +87,7 @@ DIR="$REPO_ROOT/app-coder"
     grep -q 'image: registry:2' "$DIR/helm/registry.yaml"
     grep -q 'insecureRegistries' "$DIR/helm/devcontainer-builder-values.yaml"
     grep -q '/etc/rancher/k3s/registries.yaml' "$DIR/run.sh"
-    run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'devcontainer_registry'); process.exit(p && p.port === 5000 && p.access === 'private' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json').config.ports.find(x => x.name === 'coder_registry'); process.exit(p && p.port === 5000 && p.access === 'private' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

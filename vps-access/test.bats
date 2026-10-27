@@ -16,13 +16,13 @@ DIR="$REPO_ROOT/vps-access"
     grep -q '^case "\${1:-}" in' "$DIR/run.sh"
 }
 
-@test "menus only run on a terminal and can be switched off with VPS_ACCESS_MENU" {
-    grep -q 'VPS_ACCESS_MENU:-true' "$DIR/run.sh"
+@test "menus only run on a terminal and can be switched off with ACCESS_MENU" {
+    grep -q 'ACCESS_MENU:-true' "$DIR/run.sh"
     grep -q '\[ -t 0 \] || (: </dev/tty)' "$DIR/run.sh"
 }
 
 @test "runs after the internal network and before k3s, with the DNS inputs declared" {
-    run node -e "const p = require('$DIR/package.json'); const t = require('$REPO_ROOT/vps-tailscale/package.json'); const k = require('$REPO_ROOT/vps-k3s/package.json'); process.exit(p.bin['vps-access'] === 'run.sh' && p.config.order > t.config.order && p.config.order < k.config.order && p.config.inputs.INTERNAL_DOMAIN && p.config.inputs.VPS_ACCESS_MENU ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); const t = require('$REPO_ROOT/vps-tailscale/package.json'); const k = require('$REPO_ROOT/vps-k3s/package.json'); process.exit(p.bin['vps-access'] === 'run.sh' && p.config.order > t.config.order && p.config.order < k.config.order && p.config.inputs.ACCESS_INTERNAL_DOMAIN && p.config.inputs.ACCESS_MENU ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -37,4 +37,11 @@ DIR="$REPO_ROOT/vps-access"
     grep -q '^scope_services() {' "$DIR/run.sh"
     grep -q 'does NOT resolve' "$DIR/run.sh"
     grep -q 'vps-network summary-block' "$DIR/run.sh"
+}
+
+@test "ACCESS_EXTERNAL_DOMAIN is validated here, saved for vps-network's external-domain, and optional" {
+    grep -q '^validate_external() {' "$DIR/run.sh"
+    grep -q 'vps-network set-external-domain' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs.ACCESS_EXTERNAL_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
+    [ "$status" -eq 0 ]
 }

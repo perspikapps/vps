@@ -11,7 +11,7 @@ zz-use zz-colors zz-log zz-persist
 up() {
     local values password
 
-    password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 EPINIO_ADMIN_PASSWORD "${EPINIO_ADMIN_PASSWORD:-}")"
+    password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 EPINIO_ADMIN_PASSWORD "${EPINIO_ADMIN_PASSWORD:-}")"
     values="$(mktemp)"
     jq -n --arg p "$password" '{epinio: {api: {adminPassword: $p}}}' >"$values"
     app-helm up epinio --values "$values" || { rm -f "$values" && exit 1; }
@@ -20,11 +20,11 @@ up() {
 
 down() {
     app-helm down epinio
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u EPINIO_ADMIN_PASSWORD
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u EPINIO_ADMIN_PASSWORD
 }
 
 summary() {
-    app-helm summary epinio --note "user: admin" --note "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r EPINIO_ADMIN_PASSWORD | grep . || echo 'not set - run app-epinio/run.sh')"
+    app-helm summary epinio --note "user: admin" --note "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r EPINIO_ADMIN_PASSWORD | grep . || echo 'not set - run app-epinio/run.sh')"
 }
 
 case "${1:-}" in

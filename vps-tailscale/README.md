@@ -23,7 +23,7 @@ sudo zz-setup ./ -d vps-tailscale
 
 ## Internal access
 
-On install this step persists `VPS_INTERNAL_INTERFACE=tailscale0` to
+On install this step persists `SECURITY_INTERNAL_INTERFACE=tailscale0` to
 `/etc/vps-internal-access.env` (removed again on `down`). `vps-security` and the
 final summary read it, so they never mention Tailscale themselves; it is also why
 this step runs before `vps-security`. See the root README's
@@ -33,7 +33,7 @@ this step runs before `vps-security`. See the root README's
 
 ## Removing (`down`)
 
-`down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `PURGE_TAILSCALE=true`.
+`down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `TAILSCALE_PURGE=true`.
 
 ```bash
 sudo vps-setup --down-vps-tailscale
@@ -43,7 +43,7 @@ sudo vps-setup --down-vps-tailscale
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `PURGE_TAILSCALE` | no | `false` | Also remove the tailscale package on down (true/false) |
+| `TAILSCALE_PURGE` | no | `false` | Also remove the tailscale package on down (true/false) |
 | `TAILSCALE_AUTHKEY` | yes | _(unset)_ | Auth key to auto-join a tailnet |
 | `TAILSCALE_EXTRA_ARGS` | no | _(unset)_ | Extra flags appended to tailscale up |
 

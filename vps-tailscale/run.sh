@@ -45,8 +45,8 @@ down() {
     tailscale logout || true
     systemctl disable --now tailscaled || true
     vps-network unset-internal-interface tailscale0
-    if [ "${PURGE_TAILSCALE:-false}" = "true" ]; then
-        zz-log i "[vps-setup] Purging the tailscale package (PURGE_TAILSCALE=true)..."
+    if [ "${TAILSCALE_PURGE:-false}" = "true" ]; then
+        zz-log i "[vps-setup] Purging the tailscale package (TAILSCALE_PURGE=true)..."
         zz-install -r tailscale || true
     fi
     zz-log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
@@ -61,7 +61,7 @@ summary() {
     iface="$(vps-network internal-interface)"
     ip="$(vps-network internal-address)"
     if [ -z "$iface" ]; then
-        vps-network summary-block "Internal network" - "none: no interface (set VPS_INTERNAL_INTERFACE, or run vps-tailscale)" -
+        vps-network summary-block "Internal network" - "none: no interface (set SECURITY_INTERNAL_INTERFACE, or run vps-tailscale)" -
     else
         vps-network summary-block "Internal network" - "${ip:-no address yet} on ${iface} (Tailscale): join the tailnet to reach the internal services" \
             "private-port services listen here and are closed to the internet"

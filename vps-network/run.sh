@@ -6,7 +6,7 @@
 #   internal-interface               interface carrying the internal network (private-port services)
 #   internal-address                 its first IPv4 address (empty until it has one)
 #   summary-host                    that address, else <internal-ip>, for the summaries
-#   external-domain                 the external DNS domain (EXTERNAL_DOMAIN, else nip.io)
+#   external-domain                 the external DNS domain (ACCESS_EXTERNAL_DOMAIN, else nip.io)
 #   summary-block <title> <public> <internal> <local> [note...]   the public/internal/local paragraph of a step summary
 #   port <name>                     a port by name (<NAME>_PORT wins over package.json)
 #   ports                           every step's ports as TSV: name port access note
@@ -14,8 +14,8 @@
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
 #   access-route <service>          shell to eval: route_access, route_domain, route_middlewares, route_certresolver of a service
-#   internal-range                  source CIDRs of the internal network (INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
-#   internal-domain                 INTERNAL_DOMAIN, else <internal-ip>.nip.io
+#   internal-range                  source CIDRs of the internal network (K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
+#   internal-domain                 ACCESS_INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
 #   set-visibility <service> <v>    persist a choice (vps-access)
@@ -48,10 +48,10 @@ fi
 root="${VPS_SETUP_ROOT:-${ZZ_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}}"
 # Internal network: ports with access "private" are only reachable over one interface.
 # Whoever provides that network persists it here; the environment wins.
-internal_file="${VPS_INTERNAL_ACCESS_FILE:-/etc/vps-internal-access.env}"
-external_file="${VPS_EXTERNAL_DOMAIN_FILE:-/etc/vps-external-domain.env}"
-# Access choices (vps-access): <NAME>_ACCESS per service and INTERNAL_DOMAIN; the environment wins.
-access_file="${VPS_ACCESS_FILE:-/etc/vps-access.env}"
+internal_file="${NETWORK_INTERNAL_ACCESS_FILE:-/etc/vps-internal-access.env}"
+external_file="${NETWORK_EXTERNAL_DOMAIN_FILE:-/etc/vps-external-domain.env}"
+# Access choices (vps-access): <NAME>_ACCESS per service and ACCESS_INTERNAL_DOMAIN; the environment wins.
+access_file="${NETWORK_ACCESS_FILE:-/etc/vps-access.env}"
 
 # --- functions
 
@@ -77,12 +77,12 @@ get_public_ip() {
     printf '%s' "$ip"
 }
 
-# get_internal_interface: VPS_INTERNAL_INTERFACE, else the persisted one.
+# get_internal_interface: SECURITY_INTERNAL_INTERFACE, else the persisted one.
 get_internal_interface() {
-    if [ -n "${VPS_INTERNAL_INTERFACE:-}" ]; then
-        printf '%s' "$VPS_INTERNAL_INTERFACE"
+    if [ -n "${SECURITY_INTERNAL_INTERFACE:-}" ]; then
+        printf '%s' "$SECURITY_INTERNAL_INTERFACE"
     elif [ -f "$internal_file" ]; then
-        zz-persist -f "$internal_file" -r VPS_INTERNAL_INTERFACE
+        zz-persist -f "$internal_file" -r SECURITY_INTERNAL_INTERFACE
     fi
 }
 
@@ -95,14 +95,15 @@ get_internal_address() {
 }
 
 # get_external_domain: apps that need per-app subdomains (Coder's workspace apps)
-# take one domain: EXTERNAL_DOMAIN, the persisted one, else nip.io on the PUBLIC
+# take one domain: ACCESS_EXTERNAL_DOMAIN, the persisted one, else nip.io on the PUBLIC
 # address (never the internal/Tailscale one: the apps are served by the public
 # ingress), which resolves any <a-b-c-d>.nip.io and *.<a-b-c-d>.nip.io to that IP.
 get_external_domain() {
-    local domain="${EXTERNAL_DOMAIN:-}" ip
+    local domain="${ACCESS_EXTERNAL_DOMAIN:-}" ip
 
+    domain="${domain#\*.}"
     if [ -z "$domain" ] && [ -f "$external_file" ]; then
-        domain="$(zz-persist -f "$external_file" -r EXTERNAL_DOMAIN)"
+        domain="$(zz-persist -f "$external_file" -r ACCESS_EXTERNAL_DOMAIN)"
     fi
     if [ -z "$domain" ]; then
         ip="$(get_public_ip)"
@@ -111,13 +112,13 @@ get_external_domain() {
     printf '%s' "$domain"
 }
 
-# get_internal_domain: INTERNAL_DOMAIN, else the persisted one, else nip.io on the
+# get_internal_domain: ACCESS_INTERNAL_DOMAIN, else the persisted one, else nip.io on the
 # internal (Tailscale/Cloudflare) address.
 get_internal_domain() {
-    local domain="${INTERNAL_DOMAIN:-}" ip
+    local domain="${ACCESS_INTERNAL_DOMAIN:-}" ip
 
     if [ -z "$domain" ] && [ -f "$access_file" ]; then
-        domain="$(zz-persist -f "$access_file" -r INTERNAL_DOMAIN)"
+        domain="$(zz-persist -f "$access_file" -r ACCESS_INTERNAL_DOMAIN)"
     fi
     if [ -z "$domain" ]; then
         ip="$(get_internal_address)"
@@ -160,13 +161,13 @@ list_visibilities() {
 }
 
 # get_internal_range: the source CIDRs of the internal network's clients (comma separated):
-# INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
+# K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
 # and loopback. Empty until there is an internal network.
 get_internal_range() {
     local iface ip
 
-    if [ -n "${INTERNAL_SOURCE_RANGE:-}" ]; then
-        printf '%s' "$INTERNAL_SOURCE_RANGE"
+    if [ -n "${K3S_INTERNAL_SOURCE_RANGE:-}" ]; then
+        printf '%s' "$K3S_INTERNAL_SOURCE_RANGE"
         return 0
     fi
     iface="$(get_internal_interface)"
@@ -291,9 +292,9 @@ access-domain) get_access_domain "${1:-}" ;;
 summary-block) summary_block "$@" ;;
 port) get_port "${1:?usage: vps-network port <name>}" ;;
 ports) list_ports ;;
-set-internal-interface) zz-persist -f "$internal_file" VPS_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface>}" ;;
+set-internal-interface) zz-persist -f "$internal_file" SECURITY_INTERNAL_INTERFACE "${1:?usage: vps-network set-internal-interface <iface>}" ;;
 unset-internal-interface)
-    [ "$(get_internal_interface)" != "${1:?usage: vps-network unset-internal-interface <iface>}" ] || zz-persist -q -f "$internal_file" -u VPS_INTERNAL_INTERFACE
+    [ "$(get_internal_interface)" != "${1:?usage: vps-network unset-internal-interface <iface>}" ] || zz-persist -q -f "$internal_file" -u SECURITY_INTERNAL_INTERFACE
     ;;
 internal-domain) get_internal_domain ;;
 internal-range) get_internal_range ;;
@@ -304,9 +305,9 @@ set-visibility)
     case "${2:-}" in public | internal) ;; *) zz-log e "usage: vps-network set-visibility <service> public|internal" && exit 1 ;; esac
     zz-persist -f "$access_file" "$(printf '%s' "${1:?usage: vps-network set-visibility <service> public|internal}" | tr '[:lower:]' '[:upper:]')_ACCESS" "$2"
     ;;
-set-internal-domain) zz-persist -f "$access_file" INTERNAL_DOMAIN "${1:?usage: vps-network set-internal-domain <domain>}" ;;
+set-internal-domain) zz-persist -f "$access_file" ACCESS_INTERNAL_DOMAIN "${1:?usage: vps-network set-internal-domain <domain>}" ;;
 unset-access) rm -f "$access_file" ;;
-set-external-domain) zz-persist -f "$external_file" EXTERNAL_DOMAIN "${1:?usage: vps-network set-external-domain <domain>}" ;;
+set-external-domain) zz-persist -f "$external_file" ACCESS_EXTERNAL_DOMAIN "${1:?usage: vps-network set-external-domain <domain>}" ;;
 verify) verify_ports "${1:?usage: vps-network verify <public-ip> (from another machine)}" ;;
 reapply-guard)
     # ufw only filters INPUT; the guard unit of vps-security re-inserts its FORWARD rule

@@ -43,13 +43,6 @@ DIR="$REPO_ROOT/vps-system"
 
 
 
-@test "EXTERNAL_DOMAIN is validated, persisted for vps-network's external-domain, and optional" {
-    grep -q 'vps-network set-external-domain' "$DIR/run.sh"
-    grep -q 'nip.io' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs.EXTERNAL_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
-
 @test "upgrades and unattended security upgrades cover apt, dnf and zypper" {
     grep -q 'zz-install -f -m' "$DIR/run.sh"
     ! grep -qE 'apt-get (update|upgrade)' "$DIR/run.sh"

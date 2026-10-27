@@ -31,10 +31,10 @@ up() {
         zz-log i "[vps-setup] cloudflared already installed ($(cloudflared --version | head -n1 || true))."
     else
         zz-log i "[vps-setup] Installing cloudflared (release binary, works on any distribution)..."
-        # CLOUDFLARED_VERSION pins the release (and CLOUDFLARED_SHA256 checks it); unset = latest.
-        if [ -n "${CLOUDFLARED_VERSION:-}" ]; then
+        # CLOUDFLARE_VERSION pins the release (and CLOUDFLARE_SHA256 checks it); unset = latest.
+        if [ -n "${CLOUDFLARE_VERSION:-}" ]; then
             zz-install -u https://github.com/cloudflare/cloudflared/releases/download/{VERSION}/cloudflared-{OS}-{ARCH} \
-                -v "$CLOUDFLARED_VERSION" ${CLOUDFLARED_SHA256:+-s "$CLOUDFLARED_SHA256"} cloudflared
+                -v "$CLOUDFLARE_VERSION" ${CLOUDFLARE_SHA256:+-s "$CLOUDFLARE_SHA256"} cloudflared
         else
             zz-install -u https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-{OS}-{ARCH} cloudflared
         fi
@@ -44,7 +44,7 @@ up() {
     # WARP clients reach the VPS at this address through the tunnel's private
     # network route; it lives on a dummy interface so it exists before and without
     # any public traffic.
-    internal_ip="${CLOUDFLARE_PRIVATE_IP:-10.254.254.1}"
+    internal_ip="${CLOUDFLARE_INTERNAL_IP:-10.254.254.1}"
     cat >"$IF_UNIT" <<UNIT
 [Unit]
 Description=vps-setup internal interface for Cloudflare WARP routes
@@ -98,8 +98,8 @@ down() {
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
     vps-network unset-internal-interface "$IFACE"
-    if [ "${PURGE_CLOUDFLARED:-false}" = "true" ]; then
-        zz-log i "[vps-setup] Purging the cloudflared package (PURGE_CLOUDFLARED=true)..."
+    if [ "${CLOUDFLARE_PURGE:-false}" = "true" ]; then
+        zz-log i "[vps-setup] Purging the cloudflared package (CLOUDFLARE_PURGE=true)..."
         # Installed as a plain binary (no package to remove); also drop the apt repo of earlier installs.
         rm -f "$(command -v cloudflared)" /etc/apt/sources.list.d/cloudflared.list /usr/share/keyrings/cloudflare-main.gpg
     fi

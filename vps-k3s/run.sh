@@ -62,32 +62,32 @@ up() {
     zz-log s "[vps-setup] k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
 
     # --- Traefik
-    TRAEFIK_ACME_EMAIL="${TRAEFIK_ACME_EMAIL:-admin@example.com}"
-    TRAEFIK_ACME_STAGING="${TRAEFIK_ACME_STAGING:-true}"
-    TRAEFIK_DASHBOARD_PORT="$(vps-network port traefik_dashboard)"
+    K3S_TRAEFIK_ACME_EMAIL="${K3S_TRAEFIK_ACME_EMAIL:-admin@example.com}"
+    K3S_TRAEFIK_ACME_STAGING="${K3S_TRAEFIK_ACME_STAGING:-true}"
+    K3S_TRAEFIK_DASHBOARD_PORT="$(vps-network port k3s_traefik_dashboard)"
 
-    if [ "$TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
-        zz-log w "[vps-setup] TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
+    if [ "$K3S_TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
+        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
             "still issue certs with it, but you won't get expiry/problem notices." \
-            "Set TRAEFIK_ACME_EMAIL to a real address you control."
+            "Set K3S_TRAEFIK_ACME_EMAIL to a real address you control."
     fi
-    if [ "$TRAEFIK_ACME_STAGING" = "true" ]; then
-        zz-log w "[vps-setup] TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
+    if [ "$K3S_TRAEFIK_ACME_STAGING" = "true" ]; then
+        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
             "environment issues untrusted certs (browsers will warn) but has no" \
             "rate limit - safe to test against repeatedly. Set" \
-            "TRAEFIK_ACME_STAGING=false for real, trusted certs once ready" \
+            "K3S_TRAEFIK_ACME_STAGING=false for real, trusted certs once ready" \
             "(production Let's Encrypt has strict per-domain rate limits, so" \
             "avoid iterating against it)."
     fi
 
     # Let's Encrypt production unless staging was asked for (see above).
     TRAEFIK_ACME_CASERVER="https://acme-v02.api.letsencrypt.org/directory"
-    if [ "$TRAEFIK_ACME_STAGING" = "true" ]; then
+    if [ "$K3S_TRAEFIK_ACME_STAGING" = "true" ]; then
         TRAEFIK_ACME_CASERVER="https://acme-staging-v02.api.letsencrypt.org/directory"
     fi
 
-    zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${TRAEFIK_DASHBOARD_PORT})..."
-    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" TRAEFIK_DASHBOARD_PORT="$TRAEFIK_DASHBOARD_PORT" TRAEFIK_ACME_EMAIL="$TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
+    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
@@ -110,7 +110,7 @@ up() {
 
     vps-network reapply-guard
 
-    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${TRAEFIK_DASHBOARD_PORT} (private access only)."
+    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
@@ -131,7 +131,7 @@ summary() {
     vps-network summary-block "Traefik (k3s)" \
         "http://${host:-<public-ip>} and https://${host:-<public-ip>} (web/websecure, 80/443; Let's Encrypt resolver \"letsencrypt\")" \
         "the same 80/443 on $(vps-network summary-host), for internal hosts only (internal-only middleware: sources $(vps-network internal-range || true))" \
-        "dashboard http://localhost:$(vps-network port traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
+        "dashboard http://localhost:$(vps-network port k3s_traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
         "A \"letsencrypt\" certResolver is ready: it issues nothing until your Ingress has the router.tls.certresolver annotation (see README)." \
         "kubectl / helm: KUBECONFIG=/etc/rancher/k3s/k3s.yaml (exported via /etc/profile.d/k3s-kubeconfig.sh for new shells)"
 }

@@ -10,9 +10,9 @@ zz-use zz-colors zz-log zz-menu zz-prompt
 . zz-colors
 
 # ask: menus only with a terminal to ask on (stdin, else /dev/tty, as zz-prompt reads it)
-# and unless VPS_ACCESS_MENU=false.
+# and unless ACCESS_MENU=false.
 ask() {
-    [ "${VPS_ACCESS_MENU:-true}" = "true" ] && { [ -t 0 ] || (: </dev/tty) 2>/dev/null; }
+    [ "${ACCESS_MENU:-true}" = "true" ] && { [ -t 0 ] || (: </dev/tty) 2>/dev/null; }
 }
 
 # confirm_visibility: public or internal for every service declaring config.visibility.
@@ -76,7 +76,19 @@ $(vps-network visibilities)
 EOF
 }
 
+# validate_external: ACCESS_EXTERNAL_DOMAIN (a bare domain, a leading "*." is dropped) is saved for vps-network.
+validate_external() {
+    local domain
+
+    [ -n "${ACCESS_EXTERNAL_DOMAIN:-}" ] || return 0
+    domain="${ACCESS_EXTERNAL_DOMAIN#\*.}"
+    printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
+        { zz-log e "[vps-setup] ACCESS_EXTERNAL_DOMAIN must be a bare domain like apps.example.com (got '${ACCESS_EXTERNAL_DOMAIN}')." && exit 1; }
+    vps-network set-external-domain "$domain"
+}
+
 up() {
+    validate_external
     confirm_visibility
     confirm_domain External "$(vps-network external-domain)" "$(vps-network public-ip)" set-external-domain
     confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain

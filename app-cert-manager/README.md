@@ -16,7 +16,7 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
 app-cert-manager [-v version]
 ```
 
-The chart version comes from `-v`, else `CERT_MANAGER_VERSION`, else the latest.
+The chart version comes from `-v`, else `RANCHER_CERT_MANAGER_VERSION`, else the latest.
 Needs `helm` and `kubectl` (from `vps-k3s`).
 
 ## Tests

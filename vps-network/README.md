@@ -17,13 +17,13 @@ vps-network <command> [args...]
 | Command                         | Prints / does                                                                     |
 | ------------------------------- | --------------------------------------------------------------------------------- |
 | `public-ip`                     | public IPv4: the default-route source address, or - behind NAT - what an echo service sees |
-| `internal-interface`             | the interface carrying the internal network (private-port services) (`VPS_INTERNAL_INTERFACE`, else the persisted one) |
+| `internal-interface`             | the interface carrying the internal network (private-port services) (`SECURITY_INTERNAL_INTERFACE`, else the persisted one) |
 | `internal-address`               | its first IPv4 address (empty until it has one)                                   |
 | `summary-host`                  | that address, else `<internal-ip>`, for the steps' summaries                       |
-| `external-domain`               | `EXTERNAL_DOMAIN`, else the persisted one, else `<public-ip>.nip.io` (public address, never the internal one) |
+| `external-domain`               | `ACCESS_EXTERNAL_DOMAIN`, else the persisted one, else `<public-ip>.nip.io` (public address, never the internal one) |
 | `access-domain public\|internal` | `external-domain`, or `<internal-ip>.nip.io` (dashes) for internal access; fails without a internal address |
-| `internal-domain` | `INTERNAL_DOMAIN`, else the saved one, else `<internal-ip>.nip.io` |
-| `internal-range` | source CIDRs of the internal network's clients: `INTERNAL_SOURCE_RANGE`, else Tailscale's `100.64.0.0/10`, else the internal address and loopback (used by the `internal-only` Traefik middleware) |
+| `internal-domain` | `ACCESS_INTERNAL_DOMAIN`, else the saved one, else `<internal-ip>.nip.io` |
+| `internal-range` | source CIDRs of the internal network's clients: `K3S_INTERNAL_SOURCE_RANGE`, else Tailscale's `100.64.0.0/10`, else the internal address and loopback (used by the `internal-only` Traefik middleware) |
 | `access-route <service>` | shell to `eval`: `route_access`, `route_domain`, `route_middlewares` (the `internal-only` Traefik middleware for internal, else empty) and `route_certresolver` (`letsencrypt` for public, none for internal); logs and prints `exit 1` on a bad choice or no domain |
 | `visibility <service>` | `public` or `internal`: `<NAME>_ACCESS`, else the saved choice, else `config.visibility` of `vps-<service>`, else `public` |
 | `visibilities` | every service declaring `config.visibility`, as TSV: name, visibility |
@@ -41,7 +41,7 @@ vps-network <command> [args...]
 ## Environment
 
 `VPS_SETUP_ROOT` / `ZZ_SETUP_ROOT` (the checkout holding the steps; default: the one the script sits in),
-`VPS_INTERNAL_ACCESS_FILE`, `VPS_EXTERNAL_DOMAIN_FILE`, `VPS_INTERNAL_INTERFACE`, `EXTERNAL_DOMAIN`.
+`NETWORK_INTERNAL_ACCESS_FILE`, `NETWORK_EXTERNAL_DOMAIN_FILE`, `SECURITY_INTERNAL_INTERFACE`, `ACCESS_EXTERNAL_DOMAIN`.
 
 ## Tests
 
@@ -53,4 +53,4 @@ Covers the commands against a small fixture tree (`bats test.bats`).
 
 ## Renamed
 
-The private network is now the **internal network** and the wildcard domain the **external domain**. Commands: `internal-interface`, `internal-address`, `set-internal-interface`, `unset-internal-interface`, `external-domain`, `set-external-domain`. Variables: `VPS_INTERNAL_INTERFACE`, `VPS_INTERNAL_ACCESS_FILE`, `EXTERNAL_DOMAIN`, `VPS_EXTERNAL_DOMAIN_FILE`. State files: `/etc/vps-internal-access.env` and `/etc/vps-external-domain.env`. A host set up before the rename keeps the old `/etc/vps-private-access.env` and `/etc/vps-wildcard-domain.env`: re-run `vps-tailscale` (or `vps-cloudflare`) and `vps-system` to write the new ones. `access: "private"` on a port is unchanged.
+The private network is now the **internal network** and the wildcard domain the **external domain**. Commands: `internal-interface`, `internal-address`, `set-internal-interface`, `unset-internal-interface`, `external-domain`, `set-external-domain`. Variables: `SECURITY_INTERNAL_INTERFACE`, `NETWORK_INTERNAL_ACCESS_FILE`, `ACCESS_EXTERNAL_DOMAIN`, `NETWORK_EXTERNAL_DOMAIN_FILE`. State files: `/etc/vps-internal-access.env` and `/etc/vps-external-domain.env`. A host set up before the rename keeps the old `/etc/vps-private-access.env` and `/etc/vps-wildcard-domain.env`: re-run `vps-tailscale` (or `vps-cloudflare`) and `vps-system` to write the new ones. `access: "private"` on a port is unchanged.

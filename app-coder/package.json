@@ -66,38 +66,38 @@
         "required": false,
         "default": "coder-workspaces"
       },
-      "DEVCONTAINER_BUILDER_REF": {
+      "CODER_DEVCONTAINER_BUILDER_REF": {
         "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required for that template)",
         "required": false,
         "default": ""
       },
-      "DEVCONTAINER_BUILDER_VERSION": {
+      "CODER_DEVCONTAINER_BUILDER_VERSION": {
         "description": "devcontainer-builder Helm chart version (empty = latest, logged so you can pin it)",
         "required": false,
         "default": ""
       },
-      "DEVCONTAINER_REGISTRY": {
+      "CODER_DEVCONTAINER_REGISTRY": {
         "description": "External registry host (with the token, user and org); default ghcr.io",
         "required": false,
         "default": "ghcr.io"
       },
-      "DEVCONTAINER_REGISTRY_ORG": {
+      "CODER_DEVCONTAINER_REGISTRY_ORG": {
         "description": "Registry org/user images are pushed under",
         "required": false,
         "default": ""
       },
-      "DEVCONTAINER_REGISTRY_TOKEN": {
+      "CODER_DEVCONTAINER_REGISTRY_TOKEN": {
         "description": "External registry token able to push and pull (GHCR: write:packages); with user and org it replaces the in-cluster registry",
         "required": false,
         "default": "",
         "secret": true
       },
-      "DEVCONTAINER_REGISTRY_USER": {
+      "CODER_DEVCONTAINER_REGISTRY_USER": {
         "description": "Registry username for the token",
         "required": false,
         "default": ""
       },
-      "VPS_SECRETS_FILE": {
+      "SYSTEM_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,
         "default": "/root/.vps-secrets.env"
@@ -107,7 +107,7 @@
     "outputs": {},
     "ports": [
       {
-        "name": "devcontainer_registry",
+        "name": "coder_registry",
         "port": 5000,
         "access": "private"
       }

@@ -8,8 +8,6 @@ zz-use zz-colors zz-log zz-persist zz-install
 . zz-colors
 
 up() {
-    local domain
-
     zz-log i "[vps-setup] Upgrading existing packages and installing base utilities..."
     zz-install -f -m ca-certificates curl wget git jq unzip htop net-tools
     # Same tools, named differently outside Debian (gnupg2 on Amazon Linux, gpg2 on SUSE).
@@ -32,20 +30,9 @@ EOF2
         zz-log w "[vps-setup] No unattended security upgrades on this distribution: run 'zypper patch' on your own schedule."
     fi
 
-    if [ -n "${TZ:-}" ]; then
-        zz-log i "[vps-setup] Setting timezone to ${TZ}..."
-        timedatectl set-timezone "$TZ" || zz-log w "[vps-setup] Could not set timezone ${TZ}"
-    fi
-
-    # Wildcard DNS for apps that need subdomains; unset = nip.io, worked out where it is used.
-    if [ -n "${EXTERNAL_DOMAIN:-}" ]; then
-        domain="${EXTERNAL_DOMAIN#\*.}"
-        printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
-            { zz-log e "[vps-setup] EXTERNAL_DOMAIN must be a bare domain like apps.example.com (got '${EXTERNAL_DOMAIN}')." && exit 1; }
-        vps-network set-external-domain "$domain"
-        zz-log i "[vps-setup] Wildcard DNS: *.${domain} (point it at this VPS)."
-    else
-        zz-log i "[vps-setup] No EXTERNAL_DOMAIN: apps needing wildcard DNS fall back to <ip>.nip.io."
+    if [ -n "${SYSTEM_TZ:-}" ]; then
+        zz-log i "[vps-setup] Setting timezone to ${SYSTEM_TZ}..."
+        timedatectl set-timezone "$SYSTEM_TZ" || zz-log w "[vps-setup] Could not set timezone ${SYSTEM_TZ}"
     fi
 
     zz-log s "[vps-setup] Base system is up to date."

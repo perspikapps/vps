@@ -39,18 +39,18 @@ sudo vps-setup --down-vps-security
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
-| `SSH_PORT` | no | `22` | SSH port to keep open |
-| `VPS_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for VPS_ADMIN_USER (or root if unset) |
-| `VPS_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for VPS_ADMIN_USER and root |
-| `VPS_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
-| `VPS_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
+| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `SECURITY_SSH_PORT` | no | `22` | SSH port to keep open |
+| `SECURITY_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for SECURITY_ADMIN_USER (or root if unset) |
+| `SECURITY_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for SECURITY_ADMIN_USER and root |
+| `SECURITY_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
+| `SECURITY_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
 
 ## Outputs
 
 | Output | Description |
 | --- | --- |
-| `COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
+| `SECURITY_COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
 
 ## Dependencies
 

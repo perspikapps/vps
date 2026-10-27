@@ -43,8 +43,8 @@ write_files:
       content: |
           # Filled in at provisioning time - see README.md for where each value
           # comes from (SSH keys, Tailscale auth keys, etc).
-          VPS_ADMIN_USER=ops
-          VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
+          SECURITY_ADMIN_USER=ops
+          SECURITY_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
           TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" # REQUIRED
           RANCHER_HOSTNAME="rancher.tailnet-name.ts.net"
           RANCHER_BOOTSTRAP_PASSWORD="" # leave blank to auto-generate, see README.md

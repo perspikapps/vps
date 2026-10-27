@@ -18,12 +18,12 @@
     ],
     "default": false,
     "inputs": {
-      "ADVERTISE_ADDR": {
+      "DOKPLOY_ADVERTISE_ADDR": {
         "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",
         "required": false,
         "default": ""
       },
-      "DOCKER_SWARM_INIT_ARGS": {
+      "DOKPLOY_DOCKER_SWARM_INIT_ARGS": {
         "description": "Extra 'docker swarm init' flags, e.g. --default-addr-pool 172.20.0.0/16 to avoid clashing with a VPC",
         "required": false,
         "default": ""
@@ -33,7 +33,7 @@
         "required": false,
         "default": ""
       },
-      "REMOVE_DOCKER": {
+      "DOKPLOY_REMOVE_DOCKER": {
         "description": "Also remove Docker itself on down (true/false)",
         "required": false,
         "default": "false"

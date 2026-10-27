@@ -14,7 +14,7 @@ CODER_NAMESPACE=coder
 WORKSPACE_NAMESPACE="${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"
 printf '%s\n' "$WORKSPACE_NAMESPACE" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$' ||
     { zz-log e "[vps-setup] CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')." && exit 1; }
-REGISTRY_PORT="$(vps-network port devcontainer_registry)"
+REGISTRY_PORT="$(vps-network port coder_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
 # Chart values and manifests, rendered with yaml-render (see helm/).
@@ -69,11 +69,11 @@ run_bootstrap_steps() {
     # the platform (devcontainer-builder + registry) is installed before the admin step;
     # its template is pushed only when it is up and the template repo ref is pinned
     if [ "${BUILDER_READY:-}" = "1" ]; then
-        if printf '%s\n' "${DEVCONTAINER_BUILDER_REF:-}" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._/-]*$'; then
+        if printf '%s\n' "${CODER_DEVCONTAINER_BUILDER_REF:-}" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._/-]*$'; then
             push_coder_template "$token" kubernetes-devcontainer || { zz-log w "[vps-setup] Pushing the kubernetes-devcontainer template failed (see above)." && return 1; }
             return 0
         fi
-        zz-log w "[vps-setup] devcontainer-builder is installed, but its template is third-party code and must be pinned: set DEVCONTAINER_BUILDER_REF (a tag or commit of github.com/DeepSpaceCartel/devcontainer-builder). Using the Envbuilder starter instead."
+        zz-log w "[vps-setup] devcontainer-builder is installed, but its template is third-party code and must be pinned: set CODER_DEVCONTAINER_BUILDER_REF (a tag or commit of github.com/DeepSpaceCartel/devcontainer-builder). Using the Envbuilder starter instead."
     fi
     push_coder_template "$token" envbuilder || { zz-log w "[vps-setup] Pushing the Envbuilder 'devcontainer' template failed (see above)." && return 1; }
     zz-log i "[vps-setup] Template pushed."
@@ -123,23 +123,23 @@ deploy_buildkit() {
 
 # devcontainer-builder (https://deepspacecartel.github.io/devcontainer-builder/getting-started/platform/):
 # builds a repo's devcontainer.json into an image pushed to a registry, with its own BuildKit (needs a
-# privileged namespace). Third-party chart: an unset DEVCONTAINER_BUILDER_VERSION resolves to the latest
+# privileged namespace). Third-party chart: an unset CODER_DEVCONTAINER_BUILDER_VERSION resolves to the latest
 # and is logged so it can be pinned. The registry is the external one when DEVCONTAINER_REGISTRY_* are
 # set, else the in-cluster one. Sets BUILDER_READY=1 for the template step.
 install_devcontainer_builder() {
-    local values chart=oci://ghcr.io/deepspacecartel/charts/devcontainer-builder version="${DEVCONTAINER_BUILDER_VERSION:-}"
+    local values chart=oci://ghcr.io/deepspacecartel/charts/devcontainer-builder version="${CODER_DEVCONTAINER_BUILDER_VERSION:-}"
     local registry mapped auth_user auth_pw node_ip insecure_registries='[]' insecure_host="" registry_auth status
 
     if [ -z "$version" ]; then
         version="$(helm show chart "$chart" 2>/dev/null | awk '/^version:/ {print $2; exit}')" || true
         [ -n "$version" ] || { zz-log w "[vps-setup] Could not resolve the latest devcontainer-builder chart version." && return 1; }
-        zz-log w "[vps-setup] DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with DEVCONTAINER_BUILDER_VERSION=${version}."
+        zz-log w "[vps-setup] CODER_DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with CODER_DEVCONTAINER_BUILDER_VERSION=${version}."
     fi
-    if [ -n "${DEVCONTAINER_REGISTRY_TOKEN:-}" ] && [ -n "${DEVCONTAINER_REGISTRY_USER:-}" ] && [ -n "${DEVCONTAINER_REGISTRY_ORG:-}" ]; then
-        registry="${DEVCONTAINER_REGISTRY:-ghcr.io}"
-        mapped="${registry}/${DEVCONTAINER_REGISTRY_ORG}"
-        auth_user="$DEVCONTAINER_REGISTRY_USER"
-        auth_pw="$DEVCONTAINER_REGISTRY_TOKEN"
+    if [ -n "${CODER_DEVCONTAINER_REGISTRY_TOKEN:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_USER:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_ORG:-}" ]; then
+        registry="${CODER_DEVCONTAINER_REGISTRY:-ghcr.io}"
+        mapped="${registry}/${CODER_DEVCONTAINER_REGISTRY_ORG}"
+        auth_user="$CODER_DEVCONTAINER_REGISTRY_USER"
+        auth_pw="$CODER_DEVCONTAINER_REGISTRY_TOKEN"
     else
         node_ip="$(hostname -I | awk '{print $1}')"
         registry="${node_ip}:${REGISTRY_PORT}"
@@ -197,9 +197,9 @@ push_coder_template() {
     if [ "$kind" = "kubernetes-devcontainer" ]; then
         # the template repo at the pinned tag/commit, not its default branch
         src="$(mktemp -d)"
-        { git -C "$src" init -q && git -C "$src" fetch -q --depth 1 https://github.com/DeepSpaceCartel/devcontainer-builder.git "$DEVCONTAINER_BUILDER_REF" &&
+        { git -C "$src" init -q && git -C "$src" fetch -q --depth 1 https://github.com/DeepSpaceCartel/devcontainer-builder.git "$CODER_DEVCONTAINER_BUILDER_REF" &&
             git -C "$src" checkout -q FETCH_HEAD; } >/dev/null 2>&1 ||
-            { rm -rf "$src" && zz-log w "[vps-setup] Could not fetch devcontainer-builder at ${DEVCONTAINER_BUILDER_REF}." && return 1; }
+            { rm -rf "$src" && zz-log w "[vps-setup] Could not fetch devcontainer-builder at ${CODER_DEVCONTAINER_BUILDER_REF}." && return 1; }
         tar -C "$src/templates/coder-kubernetes" -cf - . |
             kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c 'rm -rf /tmp/dcb && mkdir -p /tmp/dcb && tar -xf - -C /tmp/dcb'
         rm -rf "$src"
@@ -235,7 +235,7 @@ up() {
 
     # --- PostgreSQL (helm/postgresql-values.yaml)
     # alphanumeric only, so it can sit in the connection URL unescaped
-    db_password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
+    db_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
     db_storage="${CODER_DB_STORAGE:-10Gi}"
 
     zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
@@ -251,14 +251,14 @@ up() {
     # --- Coder (helm/coder-values.yaml, or coder-values-wildcard.yaml)
     # Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
-    # under it: both come from one domain (vps-system's EXTERNAL_DOMAIN, else nip.io).
+    # under it: both come from one domain (vps-system's ACCESS_EXTERNAL_DOMAIN, else nip.io).
     # vps-access (or CODER_ACCESS) picks public or internal, never both: public = Traefik 80/443 on the
     # server IP; internal = a host on the internal domain behind the internal-only
     # middleware (internal network clients only). Traefik 80/443 and plain HTTP either way.
     eval "$(vps-network access-route coder)"
     access="$route_access" middlewares="$route_middlewares" wildcard="$route_domain"
     access_url="${CODER_ACCESS_URL:-${wildcard:+http://coder.${wildcard}}}"
-    [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or EXTERNAL_DOMAIN." && exit 1; }
+    [ -n "$access_url" ] || { zz-log e "[vps-setup] No access URL: set CODER_ACCESS_URL or ACCESS_EXTERNAL_DOMAIN." && exit 1; }
     host="${access_url#*://}"
     host="${host%%[:/]*}"
     values_file="$(mktemp)"
@@ -288,22 +288,22 @@ up() {
     # --- admin user and template
     admin_email="${CODER_ADMIN_EMAIL:-admin@${wildcard:-coder.local}}"
     admin_user="${CODER_ADMIN_USERNAME:-admin}"
-    admin_password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD "${CODER_ADMIN_PASSWORD:-}")"
-    zz-persist -s -f "$VPS_SECRETS_FILE" CODER_ADMIN_EMAIL "$admin_email"
-    zz-persist -s -f "$VPS_SECRETS_FILE" CODER_ADMIN_USERNAME "$admin_user"
+    admin_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 CODER_ADMIN_PASSWORD "${CODER_ADMIN_PASSWORD:-}")"
+    zz-persist -s -f "$SYSTEM_SECRETS_FILE" CODER_ADMIN_EMAIL "$admin_email"
+    zz-persist -s -f "$SYSTEM_SECRETS_FILE" CODER_ADMIN_USERNAME "$admin_user"
     bootstrap_coder "$admin_email" "$admin_user" "$admin_password"
 
-    zz-log s "[vps-setup] Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${VPS_SECRETS_FILE}."
+    zz-log s "[vps-setup] Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${SYSTEM_SECRETS_FILE}."
 }
 
 down() {
     eval "$(kube-require -d)"
     zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
     kube-teardown "$CODER_NAMESPACE" coder
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_DB_PASSWORD
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_EMAIL
-    zz-persist -q -f "$VPS_SECRETS_FILE" -u CODER_ADMIN_USERNAME
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_DB_PASSWORD
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_EMAIL
+    zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_USERNAME
     zz-log s "[vps-setup] Coder removed."
 }
 
@@ -324,9 +324,9 @@ summary() {
         reg="image registry ${ip}:${REGISTRY_PORT} (in-cluster, no login; catalog http://${ip}:${REGISTRY_PORT}/v2/_catalog)"
     fi
     vps-network summary-block Coder "$pub" "$int" "${reg:--}" \
-        "user:     $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run app-coder/run.sh')" \
-        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run app-coder/run.sh')" \
-        "(saved to ${VPS_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
+        "user:     $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r CODER_ADMIN_EMAIL | grep . || echo 'not set - run app-coder/run.sh')" \
+        "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r CODER_ADMIN_PASSWORD | grep . || echo 'not set - run app-coder/run.sh')" \
+        "(saved to ${SYSTEM_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
 }
 
 case "${1:-}" in

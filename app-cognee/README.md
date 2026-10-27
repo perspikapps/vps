@@ -14,7 +14,7 @@ sudo vps-setup --only-app-cognee
 sudo vps-setup --down-app-cognee
 ```
 
-The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds the chart values (a shared domain from `vps-network access-domain`, the app's own settings) and runs `app-helm up cognee`. The key is saved to `VPS_SECRETS_FILE` and given to the chart through a values file, never `--set`.
+The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds the chart values (a shared domain from `vps-network access-domain`, the app's own settings) and runs `app-helm up cognee`. The key is saved to `SYSTEM_SECRETS_FILE` and given to the chart through a values file, never `--set`.
 
 ## Public or internal
 
@@ -25,7 +25,7 @@ The route is **public** (server IP) or **internal** (the internal network only),
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `COGNEE_LLM_API_KEY` | yes | _(unset)_ | LLM provider API key Cognee needs to start (OpenAI by default) |
-| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 
 ## Dependencies
 

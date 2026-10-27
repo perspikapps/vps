@@ -56,7 +56,7 @@ run_summary() {
     # vps-network is on PATH through zz-use in a real run; here the checkout's own copy.
     printf '#!/bin/sh\nexec sh "%s/vps-network/run.sh" "$@"\n' "$REPO_ROOT" >"$2/vps-network"
     chmod +x "$2/vps-network"
-    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$(ls -d "$REPO_ROOT/vps-$1" "$REPO_ROOT/app-$1" 2>/dev/null | head -1)"
+    run env SYSTEM_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$(ls -d "$REPO_ROOT/vps-$1" "$REPO_ROOT/app-$1" 2>/dev/null | head -1)"
 }
 
 @test "every step's summary action runs and prints its block" {

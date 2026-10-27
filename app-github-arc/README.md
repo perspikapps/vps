@@ -21,10 +21,10 @@ The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds t
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `GITHUB_ARC_CONFIG_URL` | yes | _(unset)_ | Org or repo URL the runners register against (e.g. https://github.com/<org>) |
-| `GITHUB_APP_ID` | yes | _(unset)_ | GitHub App id used to register the runners |
-| `GITHUB_APP_INSTALLATION_ID` | yes | _(unset)_ | Installation id of that GitHub App |
-| `GITHUB_APP_PRIVATE_KEY` | yes | _(unset)_ | Private key of that GitHub App (PEM contents) |
-| `VPS_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `GITHUB_ARC_APP_ID` | yes | _(unset)_ | GitHub App id used to register the runners |
+| `GITHUB_ARC_APP_INSTALLATION_ID` | yes | _(unset)_ | Installation id of that GitHub App |
+| `GITHUB_ARC_APP_PRIVATE_KEY` | yes | _(unset)_ | Private key of that GitHub App (PEM contents) |
+| `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 
 ## Dependencies
 
