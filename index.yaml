@@ -3,6 +3,32 @@ entries:
   argocd:
   - apiVersion: v2
     appVersion: 3.x
+    created: "2026-10-27T21:28:11.501055928Z"
+    dependencies:
+    - name: argo-cd
+      repository: https://argoproj.github.io/argo-helm
+      version: '>=7.0.0'
+    - name: vps-lib
+      repository: file://../_lib
+      version: 1.x
+    description: ArgoCD for GitOps-managed deployments, wrapped for the Rancher Apps
+      & Marketplace catalog
+    digest: f22ea337d13108eb981630bfdcb00048ca66b3eed5e73cf9719dd01928c6c7ab
+    home: https://argo-cd.readthedocs.io/
+    icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+    keywords:
+    - gitops
+    - continuous-delivery
+    - kubernetes
+    name: argocd
+    sources:
+    - https://github.com/argoproj/argo-helm
+    type: application
+    urls:
+    - https://github.com/tomgrv/vps/releases/download/argocd-1.2.0/argocd-1.2.0.tgz
+    version: 1.2.0
+  - apiVersion: v2
+    appVersion: 3.x
     created: "2026-10-19T05:30:00.593801618Z"
     dependencies:
     - name: argo-cd
@@ -27,6 +53,32 @@ entries:
   coder:
   - apiVersion: v2
     appVersion: 2.x
+    created: "2026-10-27T21:28:11.774053949Z"
+    dependencies:
+    - name: coder
+      repository: https://helm.coder.com/v2
+      version: '>=2.0.0'
+    - name: vps-lib
+      repository: file://../_lib
+      version: 1.x
+    description: Coder, a self-hosted platform for provisioning remote development
+      environments, wrapped for the Rancher Apps & Marketplace catalog
+    digest: d4bbedeeb9d68ed40d8740e568f6b86497de8151d76252a5f54f12ed2ffe70f8
+    home: https://coder.com/
+    icon: https://coder.com/coder-logo-black.png
+    keywords:
+    - development-environments
+    - remote-development
+    - kubernetes
+    name: coder
+    sources:
+    - https://github.com/coder/coder
+    type: application
+    urls:
+    - https://github.com/tomgrv/vps/releases/download/coder-1.2.0/coder-1.2.0.tgz
+    version: 1.2.0
+  - apiVersion: v2
+    appVersion: 2.x
     created: "2026-10-19T05:30:00.789927972Z"
     dependencies:
     - name: coder
@@ -49,6 +101,31 @@ entries:
     - https://github.com/perspikapps/vps/releases/download/coder-1.1.0/coder-1.1.0.tgz
     version: 1.1.0
   cognee:
+  - apiVersion: v2
+    appVersion: main
+    created: "2026-10-27T21:28:12.006388308Z"
+    dependencies:
+    - name: vps-lib
+      repository: file://../_lib
+      version: 1.x
+    description: Cognee - AI memory engine (semantic/graph knowledge layer for LLM
+      apps) - wrapped for the Rancher Apps & Marketplace catalog
+    digest: c0f734c963d7b436a849955f15ce089274b4ca15d04f82bd4e98a57565791771
+    home: https://github.com/topoteretes/cognee
+    icon: https://raw.githubusercontent.com/topoteretes/cognee/main/assets/cognee-logo-transparent.png
+    keywords:
+    - ai
+    - memory
+    - knowledge-graph
+    - rag
+    - llm
+    name: cognee
+    sources:
+    - https://github.com/topoteretes/cognee
+    type: application
+    urls:
+    - https://github.com/tomgrv/vps/releases/download/cognee-1.2.0/cognee-1.2.0.tgz
+    version: 1.2.0
   - apiVersion: v2
     appVersion: main
     created: "2026-10-19T05:30:01.070294753Z"
@@ -125,6 +202,30 @@ entries:
   hermes:
   - apiVersion: v2
     appVersion: latest
+    created: "2026-10-27T21:28:12.728318099Z"
+    dependencies:
+    - name: vps-lib
+      repository: file://../_lib
+      version: 1.x
+    description: Hermes Agent - self-improving AI agent harness, wrapped for the Rancher
+      Apps & Marketplace catalog
+    digest: 023303e7b5721882104df48f8ad32e6232e1b3a3ac0bc3e644fb3f0bd5ca6b32
+    home: https://github.com/NousResearch/hermes-agent
+    icon: https://hermes-agent.nousresearch.com/favicon.ico
+    keywords:
+    - ai
+    - agent
+    - llm
+    - automation
+    name: hermes
+    sources:
+    - https://github.com/NousResearch/hermes-agent
+    type: application
+    urls:
+    - https://github.com/tomgrv/vps/releases/download/hermes-1.2.0/hermes-1.2.0.tgz
+    version: 1.2.0
+  - apiVersion: v2
+    appVersion: latest
     created: "2026-10-19T05:30:01.872749553Z"
     description: Hermes Agent - self-improving AI agent harness, wrapped for the Rancher
       Apps & Marketplace catalog
@@ -167,4 +268,4 @@ entries:
     urls:
     - https://github.com/perspikapps/vps/releases/download/infisical-1.0.0/infisical-1.0.0.tgz
     version: 1.0.0
-generated: "2026-10-19T05:30:02.328759008Z"
+generated: "2026-10-27T21:28:13.008937769Z"
