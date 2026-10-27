@@ -92,7 +92,7 @@ setup() {
 
 @test "external-domain: the nip.io fallback uses the public address, never the internal interface" {
     mkdir -p "$work/bin"
-    printf '#!/bin/sh\necho 203.0.113.9\n' >"$work/bin/curl"
+    printf '#!/bin/sh\ncase "$*" in *169.254*) exit 22;; esac\necho 203.0.113.9\n' >"$work/bin/curl"
     printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
     chmod +x "$work/bin/curl" "$work/bin/ip"
     # NAT'd default-route address -> asks the echo service; a internal interface is set but ignored
