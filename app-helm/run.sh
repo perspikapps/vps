@@ -7,7 +7,7 @@
 # Every other argument goes to `helm upgrade --install` (e.g. --set, --values).
 
 set -eu
-zz-use zz-colors zz-log kube-require helm-install kube-teardown
+zz-use zz-colors zz-log kube-require helm-install kube-teardown kube-progress kube-diagnose
 # shellcheck disable=SC1091
 . zz-colors
 

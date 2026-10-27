@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install kube-apply kube-rollout systemd-service zz-step
+zz-use zz-colors zz-log zz-persist zz-install kube-apply kube-rollout systemd-service kube-progress kube-diagnose yaml-render zz-step
 # shellcheck disable=SC1091
 . zz-colors
 

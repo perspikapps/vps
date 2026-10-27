@@ -4,7 +4,7 @@
 # so there is no zz-args block; run with up, down or summary as its first argument.
 
 set -eu
-zz-use zz-colors zz-log zz-persist kube-apply kube-require kube-rollout kube-teardown helm-repo helm-install zz-step
+zz-use zz-colors zz-log zz-persist kube-apply kube-require kube-rollout kube-teardown helm-repo helm-install kube-progress kube-diagnose yaml-render zz-step
 # shellcheck disable=SC1091
 . zz-colors
 app_cert_manager="$(dirname "$0")/../app-cert-manager/run.sh"

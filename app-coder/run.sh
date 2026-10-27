@@ -4,7 +4,7 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install kube-apply zz-step
+zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install kube-apply kube-progress kube-diagnose zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
