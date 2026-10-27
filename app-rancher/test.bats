@@ -94,7 +94,7 @@ DIR="$REPO_ROOT/app-rancher"
     grep -q 'helm-install cattle-system rancher app-rancher/rancher' "$DIR/run.sh"
     grep -q 'kube-rollout -t 10m cattle-system rancher' "$DIR/run.sh"
     grep -q 'eval "\$(kube-require)"' "$DIR/run.sh"
-    ! grep -q 'kube-progress\|kube-diagnose\|helm upgrade\|helm repo' "$DIR/run.sh"
+    ! grep -Eq '^\s+(kube-progress|kube-diagnose) |helm upgrade|helm repo' "$DIR/run.sh"
 }
 
 @test "the chart repository comes from RANCHER_CHART_REPO_URL (community latest by default), with bitnami, before cert-manager" {

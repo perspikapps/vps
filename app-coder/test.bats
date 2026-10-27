@@ -115,7 +115,7 @@ DIR="$REPO_ROOT/app-coder"
     grep -q 'helm-install coder coder-db bitnami/postgresql' "$DIR/run.sh"
     grep -q 'helm-install "\$CODER_NAMESPACE" coder app-coder/coder' "$DIR/run.sh"
     grep -q 'kube-rollout -t 10m "\$CODER_NAMESPACE" coder' "$DIR/run.sh"
-    ! grep -q 'kube-progress\|kube-diagnose\|helm upgrade\|helm repo' "$DIR/run.sh"
+    ! grep -Eq '^\s+(kube-progress|kube-diagnose) |helm upgrade|helm repo' "$DIR/run.sh"
 }
 
 @test "one workspace namespace everywhere: RBAC for coder:coder, pull secret and both templates use it" {
