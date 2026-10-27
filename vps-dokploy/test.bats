@@ -71,7 +71,13 @@ DIR="$REPO_ROOT/vps-dokploy"
 @test "package.json keeps the admin UI private and the ingress public" {
     run node -e "
         const ports = Object.fromEntries(require('$DIR/package.json').config.ports.map(p => [p.name, p]));
-        process.exit(ports.dokploy_ui.access === 'private' && ports.dokploy_ui.port === 3000
-            && ports.dokploy_http.access === 'public' && ports.dokploy_https.access === 'public' ? 0 : 1)"
+        process.exit(ports.system_dokploy_ui.access === 'private' && ports.system_dokploy_ui.port === 3000
+            && ports.system_dokploy_http.access === 'public' && ports.system_dokploy_https.access === 'public' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "the installer gets its own variable names (ADVERTISE_ADDR, DOKPLOY_VERSION, DOCKER_SWARM_INIT_ARGS) from the SYSTEM_ inputs" {
+    grep -q 'export ADVERTISE_ADDR="\${SYSTEM_DOKPLOY_ADVERTISE_ADDR' "$DIR/run.sh"
+    grep -q 'export DOKPLOY_VERSION="\${SYSTEM_DOKPLOY_VERSION' "$DIR/run.sh"
+    grep -q 'DOCKER_SWARM_INIT_ARGS="\${SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS' "$DIR/run.sh"
 }

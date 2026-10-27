@@ -154,7 +154,7 @@ DIR="$REPO_ROOT/app-coder"
     grep -q "router.priority: '1'" "$DIR/helm/coder-values-wildcard.yaml"
 }
 
-@test "Coder is public or internal, never both: CODER_ACCESS picks the entrypoint" {
+@test "Coder is public or internal, never both, and its host and choice come from the system config" {
     grep -q 'vps-network access-route coder' "$DIR/run.sh"
     grep -q 'middlewares="\$route_middlewares"' "$DIR/run.sh"
     ! grep -q 'kube-system-internal-only' "$DIR/run.sh"

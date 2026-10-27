@@ -22,8 +22,8 @@ up() {
         zz-log e "[vps-setup] Tailscale is set up on this host and is mutually exclusive with vps-cloudflare. Run 'sudo vps-setup --down-vps-tailscale' first (mind your SSH path), then re-run." && exit 1
     fi
 
-    if [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ ! -f "$TUNNEL_ENV" ]; then
-        zz-log e "[vps-setup] CLOUDFLARE_TUNNEL_TOKEN not set (Zero Trust > Networks > Tunnels > your tunnel > Install and run)." && exit 1
+    if [ -z "${SYSTEM_CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ ! -f "$TUNNEL_ENV" ]; then
+        zz-log e "[vps-setup] SYSTEM_CLOUDFLARE_TUNNEL_TOKEN not set (Zero Trust > Networks > Tunnels > your tunnel > Install and run)." && exit 1
     fi
 
     # --- cloudflared
@@ -31,10 +31,10 @@ up() {
         zz-log i "[vps-setup] cloudflared already installed ($(cloudflared --version | head -n1 || true))."
     else
         zz-log i "[vps-setup] Installing cloudflared (release binary, works on any distribution)..."
-        # CLOUDFLARE_VERSION pins the release (and CLOUDFLARE_SHA256 checks it); unset = latest.
-        if [ -n "${CLOUDFLARE_VERSION:-}" ]; then
+        # SYSTEM_CLOUDFLARE_VERSION pins the release (and SYSTEM_CLOUDFLARE_SHA256 checks it); unset = latest.
+        if [ -n "${SYSTEM_CLOUDFLARE_VERSION:-}" ]; then
             zz-install -u https://github.com/cloudflare/cloudflared/releases/download/{VERSION}/cloudflared-{OS}-{ARCH} \
-                -v "$CLOUDFLARE_VERSION" ${CLOUDFLARE_SHA256:+-s "$CLOUDFLARE_SHA256"} cloudflared
+                -v "$SYSTEM_CLOUDFLARE_VERSION" ${SYSTEM_CLOUDFLARE_SHA256:+-s "$SYSTEM_CLOUDFLARE_SHA256"} cloudflared
         else
             zz-install -u https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-{OS}-{ARCH} cloudflared
         fi
@@ -44,7 +44,7 @@ up() {
     # WARP clients reach the VPS at this address through the tunnel's private
     # network route; it lives on a dummy interface so it exists before and without
     # any public traffic.
-    internal_ip="${CLOUDFLARE_INTERNAL_IP:-10.254.254.1}"
+    internal_ip="${SYSTEM_CLOUDFLARE_INTERNAL_IP:-10.254.254.1}"
     cat >"$IF_UNIT" <<UNIT
 [Unit]
 Description=vps-setup internal interface for Cloudflare WARP routes
@@ -60,11 +60,11 @@ UNIT
 
     # --- tunnel unit
     # The token goes in an owner-only env file, not in the (world-readable) unit.
-    if [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+    if [ -n "${SYSTEM_CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
         install -m 0700 -d "$(dirname "$TUNNEL_ENV")"
         (
             umask 077
-            printf 'TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" >"$TUNNEL_ENV"
+            printf 'TUNNEL_TOKEN=%s\n' "$SYSTEM_CLOUDFLARE_TUNNEL_TOKEN" >"$TUNNEL_ENV"
         )
     fi
     cat >"$TUNNEL_UNIT" <<UNIT
@@ -98,8 +98,8 @@ down() {
     rm -f "$TUNNEL_UNIT" "$IF_UNIT" "$TUNNEL_ENV"
     systemctl daemon-reload
     vps-network unset-internal-interface "$IFACE"
-    if [ "${CLOUDFLARE_PURGE:-false}" = "true" ]; then
-        zz-log i "[vps-setup] Purging the cloudflared package (CLOUDFLARE_PURGE=true)..."
+    if [ "${SYSTEM_CLOUDFLARE_PURGE:-false}" = "true" ]; then
+        zz-log i "[vps-setup] Purging the cloudflared package (SYSTEM_CLOUDFLARE_PURGE=true)..."
         # Installed as a plain binary (no package to remove); also drop the apt repo of earlier installs.
         rm -f "$(command -v cloudflared)" /etc/apt/sources.list.d/cloudflared.list /usr/share/keyrings/cloudflare-main.gpg
     fi

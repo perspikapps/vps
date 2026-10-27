@@ -21,10 +21,10 @@ On a terminal, `vps-setup` opens a menu to pick steps and fill in the inputs.
 For an unattended run, pass the inputs as variables:
 
 ```bash
-sudo SECURITY_ADMIN_USER=ops \
-    SECURITY_ADMIN_SSH_KEY="ssh-ed25519 AAAA... you@laptop" \
-    TAILSCALE_AUTHKEY="tskey-auth-..." \
-    RANCHER_HOSTNAME="rancher.tailnet-name.ts.net" \
+sudo SYSTEM_ADMIN_USER=ops \
+    SYSTEM_ADMIN_SSH_KEY="ssh-ed25519 AAAA... you@laptop" \
+    SYSTEM_TAILSCALE_AUTHKEY="tskey-auth-..." \
+    SYSTEM_INTERNAL_APPS="rancher" \
     vps-setup
 ```
 
@@ -92,19 +92,19 @@ need and remembers your answers in `/etc/vps.env`.
 
 | Variable                     | Default                  | Purpose                                                                      |
 | ---------------------------- | ------------------------ | ---------------------------------------------------------------------------- |
-| `SECURITY_ADMIN_USER`             | unset                    | Create this sudo user                                                        |
-| `SECURITY_ADMIN_SSH_KEY`          | unset                    | Authorized SSH key for the admin user and root                               |
-| `SECURITY_ADMIN_PASSWORD`         | random                   | Cockpit/console password (SSH stays key-only)                                |
-| `SECURITY_SSH_PORT`                   | `22`                     | SSH port kept open publicly                                                  |
-| `TAILSCALE_AUTHKEY`          | none                     | **Required** with `vps-tailscale` (or pass `--skip-vps-tailscale`)           |
-| `CLOUDFLARE_TUNNEL_TOKEN`    | none                     | **Required** with `vps-cloudflare`                                           |
-| `SECURITY_INTERNAL_INTERFACE`      | `tailscale0`             | Internal network interface, e.g. `wg0` when you bring your own                |
+| `SYSTEM_ADMIN_USER`             | unset                    | Create this sudo user                                                        |
+| `SYSTEM_ADMIN_SSH_KEY`          | unset                    | Authorized SSH key for the admin user and root                               |
+| `SYSTEM_ADMIN_PASSWORD`         | random                   | Cockpit/console password (SSH stays key-only)                                |
+| `SYSTEM_SSH_PORT`                   | `22`                     | SSH port kept open publicly                                                  |
+| `SYSTEM_TAILSCALE_AUTHKEY`          | none                     | **Required** with `vps-tailscale` (or pass `--skip-vps-tailscale`)           |
+| `SYSTEM_CLOUDFLARE_TUNNEL_TOKEN`    | none                     | **Required** with `vps-cloudflare`                                           |
+| `SYSTEM_INTERNAL_INTERFACE`      | `tailscale0`             | Internal network interface, e.g. `wg0` when you bring your own                |
 | `RANCHER_HOSTNAME`           | internal IP, else node IP | Hostname in Rancher's certificate                                            |
 | `RANCHER_BOOTSTRAP_PASSWORD` | random                   | Rancher `admin` initial password                                             |
-| `K3S_TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
-| `K3S_TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
-| `ACCESS_EXTERNAL_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
-| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT` |
+| `SYSTEM_TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
+| `SYSTEM_TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
+| `SYSTEM_EXTERNAL_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
+| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `SYSTEM_COCKPIT_HTTPS_PORT` |
 
 To keep a set of inputs in a file instead, use `/etc/vps-setup.env`
 (`KEY=VALUE`, or the file named by `VPS_SETUP_ENV_FILE`); it is read on every
@@ -112,10 +112,10 @@ run and wins over `/etc/vps.env`.
 
 ### Getting the keys
 
-- **SSH key** (`SECURITY_ADMIN_SSH_KEY`): generate it on your own machine,
+- **SSH key** (`SYSTEM_ADMIN_SSH_KEY`): generate it on your own machine,
   `ssh-keygen -t ed25519 -C "you@laptop"`, and paste the whole `.pub` line. Your
   GitHub keys are at `https://github.com/<you>.keys`.
-- **Tailscale auth key** (`TAILSCALE_AUTHKEY`): create it at
+- **Tailscale auth key** (`SYSTEM_TAILSCALE_AUTHKEY`): create it at
   <https://login.tailscale.com/admin/settings/keys>. For a server choose
   reusable, not ephemeral, pre-approved if your tailnet requires approval, with
   a short expiry. Without it Tailscale is still installed; run `tailscale up`
@@ -169,17 +169,17 @@ flowchart LR
 
 | Access   | Reached on                              | Chosen by                                     |
 | -------- | --------------------------------------- | --------------------------------------------- |
-| public   | server IP: Traefik 80/443 (Dokploy's Traefik uses the same ports), SSH 22 | default; `RANCHER_ACCESS`, `CODER_ACCESS`, chart `ingress.access` |
-| internal | Tailscale/Cloudflare address, Traefik 80/443, internal network sources only | `internal` in those same settings             |
+| public   | server IP: Traefik 80/443 (Dokploy's Traefik uses the same ports), SSH 22 | default; the system config: `vps-access` menu, `SYSTEM_PUBLIC_APPS` |
+| internal | Tailscale/Cloudflare address, Traefik 80/443, internal network sources only | `internal` in the system config (`vps-access`, `SYSTEM_INTERNAL_APPS`)             |
 | private  | Tailscale/Cloudflare address, own ports | always, for `access: "private"` steps         |
 
-- **Logins.** Cockpit uses a Linux account (`SECURITY_ADMIN_USER`, else `root`) and
-  the password from `SECURITY_ADMIN_PASSWORD` or the generated one. Rancher uses
+- **Logins.** Cockpit uses a Linux account (`SYSTEM_ADMIN_USER`, else `root`) and
+  the password from `SYSTEM_ADMIN_PASSWORD` or the generated one. Rancher uses
   `admin` and asks you to change the password at first login.
 - **Websites.** Traefik serves any hostname pointed at the VPS, from the
   `Ingress` that declares it. To get a Let's Encrypt certificate, annotate the
   `Ingress` with `traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt`.
-  Certificates are staging ones until you set `K3S_TRAEFIK_ACME_STAGING=false`.
+  Certificates are staging ones until you set `SYSTEM_TRAEFIK_ACME_STAGING=false`.
 - **Traefik dashboard.** `http://<internal-ip>:8088/dashboard/` (trailing slash
   required), internal network only.
 
@@ -213,7 +213,7 @@ then pick the chart under **Charts**; each chart's README lists the values to fi
 [`cloud-init/kairos-vps-setup.yaml`](cloud-init/README.md) runs `vps-setup`
 unattended on first boot, on any cloud-init provider (DigitalOcean, Hetzner,
 OpenStack...) or [Kairos](https://kairos.io) image. Fill in the placeholders
-(SSH key, Tailscale key, `RANCHER_HOSTNAME`), paste it into the provider's "User
+(SSH key, Tailscale key, `SYSTEM_INTERNAL_APPS`), paste it into the provider's "User
 data" field, and follow progress in `/var/log/vps-setup.log`.
 
 ## Troubleshooting

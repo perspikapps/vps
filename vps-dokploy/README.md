@@ -38,7 +38,7 @@ sudo zz-setup ./ -d vps-dokploy
 
 ## Removing (`down`)
 
-`down` removes Dokploy **and everything it deployed**: the Traefik container, the swarm services, the `dokploy*` volumes, the swarm itself and `/etc/dokploy`. Docker stays unless `DOKPLOY_REMOVE_DOCKER=true`. The old `vps-dockermanager` Cockpit plugin is gone; `cockpit-packagekit` and `cockpit-files` now come with `vps-cockpit`.
+`down` removes Dokploy **and everything it deployed**: the Traefik container, the swarm services, the `dokploy*` volumes, the swarm itself and `/etc/dokploy`. Docker stays unless `SYSTEM_DOKPLOY_REMOVE_DOCKER=true`. The old `vps-dockermanager` Cockpit plugin is gone; `cockpit-packagekit` and `cockpit-files` now come with `vps-cockpit`.
 
 ```bash
 sudo vps-setup --down-vps-dokploy
@@ -50,10 +50,10 @@ Passed to the upstream installer under its own names.
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `DOKPLOY_ADVERTISE_ADDR` | no | first IPv4 of the host | Address Docker Swarm advertises |
-| `DOKPLOY_DOCKER_SWARM_INIT_ARGS` | no | _(empty)_ | Extra `docker swarm init` flags, e.g. `--default-addr-pool 172.20.0.0/16` to avoid clashing with a VPC |
-| `DOKPLOY_VERSION` | no | latest stable | Dokploy release tag to install (e.g. `v0.26.6`, `canary`) |
-| `DOKPLOY_REMOVE_DOCKER` | no | `false` | Also remove Docker itself on down (true/false) |
+| `SYSTEM_DOKPLOY_ADVERTISE_ADDR` | no | first IPv4 of the host | Address Docker Swarm advertises |
+| `SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS` | no | _(empty)_ | Extra `docker swarm init` flags, e.g. `--default-addr-pool 172.20.0.0/16` to avoid clashing with a VPC |
+| `SYSTEM_DOKPLOY_VERSION` | no | latest stable | Dokploy release tag to install (e.g. `v0.26.6`, `canary`) |
+| `SYSTEM_DOKPLOY_REMOVE_DOCKER` | no | `false` | Also remove Docker itself on down (true/false) |
 
 The ports (`80`/`443` public, `3000` private) are fixed by the installer; overriding `DOKPLOY_*_PORT` only changes the firewall, not Dokploy.
 

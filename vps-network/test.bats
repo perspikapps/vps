@@ -15,7 +15,7 @@ setup() {
     echo '{"name":"@x/beta","bin":{"beta":"run.sh"},"engines":{"zz-setup":"*"},"config":{"ports":[{"name":"beta_http","port":2222,"access":"private"}]}}' >"$work/beta/package.json"
     # not a step: no engines.zz-setup, so its ports must not count
     echo '{"name":"@x/lib","config":{"ports":[{"name":"lib_http","port":3333,"access":"public"}]}}' >"$work/lib/package.json"
-    export VPS_SETUP_ROOT="$work" NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env" NETWORK_EXTERNAL_DOMAIN_FILE="$work/external.env"
+    export VPS_SETUP_ROOT="$work" SYSTEM_INTERNAL_ACCESS_FILE="$work/internal.env" SYSTEM_EXTERNAL_DOMAIN_FILE="$work/external.env"
 }
 
 @test "run.sh parses as POSIX sh and is a script, not a step" {
@@ -53,7 +53,7 @@ setup() {
     [ "$status" -eq 0 ]
     run sh "$SCRIPT" internal-interface
     [ "$output" = "wg0" ]
-    SECURITY_INTERNAL_INTERFACE=eth9 run sh "$SCRIPT" internal-interface
+    SYSTEM_INTERNAL_INTERFACE=eth9 run sh "$SCRIPT" internal-interface
     [ "$output" = "eth9" ]
 }
 
@@ -70,14 +70,14 @@ setup() {
 @test "internal-address is empty without an interface, or when it has no address; summary-host falls back" {
     run sh "$SCRIPT" internal-address
     [ -z "$output" ]
-    SECURITY_INTERNAL_INTERFACE=nonexistent9 run sh "$SCRIPT" internal-address
+    SYSTEM_INTERNAL_INTERFACE=nonexistent9 run sh "$SCRIPT" internal-address
     [ -z "$output" ]
     run sh "$SCRIPT" summary-host
     [ "$output" = "<internal-ip>" ]
 }
 
 @test "external-domain: the environment wins, then the persisted file" {
-    ACCESS_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" external-domain
+    SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" external-domain
     [ "$output" = "apps.example.com" ]
     sh "$SCRIPT" set-external-domain saved.example.com >/dev/null 2>&1
     run sh "$SCRIPT" external-domain
@@ -90,15 +90,15 @@ setup() {
     printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
     chmod +x "$work/bin/curl" "$work/bin/ip"
     # NAT'd default-route address -> asks the echo service; a internal interface is set but ignored
-    PATH="$work/bin:$PATH" SECURITY_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
+    PATH="$work/bin:$PATH" SYSTEM_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
     [ "$output" = "203-0-113-9.nip.io" ]
     printf '#!/bin/sh\necho "1.1.1.1 via 54.37.230.1 dev eth0 src 54.37.230.112"\n' >"$work/bin/ip"
     PATH="$work/bin:$PATH" run sh "$SCRIPT" external-domain
     [ "$output" = "54-37-230-112.nip.io" ]
 }
 
-@test "visibility: environment, then the saved choice, then config.visibility, else public" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
+@test "visibility: the system lists, then the saved choice, then config.visibility, else public; no per-app variable" {
+    export SYSTEM_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" visibility alpha
     [ "$output" = "public" ]
     echo '{"name":"@x/alpha","bin":{"alpha":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/alpha/package.json"
@@ -107,19 +107,23 @@ setup() {
     sh "$SCRIPT" set-visibility alpha public
     run sh "$SCRIPT" visibility alpha
     [ "$output" = "public" ]
-    ALPHA_ACCESS=internal run sh "$SCRIPT" visibility alpha
+    SYSTEM_INTERNAL_APPS=beta,alpha run sh "$SCRIPT" visibility alpha
     [ "$output" = "internal" ]
+    SYSTEM_PUBLIC_APPS=alpha run sh "$SCRIPT" visibility alpha
+    [ "$output" = "public" ]
+    ALPHA_ACCESS=internal run sh "$SCRIPT" visibility alpha
+    [ "$output" = "public" ]
 }
 
 @test "set-visibility rejects anything but public or internal" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
+    export SYSTEM_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" set-visibility alpha sideways
     [ "$status" -ne 0 ]
 }
 
-@test "internal-domain: ACCESS_INTERNAL_DOMAIN, else the saved one" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
-    ACCESS_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
+@test "internal-domain: SYSTEM_INTERNAL_DOMAIN, else the saved one" {
+    export SYSTEM_ACCESS_FILE="$work/access.env"
+    SYSTEM_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
     [ "$output" = "in.example.com" ]
     sh "$SCRIPT" set-internal-domain saved.example.com
     run sh "$SCRIPT" internal-domain
@@ -127,7 +131,7 @@ setup() {
 }
 
 @test "visibilities: the service names, without the vps- prefix or ./, with their visibility" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
+    export SYSTEM_ACCESS_FILE="$work/access.env"
     mkdir -p "$work/vps-gamma"
     : >"$work/vps-gamma/run.sh"
     echo '{"workspaces":["alpha","beta","lib","vps-gamma"]}' >"$work/package.json"
@@ -138,24 +142,24 @@ setup() {
 }
 
 @test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
-    ACCESS_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
+    export SYSTEM_ACCESS_FILE="$work/access.env"
+    SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
     [ "$status" -eq 0 ]
     [[ "$output" == *"route_access='public'"* ]]
     [[ "$output" == *"route_domain='apps.example.com'"* ]]
     [[ "$output" == *"route_middlewares=''"* ]]
     [[ "$output" == *"route_certresolver='letsencrypt'"* ]]
-    ALPHA_ACCESS=internal ACCESS_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" access-route alpha
+    SYSTEM_INTERNAL_APPS=alpha SYSTEM_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"route_access='internal'"* ]]
     [[ "$output" == *"route_domain='in.example.com'"* ]]
     [[ "$output" == *"route_middlewares='kube-system-internal-only@kubernetescrd'"* ]]
     [[ "$output" == *"route_certresolver=''"* ]]
 }
 
-@test "access-route makes the caller exit 1 on a bad choice or a missing domain" {
-    export NETWORK_ACCESS_FILE="$work/access.env"
+@test "access-route makes the caller exit 1 on a missing domain, and ignores a per-app ACCESS variable" {
+    export SYSTEM_ACCESS_FILE="$work/access.env"
     ALPHA_ACCESS=sideways run sh "$SCRIPT" access-route alpha
-    [ "$output" = "exit 1" ] || [[ "$output" == *"exit 1" ]]
-    ALPHA_ACCESS=internal run sh "$SCRIPT" access-route alpha
+    [[ "$output" == *"route_access='public'"* ]]
+    SYSTEM_INTERNAL_APPS=alpha run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"exit 1" ]]
 }

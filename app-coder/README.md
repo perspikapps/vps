@@ -27,15 +27,15 @@ sudo zz-setup ./ -d app-coder
 1. Creates the `coder` namespace and adds the Bitnami and Coder (`https://helm.coder.com/v2`) Helm repositories.
 2. Installs `coder-db` (Bitnami PostgreSQL, user/database `coder`, `CODER_DB_STORAGE` volume) with a generated password saved to `/root/.vps-secrets.env`.
 3. Creates the `coder-db-url` Secret the chart reads `CODER_PG_CONNECTION_URL` from.
-4. Installs the upstream `coder` chart behind an **Ingress on k3s's Traefik** (class `traefik`, ports 80/443): host `coder.<wildcard domain>` for the dashboard and `*.<wildcard domain>` for workspace apps. The domain is `vps-system`'s `ACCESS_EXTERNAL_DOMAIN`, else nip.io (`coder.54-37-230-112.nip.io`).
+4. Installs the upstream `coder` chart behind an **Ingress on k3s's Traefik** (class `traefik`, ports 80/443): host `coder.<wildcard domain>` for the dashboard and `*.<wildcard domain>` for workspace apps. The domain is `vps-system`'s `SYSTEM_EXTERNAL_DOMAIN`, else nip.io (`coder.54-37-230-112.nip.io`).
 
 5. Waits for Coder, then (through a port-forward, so neither DNS nor Traefik is involved) creates the **first admin** and the **`devcontainer` template**, both once: the admin's password is generated and saved to `/root/.vps-secrets.env` (shown in the final summary), and the template is the Kubernetes + [envbuilder](https://github.com/coder/envbuilder) devcontainer starter embedded in the server's own `coder` binary (so it matches the installed version), pushed with `namespace=<workspace namespace>` and `use_kubeconfig=false`. Workspaces build their `devcontainer.json` repo in a pod, without Docker. A re-run keeps the admin and does not push the template again; if the admin's password was changed in the UI the template step is skipped with a warning. Both steps are best effort: on failure the install still succeeds and you finish in the UI.
 
-`CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose: Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
+Coder's own `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose (this step has no variable for them): Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
-**Public or internal, never both** (`vps-access`, or `CODER_ACCESS` which wins): `public` (default) serves Coder on the server IP; `internal` serves `http://coder.<internal-ip>.nip.io` (and `*.<internal-ip>.nip.io` for workspace apps) on the same 80/443, behind the `internal-only` Traefik middleware (see `vps-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through. Coder is a single route, so switching is a re-run with the other value.
+**Public or internal, never both** (the system config: `vps-access`, `SYSTEM_INTERNAL_APPS`): `public` (default) serves Coder on the server IP; `internal` serves `http://coder.<internal-ip>.nip.io` (and `*.<internal-ip>.nip.io` for workspace apps) on the same 80/443, behind the `internal-only` Traefik middleware (see `vps-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through. Coder is a single route, so switching is a re-run with the other value.
 
-**Public mode:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and set `CODER_ACCESS_URL` to the `https://` URL; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
+**Public mode:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and terminate TLS in front of it; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
 
 The catalog's [`charts/coder`](../charts/coder/README.md) is the Rancher-UI route to the same upstream chart; do not install both.
 
@@ -95,7 +95,6 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | `CODER_ADMIN_EMAIL` | no | `admin@<wildcard domain>` | Email of the first Coder admin |
 | `CODER_ADMIN_PASSWORD` | no | _(generated)_ | Password of the first Coder admin |
 | `CODER_ADMIN_USERNAME` | no | `admin` | Username of the first Coder admin |
-| `CODER_ACCESS_URL` | no | `http://coder.<wildcard domain>` | Externally reachable URL of Coder (its host is the Ingress host) |
 | `CODER_WORKSPACE_NAMESPACE` | no | `coder-workspaces` | Namespace workspaces run in (see below) |
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
 | `CODER_DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required to push that template; else the Envbuilder starter) |

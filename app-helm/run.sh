@@ -44,7 +44,7 @@ up() {
 
     eval "$(vps-network access-route "$app")"
     access="$route_access" domain="$route_domain"
-    [ -n "$domain" ] || { zz-log e "[vps-setup] No ${access} domain for ${app}: set ACCESS_EXTERNAL_DOMAIN / ACCESS_INTERNAL_DOMAIN (or install a network)." && exit 1; }
+    [ -n "$domain" ] || { zz-log e "[vps-setup] No ${access} domain for ${app}: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
 
     # the shared domain (apps are <app>.<domain>) and, where the chart takes one, the route middlewares
     values="$(mktemp)"

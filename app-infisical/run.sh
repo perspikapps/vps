@@ -12,7 +12,7 @@ up() {
     local values domain host enc auth
 
     domain="$(vps-network access-domain public)" || exit 1
-    [ -n "$domain" ] || { zz-log e "[vps-setup] No domain: set ACCESS_EXTERNAL_DOMAIN." && exit 1; }
+    [ -n "$domain" ] || { zz-log e "[vps-setup] No domain: set SYSTEM_EXTERNAL_DOMAIN." && exit 1; }
     host="infisical.${domain}"
     enc="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -r INFISICAL_ENCRYPTION_KEY | grep . || openssl rand -hex 16)"
     auth="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -r INFISICAL_AUTH_SECRET | grep . || openssl rand -base64 32)"

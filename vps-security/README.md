@@ -40,17 +40,17 @@ sudo vps-setup --down-vps-security
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
-| `SECURITY_SSH_PORT` | no | `22` | SSH port to keep open |
-| `SECURITY_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for SECURITY_ADMIN_USER (or root if unset) |
-| `SECURITY_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for SECURITY_ADMIN_USER and root |
-| `SECURITY_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
-| `SECURITY_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
+| `SYSTEM_SSH_PORT` | no | `22` | SSH port to keep open |
+| `SYSTEM_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for SYSTEM_ADMIN_USER (or root if unset) |
+| `SYSTEM_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for SYSTEM_ADMIN_USER and root |
+| `SYSTEM_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
+| `SYSTEM_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
 
 ## Outputs
 
 | Output | Description |
 | --- | --- |
-| `SECURITY_COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
+| `SYSTEM_COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
 
 ## Dependencies
 

@@ -43,10 +43,10 @@ write_files:
       content: |
           # Filled in at provisioning time - see README.md for where each value
           # comes from (SSH keys, Tailscale auth keys, etc).
-          SECURITY_ADMIN_USER=ops
-          SECURITY_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
-          TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" # REQUIRED
-          RANCHER_HOSTNAME="rancher.tailnet-name.ts.net"
+          SYSTEM_ADMIN_USER=ops
+          SYSTEM_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
+          SYSTEM_TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" # REQUIRED
+          SYSTEM_INTERNAL_APPS="rancher" # apps served on the internal network only (empty = all public)
           RANCHER_BOOTSTRAP_PASSWORD="" # leave blank to auto-generate, see README.md
           # Uncomment to install from a branch/fork instead of perspikapps/vps@main:
           # VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git

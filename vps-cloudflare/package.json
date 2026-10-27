@@ -18,28 +18,28 @@
     ],
     "default": false,
     "inputs": {
-      "CLOUDFLARE_INTERNAL_IP": {
+      "SYSTEM_CLOUDFLARE_INTERNAL_IP": {
         "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",
         "required": false,
         "default": "10.254.254.1"
       },
-      "CLOUDFLARE_TUNNEL_TOKEN": {
+      "SYSTEM_CLOUDFLARE_TUNNEL_TOKEN": {
         "description": "Cloudflare Tunnel token (Zero Trust > Networks > Tunnels)",
         "required": true,
         "default": "",
         "secret": true
       },
-      "CLOUDFLARE_VERSION": {
+      "SYSTEM_CLOUDFLARE_VERSION": {
         "description": "cloudflared release to install, e.g. 2025.1.0 (empty = latest)",
         "required": false,
         "default": ""
       },
-      "CLOUDFLARE_SHA256": {
+      "SYSTEM_CLOUDFLARE_SHA256": {
         "description": "sha256 of that release's binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
         "required": false,
         "default": ""
       },
-      "CLOUDFLARE_PURGE": {
+      "SYSTEM_CLOUDFLARE_PURGE": {
         "description": "Also remove the cloudflared package on down (true/false)",
         "required": false,
         "default": "false"

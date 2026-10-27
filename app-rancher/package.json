@@ -40,21 +40,6 @@
         "required": false,
         "default": ""
       },
-      "RANCHER_ACCESS": {
-        "description": "Override vps-access: public (server IP) or internal (Tailscale/Cloudflare address), never both",
-        "required": false,
-        "default": ""
-      },
-      "RANCHER_INGRESS_HOST": {
-        "description": "Public host Traefik serves the Rancher dashboard on (default rancher.<ACCESS_EXTERNAL_DOMAIN>, else rancher.<public-ip>.nip.io)",
-        "required": false,
-        "default": ""
-      },
-      "RANCHER_HOSTNAME": {
-        "description": "FQDN/IP used in Rancher's self-signed cert",
-        "required": false,
-        "default": ""
-      },
       "SYSTEM_SECRETS_FILE": {
         "description": "Owner-only env file holding the credentials the steps generate",
         "required": false,

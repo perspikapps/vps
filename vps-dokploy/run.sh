@@ -19,7 +19,7 @@ is_dokploy_installed() {
 up() {
     local ui_port
 
-    ui_port="$(vps-network port dokploy_ui)"
+    ui_port="$(vps-network port system_dokploy_ui)"
 
     if is_dokploy_installed; then
         zz-log i "[vps-setup] Dokploy already installed; not re-running its installer (it resets the swarm)."
@@ -38,9 +38,10 @@ up() {
         # The installer calls openssl unconditionally and installs Docker itself when missing.
         command -v openssl >/dev/null 2>&1 || zz-install openssl
         # Upstream variable names: the installer reads them from its environment.
-        export DOKPLOY_ADVERTISE_ADDR="${DOKPLOY_ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
-        export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOKPLOY_DOCKER_SWARM_INIT_ARGS="${DOKPLOY_DOCKER_SWARM_INIT_ARGS:-}"
-        zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${DOKPLOY_ADVERTISE_ADDR}); it installs Docker if needed..."
+        # the installer reads its own variable names (ADVERTISE_ADDR, DOKPLOY_VERSION, DOCKER_SWARM_INIT_ARGS)
+        export ADVERTISE_ADDR="${SYSTEM_DOKPLOY_ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
+        export DOKPLOY_VERSION="${SYSTEM_DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS:-}"
+        zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${ADVERTISE_ADDR}); it installs Docker if needed..."
         # The official installer needs bash.
         zz-install -u "$DOKPLOY_INSTALL_URL" -x bash dokploy
         is_dokploy_installed || { zz-log e "[vps-setup] The Dokploy installer finished but the dokploy service/Traefik are not there." && exit 1; }
@@ -64,8 +65,8 @@ down() {
         zz-log w "[vps-setup] Docker not found; nothing to remove besides /etc/dokploy."
     fi
     rm -rf /etc/dokploy
-    if [ "${DOKPLOY_REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Removing Docker (DOKPLOY_REMOVE_DOCKER=true)..."
+    if [ "${SYSTEM_DOKPLOY_REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
+        zz-log i "[vps-setup] Removing Docker (SYSTEM_DOKPLOY_REMOVE_DOCKER=true)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
         zz-install -r docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
@@ -78,7 +79,7 @@ summary() {
     [ -d /etc/dokploy ] || return 0
     vps-network summary-block Dokploy \
         "apps served by Dokploy's own Traefik on 80/443" - \
-        "http://localhost:$(vps-network port dokploy_ui) (admin UI, on the VPS; also http://$(vps-network summary-host):$(vps-network port dokploy_ui) on the internal address)" \
+        "http://localhost:$(vps-network port system_dokploy_ui) (admin UI, on the VPS; also http://$(vps-network summary-host):$(vps-network port system_dokploy_ui) on the internal address)" \
         "The first visit creates the admin account: join the internal network first."
 }
 

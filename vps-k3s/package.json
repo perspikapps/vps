@@ -15,27 +15,27 @@
   "config": {
     "default": true,
     "inputs": {
-      "K3S_INTERNAL_SOURCE_RANGE": {
+      "SYSTEM_INTERNAL_SOURCE_RANGE": {
         "description": "Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes; empty = Tailscale's 100.64.0.0/10, else the internal address",
         "required": false,
         "default": ""
       },
-      "K3S_EXTRA_ARGS": {
+      "SYSTEM_K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",
         "required": false,
         "default": ""
       },
-      "K3S_VERSION": {
+      "SYSTEM_K3S_VERSION": {
         "description": "Pin a k3s version",
         "required": false,
         "default": ""
       },
-      "K3S_TRAEFIK_ACME_EMAIL": {
+      "SYSTEM_TRAEFIK_ACME_EMAIL": {
         "description": "Contact email registered with Let's Encrypt",
         "required": false,
         "default": "admin@example.com"
       },
-      "K3S_TRAEFIK_ACME_STAGING": {
+      "SYSTEM_TRAEFIK_ACME_STAGING": {
         "description": "Use Let's Encrypt's staging environment (true/false)",
         "required": false,
         "default": "true"
@@ -50,19 +50,19 @@
     },
     "ports": [
       {
-        "name": "k3s_http",
+        "name": "system_http",
         "port": 80,
         "access": "public",
         "note": "HTTP Traefik ingress, also required for the Lets Encrypt HTTP-01 challenge"
       },
       {
-        "name": "k3s_https",
+        "name": "system_https",
         "port": 443,
         "access": "public",
         "note": "HTTPS Traefik ingress"
       },
       {
-        "name": "k3s_traefik_dashboard",
+        "name": "system_traefik_dashboard",
         "port": 8088,
         "access": "private"
       }

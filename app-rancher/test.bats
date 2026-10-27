@@ -67,15 +67,6 @@ DIR="$REPO_ROOT/app-rancher"
     [ "$status" -eq 0 ]
 }
 
-@test "Rancher is exposed through a Traefik Ingress on rancher.<wildcard domain>, backed by the http port by name" {
-    grep -q 'rancher.\${route_domain}' "$DIR/run.sh"
-    grep -q 'vps-network access-route rancher' "$DIR/run.sh"
-    grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
-    grep -q 'name: http$' "$DIR/helm/ingress.yaml"
-    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_INGRESS_HOST; process.exit(i && i.required === false ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
-
 @test "chart values and the Traefik Ingress live in yaml files beside run.sh, not in heredocs or --set" {
     [ -f "$DIR/helm/values.yaml" ]
     [ -f "$DIR/helm/ingress.yaml" ]
@@ -83,15 +74,6 @@ DIR="$REPO_ROOT/app-rancher"
     grep -q 'yaml-render "\${dir}/helm/ingress.yaml" INGRESS_HOST=' "$DIR/run.sh"
     ! grep -q -- '--set ' "$DIR/run.sh"
     ! grep -q '^kind: Ingress' "$DIR/run.sh"
-}
-
-@test "Rancher's route is public or internal, never both: RANCHER_ACCESS picks the entrypoint" {
-    grep -q 'vps-network access-route rancher' "$DIR/run.sh"
-    grep -q 'middlewares="\$route_middlewares"' "$DIR/run.sh"
-    ! grep -q 'kube-system-internal-only' "$DIR/run.sh"
-    grep -q "router.middlewares: '\${MIDDLEWARES}'" "$DIR/helm/ingress.yaml"
-    run node -e "const i = require('$DIR/package.json').config.inputs.RANCHER_ACCESS; process.exit(i && i.required === false && require('$DIR/package.json').config.visibility === 'public' ? 0 : 1)"
-    [ "$status" -eq 0 ]
 }
 
 @test "Rancher has no port of its own: a ClusterIP Service reached only through Traefik" {
@@ -122,4 +104,18 @@ DIR="$REPO_ROOT/app-rancher"
     repo_line=$(grep -n '^    helm-repo' "$DIR/run.sh" | head -1 | cut -d: -f1)
     cm_line=$(grep -n '^    "\$app_cert_manager"' "$DIR/run.sh" | head -1 | cut -d: -f1)
     [ "$repo_line" -lt "$cm_line" ]
+}
+
+@test "Rancher's host, hostname and public/internal choice come from the system config, not from step inputs" {
+    grep -q 'vps-network access-route rancher' "$DIR/run.sh"
+    grep -q 'ingress_host="rancher.\${route_domain}"' "$DIR/run.sh"
+    grep -q 'middlewares="\$route_middlewares"' "$DIR/run.sh"
+    ! grep -q 'kube-system-internal-only\|RANCHER_ACCESS\|RANCHER_INGRESS_HOST\|RANCHER_HOSTNAME' "$DIR/run.sh"
+    run node -e "const i = require('$DIR/package.json').config.inputs; process.exit(['RANCHER_ACCESS', 'RANCHER_INGRESS_HOST', 'RANCHER_HOSTNAME'].some(k => k in i) ? 1 : 0)"
+    [ "$status" -eq 0 ]
+}
+
+@test "Rancher is exposed through a Traefik Ingress, backed by the http port by name" {
+    grep -q 'ingressClassName: traefik' "$DIR/helm/ingress.yaml"
+    grep -q 'name: http$' "$DIR/helm/ingress.yaml"
 }

@@ -16,19 +16,16 @@ up() {
     dir="$(cd "$(dirname "$0")" && pwd)"
 
     # --- parameters: dashboard host, server URL, bootstrap password
-    # Rancher is only reached through Traefik: rancher.<domain> (same domain sources as Coder).
-    # vps-access (or RANCHER_ACCESS) picks where the route is served, public or internal, never both:
+    # Rancher is only reached through Traefik, at rancher.<domain>: the route (public or internal,
+    # never both) and the domain come from the system config (vps-access), not from this step.
     # Both are Traefik 80/443: public has Let's Encrypt; internal is a host on the internal domain
     # behind the internal-only middleware (internal network clients only, default certificate).
     eval "$(vps-network access-route rancher)"
     access="$route_access" middlewares="$route_middlewares" certresolver="$route_certresolver"
-    ingress_host="${RANCHER_INGRESS_HOST:-rancher.${route_domain}}"
-    case "$ingress_host" in
-        *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
-    esac
-    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or ACCESS_EXTERNAL_DOMAIN." && exit 1; }
-    # Rancher's server URL follows that host.
-    host="${RANCHER_HOSTNAME:-$ingress_host}"
+    [ -n "$route_domain" ] || { zz-log e "[vps-setup] No domain for Rancher: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
+    ingress_host="rancher.${route_domain}"
+    # Rancher's server URL is that host.
+    host="$ingress_host"
 
     password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
 

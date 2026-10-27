@@ -36,7 +36,7 @@ up() {
     local ssh_port admin_home cockpit_user cockpit_password has_key=0 f sshd_dropin ufw_state
     local name port access note tab spec internal_iface internal_ip
 
-    ssh_port="$(vps-network port security_ssh)"
+    ssh_port="$(vps-network port system_ssh)"
 
     zz-log i "[vps-setup] Installing ${firewall} and fail2ban..."
     zz-install -m "$firewall"
@@ -48,35 +48,35 @@ up() {
     fi
 
     # --- admin user and SSH key
-    if [ -n "${SECURITY_ADMIN_USER:-}" ]; then
-        if id "$SECURITY_ADMIN_USER" >/dev/null 2>&1; then
-            zz-log i "[vps-setup] User ${SECURITY_ADMIN_USER} already exists."
+    if [ -n "${SYSTEM_ADMIN_USER:-}" ]; then
+        if id "$SYSTEM_ADMIN_USER" >/dev/null 2>&1; then
+            zz-log i "[vps-setup] User ${SYSTEM_ADMIN_USER} already exists."
         else
-            zz-log i "[vps-setup] Creating sudo user ${SECURITY_ADMIN_USER}..."
+            zz-log i "[vps-setup] Creating sudo user ${SYSTEM_ADMIN_USER}..."
             # sudo group on Debian, wheel on Amazon Linux and SUSE.
-            useradd -m -s /bin/bash -G "$(getent group sudo >/dev/null && echo sudo || echo wheel)" "$SECURITY_ADMIN_USER"
-            passwd -l "$SECURITY_ADMIN_USER" >/dev/null
+            useradd -m -s /bin/bash -G "$(getent group sudo >/dev/null && echo sudo || echo wheel)" "$SYSTEM_ADMIN_USER"
+            passwd -l "$SYSTEM_ADMIN_USER" >/dev/null
         fi
-        if [ -n "${SECURITY_ADMIN_SSH_KEY:-}" ]; then
-            admin_home="$(getent passwd "$SECURITY_ADMIN_USER" | cut -d: -f6)"
-            install -d -m 700 -o "$SECURITY_ADMIN_USER" -g "$SECURITY_ADMIN_USER" "$admin_home/.ssh"
+        if [ -n "${SYSTEM_ADMIN_SSH_KEY:-}" ]; then
+            admin_home="$(getent passwd "$SYSTEM_ADMIN_USER" | cut -d: -f6)"
+            install -d -m 700 -o "$SYSTEM_ADMIN_USER" -g "$SYSTEM_ADMIN_USER" "$admin_home/.ssh"
             touch "$admin_home/.ssh/authorized_keys"
-            zz-persist -l -f "$admin_home/.ssh/authorized_keys" "$SECURITY_ADMIN_SSH_KEY"
+            zz-persist -l -f "$admin_home/.ssh/authorized_keys" "$SYSTEM_ADMIN_SSH_KEY"
             chmod 600 "$admin_home/.ssh/authorized_keys"
-            chown "$SECURITY_ADMIN_USER":"$SECURITY_ADMIN_USER" "$admin_home/.ssh/authorized_keys"
+            chown "$SYSTEM_ADMIN_USER":"$SYSTEM_ADMIN_USER" "$admin_home/.ssh/authorized_keys"
         fi
     fi
 
-    if [ -n "${SECURITY_ADMIN_SSH_KEY:-}" ]; then
+    if [ -n "${SYSTEM_ADMIN_SSH_KEY:-}" ]; then
         install -d -m 700 /root/.ssh
         touch /root/.ssh/authorized_keys
-        zz-persist -l -f /root/.ssh/authorized_keys "$SECURITY_ADMIN_SSH_KEY"
+        zz-persist -l -f /root/.ssh/authorized_keys "$SYSTEM_ADMIN_SSH_KEY"
         chmod 600 /root/.ssh/authorized_keys
     fi
 
     # --- Cockpit login
-    cockpit_user="${SECURITY_ADMIN_USER:-root}"
-    cockpit_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 COCKPIT_ADMIN_PASSWORD "${SECURITY_ADMIN_PASSWORD:-}")"
+    cockpit_user="${SYSTEM_ADMIN_USER:-root}"
+    cockpit_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 COCKPIT_ADMIN_PASSWORD "${SYSTEM_ADMIN_PASSWORD:-}")"
     echo "${cockpit_user}:${cockpit_password}" | chpasswd
     zz-persist -s -f "$SYSTEM_SECRETS_FILE" COCKPIT_ADMIN_USER "$cockpit_user"
     zz-log s "[vps-setup] Cockpit login set: user=${cockpit_user} (password saved to ${SYSTEM_SECRETS_FILE})."
@@ -99,7 +99,7 @@ up() {
         echo "PasswordAuthentication no" >>"$sshd_dropin"
         zz-log s "[vps-setup] SSH key detected: disabling password authentication."
     else
-        zz-log w "[vps-setup] No SSH key provided (SECURITY_ADMIN_SSH_KEY unset): leaving password authentication enabled."
+        zz-log w "[vps-setup] No SSH key provided (SYSTEM_ADMIN_SSH_KEY unset): leaving password authentication enabled."
     fi
 
     sshd -t -f /etc/ssh/sshd_config
@@ -151,7 +151,7 @@ EOF
         [ -z "$internal_iface" ] || firewall-cmd -q --permanent --zone=internal --change-interface="$internal_iface"
     fi
     if [ -z "$internal_iface" ]; then
-        zz-log w "[vps-setup] No internal interface (SECURITY_INTERNAL_INTERFACE unset, and no step persisted one): private-access ports stay closed."
+        zz-log w "[vps-setup] No internal interface (SYSTEM_INTERNAL_INTERFACE unset, and no step persisted one): private-access ports stay closed."
     elif [ -z "$internal_ip" ]; then
         zz-log w "[vps-setup] ${internal_iface} has no IPv4 address yet: private-access ports stay closed."
     fi

@@ -19,16 +19,6 @@
     "visibility": "public",
     "default": false,
     "inputs": {
-      "CODER_ACCESS_URL": {
-        "description": "Externally reachable URL of Coder (default: http://coder.<wildcard domain>)",
-        "required": false,
-        "default": ""
-      },
-      "CODER_ACCESS": {
-        "description": "Override vps-access: public (server IP) or internal (Tailscale/Cloudflare address), never both",
-        "required": false,
-        "default": ""
-      },
       "CODER_ADMIN_EMAIL": {
         "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",
         "required": false,

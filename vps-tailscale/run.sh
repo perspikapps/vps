@@ -25,14 +25,14 @@ up() {
     # for access:"private" ports, the final summary); see vps-network.
     vps-network set-internal-interface tailscale0
 
-    if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
-        zz-log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
+    if [ -z "${SYSTEM_TAILSCALE_AUTHKEY:-}" ]; then
+        zz-log w "[vps-setup] SYSTEM_TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-vps-tailscale"
         exit 0
     fi
 
     zz-log i "[vps-setup] Joining tailnet..."
     # shellcheck disable=SC2086
-    tailscale up --authkey="${TAILSCALE_AUTHKEY}" --ssh ${TAILSCALE_EXTRA_ARGS:-}
+    tailscale up --authkey="${SYSTEM_TAILSCALE_AUTHKEY}" --ssh ${SYSTEM_TAILSCALE_EXTRA_ARGS:-}
     zz-log s "[vps-setup] Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
 }
 
@@ -45,8 +45,8 @@ down() {
     tailscale logout || true
     systemctl disable --now tailscaled || true
     vps-network unset-internal-interface tailscale0
-    if [ "${TAILSCALE_PURGE:-false}" = "true" ]; then
-        zz-log i "[vps-setup] Purging the tailscale package (TAILSCALE_PURGE=true)..."
+    if [ "${SYSTEM_TAILSCALE_PURGE:-false}" = "true" ]; then
+        zz-log i "[vps-setup] Purging the tailscale package (SYSTEM_TAILSCALE_PURGE=true)..."
         zz-install -r tailscale || true
     fi
     zz-log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
@@ -61,7 +61,7 @@ summary() {
     iface="$(vps-network internal-interface)"
     ip="$(vps-network internal-address)"
     if [ -z "$iface" ]; then
-        vps-network summary-block "Internal network" - "none: no interface (set SECURITY_INTERNAL_INTERFACE, or run vps-tailscale)" -
+        vps-network summary-block "Internal network" - "none: no interface (set SYSTEM_INTERNAL_INTERFACE, or run vps-tailscale)" -
     else
         vps-network summary-block "Internal network" - "${ip:-no address yet} on ${iface} (Tailscale): join the tailnet to reach the internal services" \
             "private-port services listen here and are closed to the internet"

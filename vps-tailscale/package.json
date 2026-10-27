@@ -18,18 +18,18 @@
     ],
     "default": true,
     "inputs": {
-      "TAILSCALE_PURGE": {
+      "SYSTEM_TAILSCALE_PURGE": {
         "description": "Also remove the tailscale package on down (true/false)",
         "required": false,
         "default": "false"
       },
-      "TAILSCALE_AUTHKEY": {
+      "SYSTEM_TAILSCALE_AUTHKEY": {
         "description": "Auth key to auto-join a tailnet",
         "required": true,
         "default": "",
         "secret": true
       },
-      "TAILSCALE_EXTRA_ARGS": {
+      "SYSTEM_TAILSCALE_EXTRA_ARGS": {
         "description": "Extra flags appended to tailscale up",
         "required": false,
         "default": ""
