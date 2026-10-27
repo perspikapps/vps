@@ -21,7 +21,7 @@
         "default": ""
       },
       "SYSTEM_INTERNAL_DOMAIN": {
-        "description": "DNS domain pointing at this VPS's internal (Tailscale/Cloudflare) address, for services set to internal; empty = <internal-ip>.nip.io fallback",
+        "description": "DNS domain pointing at this VPS's internal (Tailscale/Cloudflare) address, for services set to internal; empty = the external domain",
         "required": false,
         "default": ""
       },

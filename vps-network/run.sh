@@ -14,8 +14,8 @@
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
 #   access-route <service>          shell to eval: route_access, route_domain, route_middlewares, route_certresolver of a service
-#   internal-range                  source CIDRs of the internal network's clients: what the provider declared, else Tailscale's 100.64.0.0/10, else the internal address and loopback
-#   internal-domain                 SYSTEM_INTERNAL_DOMAIN, else <internal-ip>.nip.io
+#   internal-range                  source CIDRs of the internal network's clients: what the provider declared, else the internal address and loopback
+#   internal-domain                 SYSTEM_INTERNAL_DOMAIN, else the saved one, else the external domain
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
 #   set-visibility <service> <v>    persist a choice (vps-access)
@@ -192,7 +192,7 @@ get_access_domain() {
         public) get_external_domain ;;
         internal)
             ip="$(get_internal_domain)"
-            [ -n "$ip" ] || { echo "vps-network: no internal address: install svc-tailscale or svc-cloudflare for internal access" >&2 && return 1; }
+            [ -n "$ip" ] || { echo "vps-network: no domain for internal access (set SYSTEM_INTERNAL_DOMAIN or SYSTEM_EXTERNAL_DOMAIN)" >&2 && return 1; }
             printf '%s' "$ip"
             ;;
         *) echo "usage: vps-network access-domain public|internal" >&2 && return 1 ;;

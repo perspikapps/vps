@@ -37,10 +37,10 @@ When no step declared the internal interface and `SYSTEM_INTERNAL_INTERFACE` is 
 
 Two prompts confirm the domains, each with a fallback:
 
-| Domain   | Set with                                | Fallback                 |
-| -------- | --------------------------------------- | ------------------------ |
-| external | `SYSTEM_EXTERNAL_DOMAIN` (`vps-system`)        | `<public-ip>.nip.io`     |
-| internal | `SYSTEM_INTERNAL_DOMAIN`                       | the external domain      |
+| Domain   | Set with                                | Fallback             |
+| -------- | --------------------------------------- | -------------------- |
+| external | `SYSTEM_EXTERNAL_DOMAIN` (`vps-system`) | `<public-ip>.nip.io` |
+| internal | `SYSTEM_INTERNAL_DOMAIN`                | the external domain  |
 
 An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
 
@@ -69,13 +69,13 @@ sudo vps-setup --down-vps-access
 
 ## Environment variables
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `SYSTEM_INTERNAL_APPS` | no | _(unset)_ | Comma list of the apps served on the internal network only (e.g. `rancher,coder`); overrides the menu and each app's default |
-| `SYSTEM_PUBLIC_APPS` | no | _(unset)_ | Comma list of the apps served on the server IP; overrides the menu and each app's default |
-| `SYSTEM_EXTERNAL_DOMAIN` | no | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); empty = `<public-ip>.nip.io` fallback. Validated and saved by this step |
-| `SYSTEM_INTERNAL_DOMAIN` | no | _(unset)_ | Domain pointing at the internal address, for internal services; empty = `<internal-ip>.nip.io` |
-| `SYSTEM_ACCESS_MENU` | no | `true` | `false` skips the menus and keeps the saved or default choices |
+| Variable                 | Required | Default   | Description                                                                                                                                                          |
+| ------------------------ | -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SYSTEM_INTERNAL_APPS`   | no       | _(unset)_ | Comma list of the apps served on the internal network only (e.g. `rancher,coder`); overrides the menu and each app's default                                         |
+| `SYSTEM_PUBLIC_APPS`     | no       | _(unset)_ | Comma list of the apps served on the server IP; overrides the menu and each app's default                                                                            |
+| `SYSTEM_EXTERNAL_DOMAIN` | no       | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); empty = `<public-ip>.nip.io` fallback. Validated and saved by this step |
+| `SYSTEM_INTERNAL_DOMAIN` | no       | _(unset)_ | Domain pointing at the internal address, for internal services; empty = the external domain                                                                          |
+| `SYSTEM_ACCESS_MENU`     | no       | `true`    | `false` skips the menus and keeps the saved or default choices (same as `ZZ_INTERACTIVE=0`, which also silences every other prompt)                                  |
 
 ## Dependencies
 
