@@ -23,7 +23,7 @@ sudo sh vps-k3s/run.sh down
 
 ## Removing (`down`)
 
-`down` removes k3s itself, via its own uninstaller - **takes Rancher and anything installed via the Marketplace down with it**, since they all run on this cluster.
+`down` removes k3s itself, via its own uninstaller - **takes Rancher and every app-* app down with it**, since they all run on this cluster.
 
 ```bash
 sudo vps-setup --down-vps-k3s

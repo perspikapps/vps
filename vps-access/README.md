@@ -21,7 +21,7 @@ sudo zz-setup ./ -o vps-access
 sudo zz-setup ./ -d vps-access
 ```
 
-It runs after the internal network (`vps-tailscale`/`vps-cloudflare`) and before `vps-k3s`, so the steps that expose something (`vps-rancher`, `vps-coder`) read its answers.
+It runs after the internal network (`vps-tailscale`/`vps-cloudflare`) and before `vps-k3s`, so the steps that expose something (`app-rancher`, `app-coder`) read its answers.
 
 ## Visibility
 

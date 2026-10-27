@@ -1,0 +1,115 @@
+#!/bin/sh
+# Rancher on k3s. Env vars: see README.
+# A zz-setup step: configured by environment inputs (package.json config.inputs),
+# so there is no zz-args block; run with up, down or summary as its first argument.
+
+set -eu
+zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install
+# shellcheck disable=SC1091
+. zz-colors
+app_cert_manager="$(dirname "$0")/../app-cert-manager/run.sh"
+
+up() {
+    local ingress_host host password values_file chart_version dir access middlewares certresolver
+
+    eval "$(kube-require)"
+    dir="$(cd "$(dirname "$0")" && pwd)"
+
+    # --- parameters: dashboard host, server URL, bootstrap password
+    # Rancher is only reached through Traefik: rancher.<domain> (same domain sources as Coder).
+    # vps-access (or RANCHER_ACCESS) picks where the route is served, public or internal, never both:
+    # Both are Traefik 80/443: public has Let's Encrypt; internal is a host on the internal domain
+    # behind the internal-only middleware (internal network clients only, default certificate).
+    eval "$(vps-network access-route rancher)"
+    access="$route_access" middlewares="$route_middlewares" certresolver="$route_certresolver"
+    ingress_host="${RANCHER_INGRESS_HOST:-rancher.${route_domain}}"
+    case "$ingress_host" in
+        *[!A-Za-z0-9.-]*) zz-log e "[vps-setup] RANCHER_INGRESS_HOST must be a host name (got '${ingress_host}')." && exit 1 ;;
+    esac
+    [ "$ingress_host" != "rancher." ] || { zz-log e "[vps-setup] No Rancher host: set RANCHER_INGRESS_HOST or EXTERNAL_DOMAIN." && exit 1; }
+    # Rancher's server URL follows that host.
+    host="${RANCHER_HOSTNAME:-$ingress_host}"
+
+    password="$(zz-persist -f "$VPS_SECRETS_FILE" -s -g 24 RANCHER_BOOTSTRAP_PASSWORD "${RANCHER_BOOTSTRAP_PASSWORD:-}")"
+
+    # --- chart repositories
+    # The community "latest" channel by default; RANCHER_CHART_REPO_URL selects
+    # another, e.g. SUSE Rancher Prime (https://charts.rancher.com/server-charts/prime).
+    # Bitnami charts (e.g. the databases some apps depend on) resolve from their alias.
+    RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
+    zz-log i "[vps-setup] Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
+    helm-repo app-rancher "$RANCHER_CHART_REPO_URL" bitnami https://charts.bitnami.com/bitnami
+
+    "$app_cert_manager"
+
+    # --- Rancher release
+    # shortcut: the unquoted version splits on spaces, a chart version has none.
+    chart_version="${RANCHER_CHART_VERSION:+--version ${RANCHER_CHART_VERSION}}"
+
+    zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${host}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
+    # hostname and bootstrapPassword go through a values file with JSON-quoted
+    # strings, not --set: helm parses --set bootstrapPassword=12345678 as an
+    # integer and the chart's b64enc then fails ("wrong type for value; expected
+    # string; got int64"); --set also splits on commas and shows in `ps`.
+    values_file="$(mktemp)"
+    jq -n --arg hostname "$host" --arg bootstrapPassword "$password" \
+        '{hostname: $hostname, bootstrapPassword: $bootstrapPassword}' >"$values_file"
+    # A Service an older run rebound to private ports (7080/7083) would merge with the
+    # chart's ports and the API rejects the duplicate names: remove it so helm recreates
+    # it as ClusterIP. Pods keep running.
+    if kubectl -n cattle-system get service rancher -o jsonpath='{.spec.type}' 2>/dev/null | grep -q LoadBalancer; then
+        zz-log i "[vps-setup] Removing the old LoadBalancer rancher Service so helm can recreate it..."
+        kubectl -n cattle-system delete service rancher --wait=true
+    fi
+    # No --wait: the rollout wait below does the waiting, with progress.
+    # shellcheck disable=SC2086
+    helm-install cattle-system rancher app-rancher/rancher \
+        --values "${dir}/helm/values.yaml" \
+        --values "$values_file" \
+        $chart_version || { rm -f "$values_file" && exit 1; }
+    rm -f "$values_file"
+
+    # --- rollout
+    zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
+    kube-rollout -t 10m cattle-system rancher ||
+        { zz-log e "[vps-setup] Re-run: sudo vps-setup --only-app-rancher" && exit 1; }
+
+    # --- dashboard route, through k3s's Traefik (see ingress.yaml)
+    zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host} (${access})..."
+    yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" HTTP_MIDDLEWARES="${middlewares:+$middlewares,}kube-system-redirect-https@kubernetescrd" CERTRESOLVER="$certresolver" | kubectl apply -f -
+
+    zz-log s "[vps-setup] Rancher installed."
+    zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, ${access})"
+    zz-log s "[vps-setup] Bootstrap password saved to ${VPS_SECRETS_FILE}: ${password}"
+}
+
+down() {
+    eval "$(kube-require -d)"
+    kube-teardown cattle-system rancher
+    zz-persist -q -f "$VPS_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
+    zz-log s "[vps-setup] Rancher removed."
+}
+
+summary() {
+    local host access pub="" int=""
+
+    host="$(kubectl -n cattle-system get ingress rancher-traefik -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
+    access="$(vps-network visibility rancher)"
+    if [ -z "$host" ]; then
+        pub="no route yet: run app-rancher/run.sh"
+    elif [ "$access" = "internal" ]; then
+        int="https://${host} (internal network clients only; Traefik's default certificate)"
+    else
+        pub="https://${host} (Let's Encrypt)"
+    fi
+    vps-network summary-block Rancher "$pub" "$int" "none: a ClusterIP; kubectl -n cattle-system port-forward svc/rancher 8443:443" \
+        "user:     admin" \
+        "password: $(zz-persist -f "$VPS_SECRETS_FILE" -r RANCHER_BOOTSTRAP_PASSWORD | grep . || echo 'not set - run app-rancher/run.sh')" \
+        "(saved to ${VPS_SECRETS_FILE}; you'll be prompted to change it on first login)"
+}
+
+case "${1:-}" in
+    up | down) "$1" ;;
+    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
+    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
+esac

@@ -1,0 +1,35 @@
+{
+  "name": "@tomgrv/app-infisical",
+  "version": "4.7.0",
+  "description": "Infisical (secrets management) installed with helm from this repo's chart",
+  "bin": {
+    "app-infisical": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/vps-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": false,
+    "inputs": {
+      "VPS_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
+      }
+    },
+    "order": 14,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

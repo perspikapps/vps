@@ -47,30 +47,35 @@ Steps run in this order. Each has its own README with its variables.
 | [`vps-access`](vps-access/README.md)           | Confirms public/internal visibility per service and the DNS domains  | on      |
 | [`vps-cockpit`](vps-cockpit/README.md)         | Cockpit web console                                                  | on      |
 | [`vps-k3s`](vps-k3s/README.md)                 | k3s, kubectl, Helm and Traefik as the public HTTP/HTTPS ingress      | on      |
-| [`vps-rancher`](vps-rancher/README.md)         | cert-manager and Rancher                                             | on      |
+| [`app-rancher`](app-rancher/README.md)         | cert-manager and Rancher                                             | on      |
 | [`vps-dokploy`](vps-dokploy/README.md)         | Dokploy, an alternative to the k3s stack                             | opt-in  |
-| [`vps-marketplace`](vps-marketplace/README.md) | Registers the [app catalog](#app-catalog) in Rancher                 | on      |
-| [`vps-coder`](vps-coder/README.md)             | Coder cloud development environments (needs Rancher)                 | opt-in  |
+| [`app-coder`](app-coder/README.md)             | Coder cloud development environments (needs Rancher)                 | opt-in  |
+| [`app-argocd`](app-argocd/README.md)           | ArgoCD, GitOps continuous delivery (see [apps](#apps))               | opt-in  |
+| [`app-cognee`](app-cognee/README.md)           | Cognee, AI memory and knowledge graph                                | opt-in  |
+| [`app-hermes`](app-hermes/README.md)           | Hermes Agent, a self-improving AI agent                              | opt-in  |
+| [`app-epinio`](app-epinio/README.md)           | Epinio, push source code to deploy apps                              | opt-in  |
+| [`app-github-arc`](app-github-arc/README.md)   | Self-hosted GitHub Actions runners                                   | opt-in  |
+| [`app-infisical`](app-infisical/README.md)     | Infisical, secrets management                                        | opt-in  |
 
 Choose what runs with flags, or with the menu:
 
 ```bash
 sudo vps-setup --skip-vps-cockpit               # everything except Cockpit
-sudo vps-setup --with-vps-coder                 # also run an opt-in step
-sudo vps-setup --only-vps-rancher               # just this step (e.g. after changing a variable)
+sudo vps-setup --with-app-coder                 # also run an opt-in step
+sudo vps-setup --only-app-rancher               # just this step (e.g. after changing a variable)
 sudo vps-setup --skip-vps-tailscale --with-vps-cloudflare   # Cloudflare instead of Tailscale
-sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy   # Dokploy instead of k3s
+sudo vps-setup --skip-vps-k3s --skip-app-rancher --with-vps-dokploy   # Dokploy instead of k3s
 ```
 
-A step's dependencies are enabled for you (`--only-vps-marketplace` also runs
-`vps-rancher` and `vps-k3s`). Tailscale and Cloudflare cannot run together, nor
+A step's dependencies are enabled for you (`--only-app-argocd` also runs
+`vps-k3s`). Tailscale and Cloudflare cannot run together, nor
 can k3s and Dokploy: `vps-setup` stops before running anything if you select both.
 
 ## Remove a step
 
 ```bash
-sudo vps-setup --down-vps-marketplace
-sudo vps-setup --down-vps-k3s --down-vps-rancher --down-vps-marketplace   # the whole cluster
+sudo vps-setup --down-app-argocd
+sudo vps-setup --down-vps-k3s --down-app-rancher   # the whole cluster (apps go with k3s)
 ```
 
 A step is refused while something that depends on it is still enabled; bring
@@ -178,21 +183,30 @@ flowchart LR
 - **Traefik dashboard.** `http://<internal-ip>:8088/dashboard/` (trailing slash
   required), internal network only.
 
-## App catalog
+## Apps
 
-`vps-marketplace` adds this repo's catalog to Rancher under **Apps &
-Marketplace → Repositories** (`https://perspikapps.github.io/vps/`). Install apps
-from **Apps & Marketplace → Charts**; each chart's README lists the values to fill in.
+Each app is an opt-in `app-*` step that installs this repo's chart (`charts/<app>`) with
+`helm`, through the shared [`app-helm`](app-helm/README.md): `sudo vps-setup --with-app-argocd`.
+Apps with their own ingress templates (ArgoCD, Cognee, Hermes, Coder) are **public or internal**
+(see [`vps-access`](vps-access/README.md)); Epinio and Infisical bring their own ingress and are
+public-only. The steps ask for what the app needs (`COGNEE_LLM_API_KEY`, `HERMES_IMAGE_REPOSITORY`,
+the GitHub App for ARC...); each README lists them.
 
-| App                                       | What it is                         |
-| ----------------------------------------- | ---------------------------------- |
-| [ArgoCD](charts/argocd/README.md)         | GitOps continuous delivery         |
-| [Coder](charts/coder/README.md)           | Cloud development environments     |
-| [Cognee](charts/cognee/README.md)         | AI memory and knowledge graph      |
-| [Epinio](charts/epinio/README.md)         | Push source code to deploy apps    |
-| [GitHub ARC](charts/github-arc/README.md) | Self-hosted GitHub Actions runners |
-| [Hermes Agent](charts/hermes/README.md)   | Self-improving AI agent            |
-| [Infisical](charts/infisical/README.md)   | Secrets management                 |
+## Rancher Marketplace
+
+The same charts are published as a Helm repository (`https://perspikapps.github.io/vps/`). To
+install one from Rancher's UI instead, add it under **Apps & Marketplace → Repositories** by hand,
+then pick the chart under **Charts**; each chart's README lists the values to fill in.
+
+| App                                       | What it is                         | Step                                            |
+| ----------------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| [ArgoCD](charts/argocd/README.md)         | GitOps continuous delivery         | [`app-argocd`](app-argocd/README.md)            |
+| [Coder](charts/coder/README.md)           | Cloud development environments     | [`app-coder`](app-coder/README.md)              |
+| [Cognee](charts/cognee/README.md)         | AI memory and knowledge graph      | [`app-cognee`](app-cognee/README.md)            |
+| [Epinio](charts/epinio/README.md)         | Push source code to deploy apps    | [`app-epinio`](app-epinio/README.md)            |
+| [GitHub ARC](charts/github-arc/README.md) | Self-hosted GitHub Actions runners | [`app-github-arc`](app-github-arc/README.md)    |
+| [Hermes Agent](charts/hermes/README.md)   | Self-improving AI agent            | [`app-hermes`](app-hermes/README.md)            |
+| [Infisical](charts/infisical/README.md)   | Secrets management                 | [`app-infisical`](app-infisical/README.md)      |
 
 ## Provision at first boot
 
@@ -205,9 +219,9 @@ data" field, and follow progress in `/var/log/vps-setup.log`.
 ## Troubleshooting
 
 - **A step fails.** `vps-setup` stops at the first failing step and prints the
-  command to re-run just that step, for example `sudo vps-setup --only-vps-rancher`.
+  command to re-run just that step, for example `sudo vps-setup --only-app-rancher`.
 - **A step stops without output.** A prerequisite was probably skipped, for
-  example `--only-vps-rancher` on a box where `vps-k3s` never ran. Run the
+  example `--only-app-rancher` on a box where `vps-k3s` never ran. Run the
   missing step first.
 - **`command not found` after an upgrade.** Refresh the cached copy:
   `sudo zz-use --force perspikapps/vps/vps-setup`.

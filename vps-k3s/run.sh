@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-progress
+zz-use zz-colors zz-log zz-persist zz-install yaml-render kube-rollout
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -94,8 +94,7 @@ up() {
         kubectl -n kube-system get deploy traefik >/dev/null 2>&1 && break
         sleep 5
     done
-    kube-progress kube-system "Traefik rollout" kubectl -n kube-system rollout status deploy/traefik --timeout=5m ||
-        zz-log w "[vps-setup] Traefik didn't report ready in time - check: kubectl -n kube-system get pods -l app.kubernetes.io/name=traefik"
+    kube-rollout -w kube-system traefik
 
     kubectl apply -f "$(dirname "$0")/helm/redirect-middleware.yaml" ||
         zz-log w "[vps-setup] Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run vps-k3s."
@@ -116,7 +115,7 @@ up() {
 
 down() {
     if [ -x /usr/local/bin/k3s-uninstall.sh ]; then
-        zz-log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, any Marketplace-installed apps, etc.)..."
+        zz-log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, the app-* apps, etc.)..."
         /usr/local/bin/k3s-uninstall.sh
     else
         zz-log w "[vps-setup] k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."

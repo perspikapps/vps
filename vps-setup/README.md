@@ -11,7 +11,7 @@ prompts are all `zz-setup`'s.
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps). Unlike every
 other feature folder, this one isn't itself an installable step, so it has no
 `engines.zz-setup` field in its `package.json` and `zz-setup` never proposes it (like
-`vps-network` and `vps-cert-manager`, which are scripts). See the root README's
+`vps-network` and `app-cert-manager`, which are scripts). See the root README's
 [One folder per feature](../README.md#one-folder-per-feature) and
 [Running vps-setup](../README.md#running-vps-setup) for the full picture.
 
@@ -27,8 +27,8 @@ With no arguments on an actual terminal, `vps-setup` shows `zz-setup`'s
 interactive menu; piped or scripted, pass flags instead:
 
 ```sh
-sudo vps-setup --only-vps-rancher
-sudo vps-setup --down-vps-marketplace
+sudo vps-setup --only-app-rancher
+sudo vps-setup --down-app-argocd
 sudo vps-setup -h    # zz-setup's help, listing every step
 ```
 
@@ -38,7 +38,7 @@ lists and `--force-down` becomes `-F`; anything else (`-h`, `-S` for a status
 view, `-D`) is passed through. From a checkout, no `zz-use` install is needed:
 
 ```sh
-sudo sh vps-setup/run.sh --only-vps-rancher
+sudo sh vps-setup/run.sh --only-app-rancher
 ```
 
 ## What stays here

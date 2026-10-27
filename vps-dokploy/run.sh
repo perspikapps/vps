@@ -28,7 +28,7 @@ up() {
         # port check (ss) cannot see, so it would not notice the clash.
         if command -v k3s >/dev/null 2>&1; then
             zz-log e "[vps-setup] k3s is installed and its Traefik owns ports 80/443, which Dokploy's Traefik needs too." \
-                "Run one ingress: sudo vps-setup --down-vps-marketplace --down-vps-rancher --down-vps-k3s --with-vps-dokploy" && exit 1
+                "Run one ingress: sudo vps-setup --down-app-rancher --down-vps-k3s --with-vps-dokploy" && exit 1
         fi
         # The installer runs 'docker swarm leave --force' first: refuse to take down a swarm that is not Dokploy's.
         if command -v docker >/dev/null 2>&1 && [ "$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)" = "active" ]; then

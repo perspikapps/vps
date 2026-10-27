@@ -19,10 +19,10 @@ global:
 ingress:
     enabled: true
     className: traefik
-    # public (server IP, Traefik 80/443) or internal (Tailscale/Cloudflare address,
-    # the internal-only Traefik middleware, same 80/443), never both. internal needs global.domain or host
-    # set to <internal-ip>.nip.io (see `vps-network access-domain internal`).
-    access: public
+    # Traefik middlewares of the route (annotation router.middlewares). Empty = public. For an
+    # internal route use kube-system-internal-only@kubernetescrd (created by vps-k3s) and an internal
+    # host (global.domain or host): clients of the internal network only.
+    middlewares: ''
     # Override the generated <app>.<domain> host.
     host: ''
 

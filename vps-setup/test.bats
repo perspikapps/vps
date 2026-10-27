@@ -43,8 +43,8 @@ teardown() {
 
 @test "legacy flags are translated to zz-setup lists" {
     run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE=/nonexistent sh "$DIR/run.sh" -h \
-        --skip-vps-rancher --skip-vps-k3s --with-vps-cockpit --only-vps-system --down-vps-marketplace --force-down
-    [[ "$output" == *"-F -s vps-rancher,vps-k3s -w vps-cockpit -o vps-system -d vps-marketplace"* ]]
+        --skip-app-rancher --skip-vps-k3s --with-vps-cockpit --only-vps-system --down-app-argocd --force-down
+    [[ "$output" == *"-F -s app-rancher,vps-k3s -w vps-cockpit -o vps-system -d app-argocd"* ]]
 }
 
 @test "a full local checkout is used in place" {

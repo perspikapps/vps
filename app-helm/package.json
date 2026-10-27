@@ -1,0 +1,12 @@
+{
+  "name": "@tomgrv/app-helm",
+  "version": "4.7.0",
+  "description": "Installs a chart of this repo's catalog (a script shared by the app-* steps, not a step)",
+  "bin": {
+    "app-helm": "run.sh"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  }
+}

@@ -13,6 +13,7 @@
 #   set-internal-interface <iface>   persist the internal interface (vps-tailscale, vps-cloudflare)
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
+#   access-route <service>          shell to eval: route_access, route_domain, route_middlewares, route_certresolver of a service
 #   internal-range                  source CIDRs of the internal network (INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
 #   internal-domain                 INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
@@ -32,7 +33,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
+- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -126,16 +127,22 @@ get_internal_domain() {
 }
 
 # get_visibility <service>: public or internal. <NAME>_ACCESS from the environment,
-# else the persisted choice, else config.visibility of vps-<service>, else public.
+# else the persisted choice, else config.visibility of vps-<service> or app-<service>, else public.
 get_visibility() {
-    local name="$1" var value
+    local name="$1" var value dir
 
     var="$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')_ACCESS"
     eval "value=\"\${$var:-}\""
     if [ -z "$value" ] && [ -f "$access_file" ]; then
         value="$(zz-persist -f "$access_file" -r "$var")"
     fi
-    [ -n "$value" ] || value="$(jq -r '.config.visibility // empty' "$root/vps-$name/package.json" 2>/dev/null || true)"
+    if [ -z "$value" ]; then
+        for dir in "vps-$name" "app-$name" "$name"; do
+            [ -f "$root/$dir/package.json" ] || continue
+            value="$(jq -r '.config.visibility // empty' "$root/$dir/package.json" 2>/dev/null || true)"
+            break
+        done
+    fi
     printf '%s' "${value:-public}"
 }
 
@@ -147,6 +154,7 @@ list_visibilities() {
         jq -e '.config.visibility' "$root/$dir/package.json" >/dev/null 2>&1 || continue
         name="${dir#./}"
         name="${name#vps-}"
+        name="${name#app-}"
         printf '%s\t%s\n' "$name" "$(get_visibility "$name")"
     done
 }
@@ -201,6 +209,23 @@ summary_block() {
         shift
     done
     for text in "$@"; do printf '   %s\n' "$text"; done
+}
+
+# get_access_route <service>: shell to eval, the route of a service from its public/internal
+# choice: route_access, route_domain, route_middlewares (the internal-only Traefik middleware
+# for internal, else empty) and route_certresolver (Let's Encrypt for public, none for internal).
+# On an invalid choice or a missing domain it logs and prints "exit 1" for the caller.
+get_access_route() {
+    local access domain middlewares certresolver
+
+    access="$(get_visibility "$1")"
+    case "$access" in
+        public) middlewares="" certresolver="letsencrypt" ;;
+        internal) middlewares="kube-system-internal-only@kubernetescrd" certresolver="" ;;
+        *) echo "vps-network: $1 must be public or internal (got '${access}')" >&2 && echo 'exit 1' && return 0 ;;
+    esac
+    domain="$(get_access_domain "$access")" || { echo 'exit 1' && return 0; }
+    printf "route_access='%s'\nroute_domain='%s'\nroute_middlewares='%s'\nroute_certresolver='%s'\n" "$access" "$domain" "$middlewares" "$certresolver"
 }
 
 # list_ports: every step's ports as TSV (name, port, access, note); the port
@@ -272,6 +297,7 @@ unset-internal-interface)
     ;;
 internal-domain) get_internal_domain ;;
 internal-range) get_internal_range ;;
+access-route) get_access_route "${1:?usage: vps-network access-route <service>}" ;;
 visibility) get_visibility "${1:?usage: vps-network visibility <service>}" ;;
 visibilities) list_visibilities ;;
 set-visibility)
@@ -289,7 +315,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
     exit 1
     ;;
 esac

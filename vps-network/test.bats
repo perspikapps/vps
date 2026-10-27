@@ -136,3 +136,26 @@ setup() {
     [ "$status" -eq 0 ]
     [ "$output" = "$(printf 'gamma\tinternal')" ]
 }
+
+@test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"route_access='public'"* ]]
+    [[ "$output" == *"route_domain='apps.example.com'"* ]]
+    [[ "$output" == *"route_middlewares=''"* ]]
+    [[ "$output" == *"route_certresolver='letsencrypt'"* ]]
+    ALPHA_ACCESS=internal INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" access-route alpha
+    [[ "$output" == *"route_access='internal'"* ]]
+    [[ "$output" == *"route_domain='in.example.com'"* ]]
+    [[ "$output" == *"route_middlewares='kube-system-internal-only@kubernetescrd'"* ]]
+    [[ "$output" == *"route_certresolver=''"* ]]
+}
+
+@test "access-route makes the caller exit 1 on a bad choice or a missing domain" {
+    export VPS_ACCESS_FILE="$work/access.env"
+    ALPHA_ACCESS=sideways run sh "$SCRIPT" access-route alpha
+    [ "$output" = "exit 1" ] || [[ "$output" == *"exit 1" ]]
+    ALPHA_ACCESS=internal run sh "$SCRIPT" access-route alpha
+    [[ "$output" == *"exit 1" ]]
+}

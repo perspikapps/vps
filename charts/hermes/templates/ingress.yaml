@@ -6,13 +6,13 @@ metadata:
     name: {{ include "hermes.fullname" . }}
     labels:
         {{- include "hermes.labels" . | nindent 8 }}
-    {{- if or .Values.dashboard.ingress.tlsIssuer (eq (.Values.dashboard.ingress.access | default "public") "internal") }}
+    {{- if or .Values.dashboard.ingress.tlsIssuer .Values.dashboard.ingress.middlewares }}
     annotations:
         {{- if .Values.dashboard.ingress.tlsIssuer }}
         cert-manager.io/cluster-issuer: {{ .Values.dashboard.ingress.tlsIssuer }}
         {{- end }}
-        {{- if eq (.Values.dashboard.ingress.access | default "public") "internal" }}
-        traefik.ingress.kubernetes.io/router.middlewares: kube-system-internal-only@kubernetescrd
+        {{- if .Values.dashboard.ingress.middlewares }}
+        traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.dashboard.ingress.middlewares | quote }}
         {{- end }}
     {{- end }}
 spec:

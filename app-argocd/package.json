@@ -1,0 +1,30 @@
+{
+  "name": "@tomgrv/app-argocd",
+  "version": "4.7.0",
+  "description": "ArgoCD (GitOps continuous delivery) installed with helm from this repo's chart",
+  "bin": {
+    "app-argocd": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/vps-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "visibility": "public",
+    "default": false,
+    "inputs": {},
+    "order": 9,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

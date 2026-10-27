@@ -19,7 +19,7 @@ generic core is kept in each repo's `UPGRADING.md`; only section 0 differs.
   a dry run: the old `release-promote` still bootstraps the provider's `main`.
 - **Deployed hosts:** re-run the `setup.sh` one-liner, then `zz-update`.
 - **PR title scope:** one of `vps-cockpit`, `vps-common`, `vps-dokploy`,
-  `vps-k3s`, `vps-marketplace`, `vps-rancher`, `vps-security`, `vps-setup`,
+  `vps-k3s`, `app-argocd`, `app-cognee`, `app-coder`, `app-epinio`, `app-github-arc`, `app-hermes`, `app-infisical`, `app-rancher`, `vps-security`, `vps-setup`,
   `vps-system`, `vps-tailscale`.
 - **Release:** `.github/workflows/release-main.yml` (`dry_run` first).
 

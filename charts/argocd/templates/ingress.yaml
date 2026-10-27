@@ -4,9 +4,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
     name: {{ .Release.Name }}-argocd
-    {{- if eq (.Values.ingress.access | default "public") "internal" }}
+    {{- if .Values.ingress.middlewares }}
     annotations:
-        traefik.ingress.kubernetes.io/router.middlewares: kube-system-internal-only@kubernetescrd
+        traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.ingress.middlewares | quote }}
     {{- end }}
 spec:
     ingressClassName: {{ .Values.ingress.className }}

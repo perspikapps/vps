@@ -14,7 +14,7 @@ Runs as one step of a full `vps-setup` install/removal, or on its own through `z
 
 ```bash
 # Fresh box, Dokploy instead of the k3s/Rancher stack:
-sudo vps-setup --skip-vps-k3s --skip-vps-rancher --skip-vps-marketplace --with-vps-dokploy
+sudo vps-setup --skip-vps-k3s --skip-app-rancher --with-vps-dokploy
 
 # Only the Dokploy step:
 sudo vps-setup --only-vps-dokploy
