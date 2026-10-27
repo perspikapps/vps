@@ -4,14 +4,15 @@
 
 Hermes Agent (self-improving AI agent harness), installed with helm from this repo's [`charts/hermes`](../charts/hermes/README.md) (an opt-in step).
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 11 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 
 ```bash
-sudo vps-setup --with-app-hermes
-sudo vps-setup --only-app-hermes
-sudo vps-setup --down-app-hermes
+sudo vps-setup --with-app-hermes      # add it to a full run
+sudo vps-setup --only-app-hermes      # just this step
+sudo vps-setup --down-app-hermes      # remove it
+sudo zz-setup ./ -o app-hermes         # without vps-setup, from a checkout
 ```
 
 The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds the chart values (a shared domain from `vps-network access-domain`, the app's own settings) and runs `app-helm up hermes`. Build and push the image first (`charts/hermes/README.md`); the step only installs the chart.
@@ -27,6 +28,10 @@ The route is **public** (server IP) or **internal** (the internal network only),
 | `HERMES_IMAGE_REPOSITORY` | yes | _(unset)_ | Image repository of the Hermes Agent image you built and pushed (no official image exists) |
 | `HERMES_IMAGE_TAG` | no | `latest` | Image tag |
 | `HERMES_ENV_SECRET` | no | _(unset)_ | Name of a Secret (namespace hermes) whose keys become the container environment: LLM provider and chat tokens |
+
+## Removing (`down`)
+
+Uninstalls the Helm release and deletes the `hermes` namespace (`app-helm down`).
 
 ## Dependencies
 

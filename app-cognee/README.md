@@ -4,14 +4,15 @@
 
 Cognee (AI memory engine), installed with helm from this repo's [`charts/cognee`](../charts/cognee/README.md) (an opt-in step).
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 10 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 
 ```bash
-sudo vps-setup --with-app-cognee
-sudo vps-setup --only-app-cognee
-sudo vps-setup --down-app-cognee
+sudo vps-setup --with-app-cognee      # add it to a full run
+sudo vps-setup --only-app-cognee      # just this step
+sudo vps-setup --down-app-cognee      # remove it
+sudo zz-setup ./ -o app-cognee         # without vps-setup, from a checkout
 ```
 
 The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds the chart values (a shared domain from `vps-network access-domain`, the app's own settings) and runs `app-helm up cognee`. The key is saved to `ZZ_SECRETS_FILE` and given to the chart through a values file, never `--set`.
@@ -26,6 +27,11 @@ The route is **public** (server IP) or **internal** (the internal network only),
 | --- | --- | --- | --- |
 | `COGNEE_LLM_API_KEY` | yes | _(unset)_ | LLM provider API key Cognee needs to start (OpenAI by default) |
 | `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+
+## Removing (`down`)
+
+Uninstalls the Helm release and deletes the `cognee` namespace (`app-helm down`).
+Forgets the saved `COGNEE_LLM_API_KEY` from the secrets file.
 
 ## Dependencies
 

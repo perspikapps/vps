@@ -4,22 +4,17 @@
 
 [Coder](https://coder.com) (remote development environments) on the k3s cluster, following [Coder's Rancher install guide](https://coder.com/docs/install/server/rancher) with the helm CLI instead of the Rancher UI.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
-
 **Opt-in** (`config.default: false`); it needs `app-rancher` (and so `svc-k3s`), which also registers the `bitnami` Helm repository.
+
+Part of [`vps`](https://github.com/perspikapps/vps) · order 8 · opt-in · needs root, Ubuntu · needs step `app-rancher` · [how steps work](../README.md#contributing).
 
 ## Usage
 
 ```bash
-sudo vps-setup --with-app-coder
-sudo vps-setup --only-app-coder   # just this step, on a host that already has Rancher
-```
-
-Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
-
-```bash
-sudo zz-setup ./ -o app-coder
-sudo zz-setup ./ -d app-coder
+sudo vps-setup --with-app-coder      # add it to a full run
+sudo vps-setup --only-app-coder      # just this step
+sudo vps-setup --down-app-coder      # remove it
+sudo zz-setup ./ -o app-coder         # without vps-setup, from a checkout
 ```
 
 ## What it does
@@ -79,13 +74,13 @@ BuildKit's `buildkitd.toml` is set to push to the in-cluster registry over plain
 
 Private repositories need a Coder external auth provider with the ID `github` and the template pushed with `--var external_auth_id=github` (not done here). Subdomain apps rely on the wildcard access URL above. If a push warns, the warning names the step that failed; after fixing it, re-run the step (`sudo vps-setup --only-app-coder`; the admin and template parts are idempotent and use the saved credentials), or run `coder templates push` by hand.
 
-## Removing (`down`)
+## Not verified on a live host
 
-```bash
-sudo vps-setup --down-app-coder
-```
-
-Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords (devcontainer-builder, the registry and its images are left in place, with `/etc/rancher/k3s/registries.yaml`).
+- The devcontainer-builder chart's value names (`buildkit.deploy.enabled`, `registryAuth`, `registryMapping`) and the `coder-kubernetes` template's variable names, both taken from its setup page and not read at source; the token's push/pull scope.
+- The admin and template bootstrap: the `/users/first` and `/users/login` API shapes, the `kubernetes-devcontainer` id, the `use_kubeconfig`/`namespace` variable names, and whether the template needs more (such as a cache repository).
+- The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
+- The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.
+- That the login cookie error was fully explained by the host/wildcard mismatch: inferred from Coder's wildcard docs, not reproduced.
 
 ## Environment variables
 
@@ -106,17 +101,27 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 | `CODER_DB_PASSWORD` | no | _(generated)_ | PostgreSQL password for Coder |
 | `CODER_DB_STORAGE` | no | `10Gi` | PostgreSQL volume size |
 
+## Ports and access
+
+| Port   | Access  | Override              | What |
+| ------ | ------- | --------------------- | ---- |
+| `5000` | private | `CODER_REGISTRY_PORT` |      |
+
+`public` ports are open to everyone; `private` ones only on the internal interface (`vps-security`).
+
+The route is **public** by default (`public` = the server IP on 80/443, `internal` = the internal network only); `vps-access` or `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` change it.
+
+## Removing (`down`)
+
+```bash
+sudo vps-setup --down-app-coder
+```
+
+Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data is lost.** Also forgets the saved database and admin passwords (devcontainer-builder, the registry and its images are left in place, with `/etc/rancher/k3s/registries.yaml`).
+
 ## Dependencies
 
 `app-rancher` (which brings `svc-k3s`).
-
-## Not verified on a live host
-
-- The devcontainer-builder chart's value names (`buildkit.deploy.enabled`, `registryAuth`, `registryMapping`) and the `coder-kubernetes` template's variable names, both taken from its setup page and not read at source; the token's push/pull scope.
-- The admin and template bootstrap: the `/users/first` and `/users/login` API shapes, the `kubernetes-devcontainer` id, the `use_kubeconfig`/`namespace` variable names, and whether the template needs more (such as a cache repository).
-- The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
-- The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.
-- That the login cookie error was fully explained by the host/wildcard mismatch: inferred from Coder's wildcard docs, not reproduced.
 
 ## Tests
 

@@ -4,21 +4,15 @@
 
 Confirms which services are **public** or **internal**, and the DNS domains they are reached on.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 3.5 · on by default · needs root · [how steps work](../README.md#contributing).
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
-
 ```bash
-sudo vps-setup --only-vps-access
-```
-
-Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
-
-```bash
-sudo zz-setup ./ -o vps-access
-sudo zz-setup ./ -d vps-access
+sudo vps-setup --only-vps-access      # just this step (it is on by default)
+sudo vps-setup --skip-vps-access      # leave it out of a full run
+sudo vps-setup --down-vps-access      # remove it
+sudo zz-setup ./ -o vps-access         # without vps-setup, from a checkout
 ```
 
 It runs after the internal network (`svc-tailscale`/`svc-cloudflare`) and before `svc-k3s`, so the steps that expose something (`app-rancher`, `app-coder`) read its answers.
@@ -59,14 +53,6 @@ Every step summary has the same paragraph (`vps-network summary-block`): a `Publ
    Internal domain: *.203-0-113-9.nip.io - default (the external domain), resolves to 203.0.113.9
 ```
 
-## Removing (`down`)
-
-`down` forgets the saved choices (each service goes back to its `config.visibility` default).
-
-```bash
-sudo vps-setup --down-vps-access
-```
-
 ## Environment variables
 
 | Variable                 | Required | Default   | Description                                                                                                                                                          |
@@ -76,6 +62,14 @@ sudo vps-setup --down-vps-access
 | `SYSTEM_EXTERNAL_DOMAIN` | no       | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); empty = `<public-ip>.nip.io` fallback. Validated and saved by this step |
 | `SYSTEM_INTERNAL_DOMAIN` | no       | _(unset)_ | Domain pointing at the internal address, for internal services; empty = the external domain                                                                          |
 | `SYSTEM_ACCESS_MENU`     | no       | `true`    | `false` skips the menus and keeps the saved or default choices (same as `ZZ_INTERACTIVE=0`, which also silences every other prompt)                                  |
+
+## Removing (`down`)
+
+`down` forgets the saved choices (each service goes back to its `config.visibility` default).
+
+```bash
+sudo vps-setup --down-vps-access
+```
 
 ## Dependencies
 

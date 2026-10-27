@@ -12,8 +12,8 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps). Unlike every
 other feature folder, this one isn't itself an installable step, so it has no
 `engines.zz-setup` field in its `package.json` and `zz-setup` never proposes it (like
 `vps-network` and `app-cert-manager`, which are scripts). See the root README's
-[One folder per feature](../README.md#one-folder-per-feature) and
-[Running vps-setup](../README.md#running-vps-setup) for the full picture.
+[Contributing](../README.md#contributing) and
+[Quick start](../README.md#quick-start) for the full picture.
 
 ## Usage
 
@@ -66,4 +66,4 @@ bats test.bats
 Covers the wiring (`zz-use`), the legacy-flag translation, the
 settings file, fork URL handling and `package.json`'s `bin`/`dependencies`,
 with `zz-setup` stubbed. Actually orchestrating a real install needs a live root
-Ubuntu box - see the root README's [Tests](../README.md#tests) section.
+Ubuntu box - see the root README's [Tests](../README.md#contributing) section.

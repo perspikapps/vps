@@ -4,21 +4,15 @@
 
 Rancher install.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 5 · on by default · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
-
 ```bash
-sudo vps-setup --only-app-rancher
-```
-
-Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
-
-```bash
-sudo zz-setup ./ -o app-rancher
-sudo zz-setup ./ -d app-rancher
+sudo vps-setup --only-app-rancher      # just this step (it is on by default)
+sudo vps-setup --skip-app-rancher      # leave it out of a full run
+sudo vps-setup --down-app-rancher      # remove it
+sudo zz-setup ./ -o app-rancher         # without vps-setup, from a checkout
 ```
 
 ## Public dashboard through Traefik
@@ -74,14 +68,6 @@ first so helm recreates it (merging the chart's ports 80/443 into the rebound on
 would give duplicate port names). Rancher's pods keep running meanwhile; only the
 Service is briefly gone.
 
-## Removing (`down`)
-
-`down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the apps that need certificates).
-
-```bash
-sudo vps-setup --down-app-rancher
-```
-
 ## Environment variables
 
 | Variable | Required | Default | Description |
@@ -93,15 +79,27 @@ sudo vps-setup --down-app-rancher
 | `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
 | `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
 
+## Ports and access
+
+The route is **public** by default (`public` = the server IP on 80/443, `internal` = the internal network only); `vps-access` or `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` change it.
+
 ## Outputs
 
 | Output | Description |
 | --- | --- |
 | `RANCHER_BOOTSTRAP_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `RANCHER_BOOTSTRAP_PASSWORD` (older hosts: `/root/.rancher-bootstrap-password`, migrated on the next run) |
 
+## Removing (`down`)
+
+`down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the apps that need certificates).
+
+```bash
+sudo vps-setup --down-app-rancher
+```
+
 ## Dependencies
 
-Step dependency: `svc-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)).
+Step dependency: `svc-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Steps](../README.md#steps)).
 
 ## Tests
 
@@ -109,4 +107,4 @@ Step dependency: `svc-k3s` - `vps-setup` auto-enables it when this step is enabl
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#contributing).

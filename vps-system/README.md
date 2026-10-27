@@ -4,25 +4,18 @@
 
 Base system update & essentials.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 0 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
-
 ```bash
-sudo vps-setup --only-vps-system
+sudo vps-setup --only-vps-system      # just this step (it is on by default)
+sudo vps-setup --skip-vps-system      # leave it out of a full run
+sudo vps-setup --down-vps-system      # remove it
+sudo zz-setup ./ -o vps-system         # without vps-setup, from a checkout
 ```
 
-Or directly, from a checkout (`up` is the default action):
-
-```bash
-sudo sh vps-system/run.sh up
-```
-
-## Removing (`down`)
-
-This step has no `down` action - it's a one-shot base package upgrade, nothing to undo. Running `up` again is always safe (idempotent).
+## Wildcard DNS
 
 ## Environment variables
 
@@ -30,7 +23,9 @@ This step has no `down` action - it's a one-shot base package upgrade, nothing t
 | --- | --- | --- | --- |
 | `SYSTEM_TZ` | no | _(unset)_ | Timezone to set on the VPS (e.g. Europe/Paris) |
 
-## Wildcard DNS
+## Removing (`down`)
+
+This step has no `down` action - it's a one-shot base package upgrade, nothing to undo. Running `up` again is always safe (idempotent).
 
 ## Dependencies
 
@@ -42,4 +37,4 @@ No other step is required.
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#contributing).

@@ -7,6 +7,16 @@ hardens the server, joins it to your internal network and installs Cockpit, k3s,
 Rancher and a catalog of ready-to-install apps. Every step is idempotent: re-run
 it at any time, and take any step down again without touching the others.
 
+**Start here**
+
+- Install: [Quick start](#quick-start), or [provision at first boot](#provision-at-first-boot).
+- Choose what runs: [Steps](#steps) and [Remove a step](#remove-a-step).
+- Configure: [Inputs](#inputs) and [where state lives](#where-state-lives).
+- Reach your services: [What is reachable](#what-is-reachable) (public, internal, local).
+- Add apps: [Apps](#apps) and [Rancher Marketplace](#rancher-marketplace).
+- Something wrong: [Troubleshooting](#troubleshooting).
+- Change or add a step: [Contributing](#contributing).
+
 ## Quick start
 
 As root on a fresh Ubuntu VPS:
@@ -260,16 +270,16 @@ A step is `run.sh` (functions `up`, `down`, optional `summary`, ending with
 `. zz-step`), `package.json`, `README.md` and `test.bats`. Its `package.json`
 declares what `zz-setup` needs:
 
-| Field                              | Meaning                                                                   |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| `engines.zz-setup`                 | marks the folder as a step                                                |
-| `config.order`, `config.default`   | run order, and whether it is on by default                                |
-| `config.conflicts`, `dependencies` | steps that cannot run together; steps that must be enabled with it        |
-| `config.requires`                  | `{"root": true, "os": "ubuntu"}`, checked before it runs                  |
-| `config.inputs`                    | variables the step reads (`description`, `default`, `required`, `secret`) |
-| `config.ports`                     | ports it opens: `access: public` to everyone, `private` only on the internal interface                 |
-| `config.visibility`                | `public` or `internal` default of an app that serves a route              |
-| `config.summary`                   | `true` when `summary` prints connection details                           |
+| Field                              | Meaning                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `engines.zz-setup`                 | marks the folder as a step                                                             |
+| `config.order`, `config.default`   | run order, and whether it is on by default                                             |
+| `config.conflicts`, `dependencies` | steps that cannot run together; steps that must be enabled with it                     |
+| `config.requires`                  | `{"root": true, "os": "ubuntu"}`, checked before it runs                               |
+| `config.inputs`                    | variables the step reads (`description`, `default`, `required`, `secret`)              |
+| `config.ports`                     | ports it opens: `access: public` to everyone, `private` only on the internal interface |
+| `config.visibility`                | `public` or `internal` default of an app that serves a route                           |
+| `config.summary`                   | `true` when `summary` prints connection details                                        |
 
 Rules that keep the steps consistent: variables are `SYSTEM_<VAR>`,
 `<SERVICE>_<VAR>` or `<APP>_<VAR>`; `down` removes what `up` installed and never

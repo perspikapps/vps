@@ -4,29 +4,15 @@
 
 Cockpit install, with the `cockpit-packagekit` (software updates) and `cockpit-files` modules.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
+Part of [`vps`](https://github.com/perspikapps/vps) · order 3 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
 
 ## Usage
 
-Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
-
 ```bash
-sudo vps-setup --only-svc-cockpit
-```
-
-Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
-
-```bash
-sudo zz-setup ./ -o svc-cockpit
-sudo zz-setup ./ -d svc-cockpit
-```
-
-## Removing (`down`)
-
-`down` removes the Cockpit packages (including `cockpit-packagekit` and `cockpit-files`) and socket config.
-
-```bash
-sudo vps-setup --down-svc-cockpit
+sudo vps-setup --only-svc-cockpit      # just this step (it is on by default)
+sudo vps-setup --skip-svc-cockpit      # leave it out of a full run
+sudo vps-setup --down-svc-cockpit      # remove it
+sudo zz-setup ./ -o svc-cockpit         # without vps-setup, from a checkout
 ```
 
 ## Environment variables
@@ -36,6 +22,23 @@ sudo vps-setup --down-svc-cockpit
 | `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
 | `COCKPIT_HTTPS_PORT` | no | `9083` | Cockpit HTTPS port |
 | `COCKPIT_HTTP_PORT` | no | `9080` | Cockpit HTTP port |
+
+## Ports and access
+
+| Port   | Access  | Override             | What |
+| ------ | ------- | -------------------- | ---- |
+| `9080` | private | `COCKPIT_HTTP_PORT`  |      |
+| `9083` | private | `COCKPIT_HTTPS_PORT` |      |
+
+`public` ports are open to everyone; `private` ones only on the internal interface (`vps-security`).
+
+## Removing (`down`)
+
+`down` removes the Cockpit packages (including `cockpit-packagekit` and `cockpit-files`) and socket config.
+
+```bash
+sudo vps-setup --down-svc-cockpit
+```
 
 ## Dependencies
 
@@ -47,4 +50,4 @@ No other step is required.
 bats test.bats
 ```
 
-Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#tests).
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#contributing).
