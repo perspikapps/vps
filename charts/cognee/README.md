@@ -26,7 +26,7 @@ for what it mirrors.
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. **Apps & Marketplace → Charts**, pick **cognee**, fill in `llmApiKey`,
    and install. Cognee's API comes up on the Service's port `8000`
    (`ClusterIP`, reachable through the Ingress at `cognee.<server

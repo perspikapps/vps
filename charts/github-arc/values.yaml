@@ -17,9 +17,9 @@ gha-runner-scale-set-controller: {}
 
 gha-runner-scale-set:
     # REQUIRED: the org or repo URL runners should register against,
-    # e.g. https://github.com/perspikapps or
-    # https://github.com/perspikapps/vps
-    githubConfigUrl: https://github.com/perspikapps/vps
+    # e.g. https://github.com/tomgrv or
+    # https://github.com/tomgrv/vps
+    githubConfigUrl: https://github.com/tomgrv/vps
 
     # REQUIRED: a GitHub App's credentials (create the App yourself
     # first, following the ARC quickstart linked in this chart's

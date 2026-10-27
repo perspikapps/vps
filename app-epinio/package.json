@@ -1,0 +1,41 @@
+{
+  "name": "@tomgrv/app-epinio",
+  "version": "4.8.0",
+  "description": "Epinio (deploy apps from source) installed with helm from this repo's chart",
+  "bin": {
+    "app-epinio": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/svc-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": false,
+    "inputs": {
+      "EPINIO_ADMIN_PASSWORD": {
+        "description": "Epinio admin password (generated and saved when empty)",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "ZZ_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
+      }
+    },
+    "order": 12,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

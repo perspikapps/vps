@@ -27,7 +27,7 @@ values (`epinio.ingress`, `epinio.server`, `epinio.containerregistry`)
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. Make sure cert-manager is installed on the cluster (Rancher/ArgoCD
    installs pull it in already; otherwise install it separately first
     - Epinio's Ingresses need a cert-manager Issuer to come up).

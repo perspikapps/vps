@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     # so there's nothing here to duplicate/keep in sync.
     [ ! -e "$REPO_ROOT/setup.sh" ]
     for f in "$REPO_ROOT"/*/run.sh "$REPO_ROOT"/README.md; do
-        ! grep -qE 'perspikapps/vps/[^ ]*setup\.sh' "$f"
+        ! grep -qE 'tomgrv/vps/[^ ]*setup\.sh' "$f"
     done
 }
 
@@ -40,20 +40,23 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 }
 
 @test "steps leave require_root to dispatch_action (up/down) - no explicit call left" {
-    for f in "$REPO_ROOT"/vps-*/run.sh; do
+    for f in "$REPO_ROOT"/{vps,app,svc}-*/run.sh; do
         [[ "$f" == */vps-common/* || "$f" == */vps-setup/* ]] && continue
         ! grep -q '^\s*require_root$' "$f"
     done
 }
 
 @test "installer scripts are fetched with zz-install -x, not through a predictable /tmp path" {
-    ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/vps-*/run.sh
+    ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/{vps,app,svc}-*/run.sh
 }
 
 # run_summary <step> <path with stubs>: run the step's summary action the way zz-setup does
 # (from its own directory, as ./run.sh).
 run_summary() {
-    run env VPS_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$REPO_ROOT/vps-$1"
+    # vps-network is on PATH through zz-use in a real run; here the checkout's own copy.
+    printf '#!/bin/sh\nexec sh "%s/vps-network/run.sh" "$@"\n' "$REPO_ROOT" >"$2/vps-network"
+    chmod +x "$2/vps-network"
+    run env ZZ_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$(ls -d "$REPO_ROOT/vps-$1" "$REPO_ROOT/app-$1" "$REPO_ROOT/svc-$1" 2>/dev/null | head -1)"
 }
 
 @test "every step's summary action runs and prints its block" {
@@ -66,7 +69,7 @@ shift; echo "$*"
 ' >"$stubs/zz-log"
     : >"$stubs/zz-colors"
     chmod +x "$stubs"/zz-use "$stubs"/zz-log
-    for step in cockpit k3s marketplace rancher security tailscale; do
+    for step in cockpit k3s rancher security tailscale; do
         run_summary "$step" "$stubs"
         [ "$status" -eq 0 ]
         [ -n "$output" ]
@@ -103,7 +106,7 @@ shift; echo "$*"
 }
 
 @test "every input a package.json declares is documented in that folder's README" {
-    for d in "$REPO_ROOT"/vps-*/; do
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
         for v in $(jq -r '(.config.inputs // {}) | keys[]' "$d/package.json"); do
             grep -q "\`$v\`" "$d/README.md"
         done
@@ -111,7 +114,7 @@ shift; echo "$*"
 }
 
 @test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
-    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/vps-*/run.sh | grep -v 'vps_secret'
+    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/{vps,app,svc}-*/run.sh | grep -v 'vps_secret'
 }
 
 @test "every run.sh is POSIX sh: #!/bin/sh and parses with dash (zz-setup conventions)" {
@@ -122,21 +125,38 @@ shift; echo "$*"
 }
 
 @test "a managed script sources nothing but zz-* scripts (shared logic is called, not sourced)" {
-    for f in "$REPO_ROOT"/vps-*/run.sh; do
+    for f in "$REPO_ROOT"/{vps,app,svc}-*/run.sh; do
         # the settings file of vps-setup is data in shell syntax (read under a comment saying so)
         [ -z "$(grep -E '^\s*(\.|source) ' "$f" | grep -v '\. zz-' | grep -v '\. "\$env_file"')" ]
     done
 }
 
-@test "steps dispatch up/down/summary; vps-network and vps-cert-manager are scripts, not steps" {
-    for d in "$REPO_ROOT"/vps-*/; do
+@test "steps dispatch up/down/summary; vps-network, app-cert-manager and app-helm are scripts, not steps" {
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
         run node -e "
             const p = require('$d/package.json');
             process.exit(p.engines && p.engines['zz-setup'] ? 0 : 1)"
-        [ "$status" -ne 0 ] || grep -q '^case "${1:-}" in' "$d/run.sh"
+        [ "$status" -ne 0 ] || grep -q '^\. zz-step$' "$d/run.sh"
     done
-    for s in network cert-manager; do
-        run node -e "const p = require('$REPO_ROOT/vps-$s/package.json'); process.exit(p.bin['vps-$s'] && !p.engines ? 0 : 1)"
+    for s in vps-network app-cert-manager app-helm; do
+        run node -e "const p = require('$REPO_ROOT/$s/package.json'); process.exit(p.bin['$s'] && !p.engines ? 0 : 1)"
         [ "$status" -eq 0 ]
+    done
+}
+
+@test "every step summary prints its public, internal and local paragraph through vps-network summary-block" {
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
+        grep -q '^summary() {' "$d/run.sh" || continue
+        awk '/^summary\(\) \{/,/^}/' "$d/run.sh" | grep -qE 'vps-network summary-block|app-helm summary'
+    done
+}
+
+@test "every chart with an Ingress builds it with the shared vps-lib library, which it depends on" {
+    [ "$(grep '^type:' "$REPO_ROOT/charts/_lib/Chart.yaml")" = "type: library" ]
+    for f in "$REPO_ROOT"/charts/*/templates/ingress.yaml; do
+        c="$(dirname "$(dirname "$f")")"
+        grep -q 'include "vps-lib.ingress"' "$f"
+        grep -q 'name: vps-lib' "$c/Chart.yaml"
+        grep -q 'repository: file://../_lib' "$c/Chart.yaml"
     done
 }

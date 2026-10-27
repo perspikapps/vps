@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.8.0 (2026-10-27)
+
+*Commits from: v4.7.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.7.0' into develop
+### 📦 vps-network changes
+
+#### Features
+
+- ✨ public/internal access, vps/svc/app steps, shared helpers (#65)
+
 ## 4.7.0 (2026-10-25)
 
 *Commits from: v4.6.0..HEAD*
@@ -503,5 +518,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-25 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-27 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*

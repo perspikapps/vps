@@ -1,0 +1,11 @@
+# Shared by every internal route (annotation traefik.ingress.kubernetes.io/router.middlewares:
+# kube-system-internal-only@kubernetescrd): only clients of the internal network get through.
+# ${INTERNAL_RANGE} (quoted, comma separated CIDRs) is filled in by run.sh.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+    name: internal-only
+    namespace: kube-system
+spec:
+    ipAllowList:
+        sourceRange: [${INTERNAL_RANGE}]

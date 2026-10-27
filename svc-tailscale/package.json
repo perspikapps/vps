@@ -1,0 +1,41 @@
+{
+  "name": "@tomgrv/svc-tailscale",
+  "version": "4.8.0",
+  "description": "Tailscale install",
+  "bin": {
+    "svc-tailscale": "run.sh"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "conflicts": [
+      "svc-cloudflare"
+    ],
+    "default": true,
+    "inputs": {
+      "TAILSCALE_AUTHKEY": {
+        "description": "Auth key to auto-join a tailnet",
+        "required": true,
+        "default": "",
+        "secret": true
+      },
+      "TAILSCALE_EXTRA_ARGS": {
+        "description": "Extra flags appended to tailscale up",
+        "required": false,
+        "default": ""
+      }
+    },
+    "order": 1,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

@@ -3,11 +3,9 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install zz-step
 # shellcheck disable=SC1091
 . zz-colors
-# Scripts of this checkout, called (never sourced): addresses, private interface, ports.
-vps_network="$(dirname "$0")/../vps-network/run.sh"
 
 DOKPLOY_INSTALL_URL=https://dokploy.com/install.sh
 
@@ -21,41 +19,42 @@ is_dokploy_installed() {
 up() {
     local ui_port
 
-    ui_port="$("$vps_network" port dokploy_ui)"
+    ui_port="$(vps-network port system_dokploy_ui)"
 
     if is_dokploy_installed; then
-        zz-log i "[vps-setup] Dokploy already installed; not re-running its installer (it resets the swarm)."
+        zz-log i "Dokploy already installed; not re-running its installer (it resets the swarm)."
     else
         # k3s's ServiceLB holds 80/443 with iptables rules the installer's own
         # port check (ss) cannot see, so it would not notice the clash.
         if command -v k3s >/dev/null 2>&1; then
-            zz-log e "[vps-setup] k3s is installed and its Traefik owns ports 80/443, which Dokploy's Traefik needs too." \
-                "Run one ingress: sudo vps-setup --down-vps-marketplace --down-vps-rancher --down-vps-k3s --with-vps-dokploy" && exit 1
+            zz-log e "k3s is installed and its Traefik owns ports 80/443, which Dokploy's Traefik needs too." \
+                "Run one ingress: sudo vps-setup --down-app-rancher --down-svc-k3s --with-vps-dokploy" && exit 1
         fi
         # The installer runs 'docker swarm leave --force' first: refuse to take down a swarm that is not Dokploy's.
         if command -v docker >/dev/null 2>&1 && [ "$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)" = "active" ]; then
-            zz-log e "[vps-setup] This host is already in a Docker swarm that is not Dokploy's; the installer would destroy it." \
+            zz-log e "This host is already in a Docker swarm that is not Dokploy's; the installer would destroy it." \
                 "Run 'docker swarm leave --force' yourself if that is what you want, then re-run." && exit 1
         fi
         # The installer calls openssl unconditionally and installs Docker itself when missing.
         command -v openssl >/dev/null 2>&1 || zz-install openssl
         # Upstream variable names: the installer reads them from its environment.
-        export ADVERTISE_ADDR="${ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
-        export DOKPLOY_VERSION="${DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${DOCKER_SWARM_INIT_ARGS:-}"
-        zz-log i "[vps-setup] Running the Dokploy installer (advertise address ${ADVERTISE_ADDR}); it installs Docker if needed..."
+        # the installer reads its own variable names (ADVERTISE_ADDR, DOKPLOY_VERSION, DOCKER_SWARM_INIT_ARGS)
+        export ADVERTISE_ADDR="${SYSTEM_DOKPLOY_ADVERTISE_ADDR:-$(hostname -I | awk '{print $1}')}"
+        export DOKPLOY_VERSION="${SYSTEM_DOKPLOY_VERSION:-}" DOCKER_SWARM_INIT_ARGS="${SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS:-}"
+        zz-log i "Running the Dokploy installer (advertise address ${ADVERTISE_ADDR}); it installs Docker if needed..."
         # The official installer needs bash.
         zz-install -u "$DOKPLOY_INSTALL_URL" -x bash dokploy
-        is_dokploy_installed || { zz-log e "[vps-setup] The Dokploy installer finished but the dokploy service/Traefik are not there." && exit 1; }
+        is_dokploy_installed || { zz-log e "The Dokploy installer finished but the dokploy service/Traefik are not there." && exit 1; }
     fi
 
     # Docker publishes the admin UI past ufw: vps-security's FORWARD guard covers it.
-    "$vps_network" reapply-guard
-    zz-log s "[vps-setup] Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
+    vps-network reapply-guard
+    zz-log s "Dokploy installed. Admin UI on port ${ui_port}, private access only (the first visit creates the admin account)."
 }
 
 down() {
     if command -v docker >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Removing Dokploy and the applications it deployed (swarm services, volumes, secrets)..."
+        zz-log i "Removing Dokploy and the applications it deployed (swarm services, volumes, secrets)..."
         docker container rm -f dokploy-traefik 2>/dev/null || true
         docker service rm dokploy dokploy-postgres dokploy-redis 2>/dev/null || true
         docker swarm leave --force 2>/dev/null || true
@@ -63,31 +62,25 @@ down() {
         docker volume rm -f dokploy dokploy-postgres dokploy-redis 2>/dev/null || true
         docker network rm dokploy-network 2>/dev/null || true
     else
-        zz-log w "[vps-setup] Docker not found; nothing to remove besides /etc/dokploy."
+        zz-log w "Docker not found; nothing to remove besides /etc/dokploy."
     fi
     rm -rf /etc/dokploy
-    if [ "${REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Removing Docker (REMOVE_DOCKER=true)..."
+    if command -v docker >/dev/null 2>&1; then
+        zz-log i "Removing Docker (the Dokploy installer installed it)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
         zz-install -r docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true
     fi
-    zz-log s "[vps-setup] Dokploy removed."
+    zz-log s "Dokploy removed."
 }
 
 summary() {
     # Opt-in step: say nothing on a host that never installed it.
     [ -d /etc/dokploy ] || return 0
-    cat <<EOF
- Dokploy:             http://$("$vps_network" summary-host):$("$vps_network" port dokploy_ui)
-                       (private access only; the first visit creates the
-                       admin account, so join the private network first.
-                       Apps are served by Dokploy's own Traefik on 80/443)
-EOF
+    vps-network summary-block Dokploy \
+        "apps served by Dokploy's own Traefik on 80/443" - \
+        "http://localhost:$(vps-network port system_dokploy_ui) (admin UI, on the VPS; also http://$(vps-network summary-host):$(vps-network port system_dokploy_ui) on the internal address)" \
+        "The first visit creates the admin account: join the internal network first."
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

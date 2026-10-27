@@ -43,12 +43,12 @@ write_files:
       content: |
           # Filled in at provisioning time - see README.md for where each value
           # comes from (SSH keys, Tailscale auth keys, etc).
-          VPS_ADMIN_USER=ops
-          VPS_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
+          SYSTEM_ADMIN_USER=ops
+          SYSTEM_ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@laptop" # REQUIRED: same key as above
           TAILSCALE_AUTHKEY="tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" # REQUIRED
-          RANCHER_HOSTNAME="rancher.tailnet-name.ts.net"
+          SYSTEM_INTERNAL_APPS="rancher" # apps served on the internal network only (empty = all public)
           RANCHER_BOOTSTRAP_PASSWORD="" # leave blank to auto-generate, see README.md
-          # Uncomment to install from a branch/fork instead of perspikapps/vps@main:
+          # Uncomment to install from a branch/fork instead of tomgrv/vps@main:
           # VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git
           # ZZ_SETUP_REF=my-branch
 
@@ -66,6 +66,6 @@ runcmd:
         set -a; source /etc/vps-setup.env; set +a;
         ref="${ZZ_SETUP_REF:-main}";
         curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh;
-        zz-use "perspikapps/vps/vps-setup@${ref}";
+        zz-use "tomgrv/vps/vps-setup@${ref}";
         vps-setup 2>&1 | tee /var/log/vps-setup.log
         '

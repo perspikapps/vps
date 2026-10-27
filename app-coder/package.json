@@ -1,0 +1,111 @@
+{
+  "name": "@tomgrv/app-coder",
+  "version": "4.8.0",
+  "description": "Coder (remote development environments) with in-cluster PostgreSQL",
+  "bin": {
+    "app-coder": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/app-rancher": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "visibility": "public",
+    "default": false,
+    "inputs": {
+      "CODER_ADMIN_EMAIL": {
+        "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",
+        "required": false,
+        "default": ""
+      },
+      "CODER_ADMIN_PASSWORD": {
+        "description": "Password of the first Coder admin (default: generated and saved)",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "CODER_ADMIN_USERNAME": {
+        "description": "Username of the first Coder admin",
+        "required": false,
+        "default": "admin"
+      },
+      "CODER_CHART_VERSION": {
+        "description": "Pin the Coder chart version (e.g. 2.37.4 stable); empty = latest",
+        "required": false,
+        "default": ""
+      },
+      "CODER_DB_PASSWORD": {
+        "description": "PostgreSQL password for Coder (default: generated and saved)",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "CODER_DB_STORAGE": {
+        "description": "PostgreSQL volume size",
+        "required": false,
+        "default": "10Gi"
+      },
+      "CODER_WORKSPACE_NAMESPACE": {
+        "description": "Namespace workspaces run in (created, with rights for Coder's service account; used by the templates and the pull secret)",
+        "required": false,
+        "default": "coder-workspaces"
+      },
+      "CODER_DEVCONTAINER_BUILDER_REF": {
+        "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required for that template)",
+        "required": false,
+        "default": ""
+      },
+      "CODER_DEVCONTAINER_BUILDER_VERSION": {
+        "description": "devcontainer-builder Helm chart version (empty = latest, logged so you can pin it)",
+        "required": false,
+        "default": ""
+      },
+      "CODER_DEVCONTAINER_REGISTRY": {
+        "description": "External registry host (with the token, user and org); default ghcr.io",
+        "required": false,
+        "default": "ghcr.io"
+      },
+      "CODER_DEVCONTAINER_REGISTRY_ORG": {
+        "description": "Registry org/user images are pushed under",
+        "required": false,
+        "default": ""
+      },
+      "CODER_DEVCONTAINER_REGISTRY_TOKEN": {
+        "description": "External registry token able to push and pull (GHCR: write:packages); with user and org it replaces the in-cluster registry",
+        "required": false,
+        "default": "",
+        "secret": true
+      },
+      "CODER_DEVCONTAINER_REGISTRY_USER": {
+        "description": "Registry username for the token",
+        "required": false,
+        "default": ""
+      },
+      "ZZ_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
+      }
+    },
+    "order": 8,
+    "outputs": {},
+    "ports": [
+      {
+        "name": "coder_registry",
+        "port": 5000,
+        "access": "private"
+      }
+    ],
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

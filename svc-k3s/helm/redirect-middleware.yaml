@@ -1,0 +1,11 @@
+# Shared by routes that only redirect plain HTTP to HTTPS
+# (kube-system-redirect-https@kubernetescrd), e.g. Rancher's http route.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+    name: redirect-https
+    namespace: kube-system
+spec:
+    redirectScheme:
+        scheme: https
+        permanent: true

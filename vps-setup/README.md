@@ -8,18 +8,18 @@ the final connection summary (Tailscale IP, Cockpit/Rancher credentials, etc).
 Feature discovery, the skip/up/down menu, dependency resolution and the input
 prompts are all `zz-setup`'s.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps). Unlike every
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps). Unlike every
 other feature folder, this one isn't itself an installable step, so it has no
 `engines.zz-setup` field in its `package.json` and `zz-setup` never proposes it (like
-`vps-network` and `vps-cert-manager`, which are scripts). See the root README's
-[One folder per feature](../README.md#one-folder-per-feature) and
-[Running vps-setup](../README.md#running-vps-setup) for the full picture.
+`vps-network` and `app-cert-manager`, which are scripts). See the root README's
+[Contributing](../README.md#contributing) and
+[Quick start](../README.md#quick-start) for the full picture.
 
 ## Usage
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-zz-use perspikapps/vps/vps-setup
+zz-use tomgrv/vps/vps-setup
 sudo vps-setup
 ```
 
@@ -27,8 +27,8 @@ With no arguments on an actual terminal, `vps-setup` shows `zz-setup`'s
 interactive menu; piped or scripted, pass flags instead:
 
 ```sh
-sudo vps-setup --only-vps-rancher
-sudo vps-setup --down-vps-marketplace
+sudo vps-setup --only-app-rancher
+sudo vps-setup --down-app-argocd
 sudo vps-setup -h    # zz-setup's help, listing every step
 ```
 
@@ -38,7 +38,7 @@ lists and `--force-down` becomes `-F`; anything else (`-h`, `-S` for a status
 view, `-D`) is passed through. From a checkout, no `zz-use` install is needed:
 
 ```sh
-sudo sh vps-setup/run.sh --only-vps-rancher
+sudo sh vps-setup/run.sh --only-app-rancher
 ```
 
 ## What stays here
@@ -66,4 +66,4 @@ bats test.bats
 Covers the wiring (`zz-use`), the legacy-flag translation, the
 settings file, fork URL handling and `package.json`'s `bin`/`dependencies`,
 with `zz-setup` stubbed. Actually orchestrating a real install needs a live root
-Ubuntu box - see the root README's [Tests](../README.md#tests) section.
+Ubuntu box - see the root README's [Tests](../README.md#contributing) section.

@@ -4,10 +4,10 @@
 
 A reusable procedure for shipping, and consuming, a **breaking change** across
 the repos that depend on each other (`tomgrv/scripts` → `tomgrv/actions` →
-`tomgrv/devcontainer-features` → consumers such as `perspikapps/vps`). The same
+`tomgrv/devcontainer-features` → consumers such as `tomgrv/vps`). The same
 generic core is kept in each repo's `UPGRADING.md`; only section 0 differs.
 
-## 0. In this repo: `perspikapps/vps` (consumer)
+## 0. In this repo: `tomgrv/vps` (consumer)
 
 - **Role:** consumer. Cloud-init and docs run
   `curl … tomgrv/scripts/main/setup.sh | sh`, which installs the provider's
@@ -18,9 +18,9 @@ generic core is kept in each repo's `UPGRADING.md`; only section 0 differs.
   `scripts-ref`) **in the same PR**. Leaving the old release pins fails only in
   a dry run: the old `release-promote` still bootstraps the provider's `main`.
 - **Deployed hosts:** re-run the `setup.sh` one-liner, then `zz-update`.
-- **PR title scope:** one of `vps-cockpit`, `vps-common`, `vps-dokploy`,
-  `vps-k3s`, `vps-marketplace`, `vps-rancher`, `vps-security`, `vps-setup`,
-  `vps-system`, `vps-tailscale`.
+- **PR title scope:** one of `svc-cockpit`, `vps-common`, `vps-dokploy`,
+  `svc-k3s`, `app-argocd`, `app-cognee`, `app-coder`, `app-epinio`, `app-github-arc`, `app-hermes`, `app-infisical`, `app-rancher`, `vps-security`, `vps-setup`,
+  `vps-system`, `svc-tailscale`.
 - **Release:** `.github/workflows/release-main.yml` (`dry_run` first).
 
 ## 1. Principles
@@ -45,7 +45,7 @@ generic core is kept in each repo's `UPGRADING.md`; only section 0 differs.
 | **Provider**          | The commands/APIs being changed   | `tomgrv/scripts`                       |
 | **Tooling**           | Actions that install and run them | `tomgrv/actions`                       |
 | **Distributor**       | Features/stubs copied to others   | `tomgrv/devcontainer-features`         |
-| **Consumer**          | Calls everything above            | `perspikapps/vps`, any downstream repo |
+| **Consumer**          | Calls everything above            | `tomgrv/vps`, any downstream repo |
 
 Chain: **Provider → Tooling → Distributor → Consumer.** CI in every repo
 installs the provider's `main` and runs the **published** tooling major, so a
@@ -167,7 +167,7 @@ dispatchers.
 | `tomgrv/scripts`               | v0.34  | v1.0.0 |
 | `tomgrv/actions`               | v2.46  | v3.0.0 |
 | `tomgrv/devcontainer-features` | v8.29  | v9.0.0 |
-| `perspikapps/vps`              | v0.3.0 | v1.0.0 |
+| `tomgrv/vps`              | v0.3.0 | v1.0.0 |
 
 | Old                                                                      | New                                                                      |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
