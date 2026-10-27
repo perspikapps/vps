@@ -31,7 +31,7 @@ On a terminal, a menu lists every such service: a number cycles it between `publ
 
 ## Internal interface
 
-When no step declared the internal interface and `SYSTEM_INTERNAL_INTERFACE` is not set, a menu lists the host's interfaces (the default-route one is marked as the public side, `none` leaves the internal network off) and saves the choice with `vps-network set-internal-interface`. Without a terminal nothing is asked.
+When no step declared the internal interface and `SYSTEM_INTERNAL_INTERFACE` is not set, a menu lists the host's real interfaces with their IPv4 address (container and cluster plumbing such as `docker0`, `veth*`, `cni*`, `flannel*` is hidden; the default-route one is marked as the public side; `0` leaves the internal network off) and saves the choice with `vps-network set-internal-interface`. Without a terminal nothing is asked.
 
 ## DNS
 
@@ -44,7 +44,7 @@ Two prompts confirm the domains, each with a fallback:
 
 An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
 
-Without a terminal (or with `SYSTEM_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
+Without a terminal (or with `ZZ_INTERACTIVE=0`, or the older `SYSTEM_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
 
 ## Summary
 

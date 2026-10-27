@@ -16,9 +16,8 @@ DIR="$REPO_ROOT/vps-access"
     grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
-@test "menus only run on a terminal and can be switched off with SYSTEM_ACCESS_MENU" {
-    grep -q 'SYSTEM_ACCESS_MENU:-true' "$DIR/run.sh"
-    grep -q '\[ -t 0 \] || (: </dev/tty)' "$DIR/run.sh"
+@test "menus only run when zz-interactive says so (a terminal; ZZ_INTERACTIVE=0 or SYSTEM_ACCESS_MENU=false switch them off)" {
+    grep -q '^ask() { zz-interactive; }$' "$DIR/run.sh"
 }
 
 @test "runs after the internal network and before k3s, with the DNS inputs declared" {

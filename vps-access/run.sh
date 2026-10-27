@@ -5,31 +5,31 @@
 # run with up, down or summary as its first argument. The menus only run on a terminal.
 
 set -eu
-zz-use zz-colors zz-log zz-menu zz-prompt zz-step
+zz-use zz-colors zz-log zz-menu zz-prompt zz-interactive zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
-# ask: menus only with a terminal to ask on (stdin, else /dev/tty, as zz-prompt reads it)
-# and unless SYSTEM_ACCESS_MENU=false.
-ask() {
-    [ "${SYSTEM_ACCESS_MENU:-true}" = "true" ] && { [ -t 0 ] || (: </dev/tty) 2>/dev/null; }
-}
+# ask: menus only with something to ask on (zz-interactive: a terminal, not ZZ_INTERACTIVE=0).
+ask() { zz-interactive; }
 
 # confirm_interface: when no step declared the internal interface and SYSTEM_INTERNAL_INTERFACE is
 # not set, pick it from the host's interfaces (the default-route one is the public side, marked).
 confirm_interface() {
-    local iface default choice
+    local iface default choice addr
 
     ask || return 0
     [ -z "$(vps-network internal-interface)" ] || return 0
     default="$(ip -4 route show default 2>/dev/null | awk '{print $5; exit}')"
     set --
     for iface in $(ip -o link show 2>/dev/null | awk -F': ' '{sub(/@.*/, "", $2); print $2}'); do
-        [ "$iface" != lo ] || continue
-        set -- "$@" "${iface}=${iface}${default:+$([ "$iface" != "$default" ] || printf ' (default route, public)')}"
+        # the container/cluster plumbing is never the internal network
+        case "$iface" in lo | docker* | veth* | br-* | cni* | flannel* | cali* | kube* | virbr* | lxc*) continue ;; esac
+        addr="$(ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{print $4; exit}' | cut -d/ -f1)"
+        set -- "$@" "${iface}=${iface}${addr:+ ($addr)}$([ "$iface" != "$default" ] || printf ' - default route, public')"
     done
     [ "$#" -gt 0 ] || return 0
-    choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" "$@" "none=None (no internal network)")" || return 0
+    choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" -z "none=None (no internal network)" \
+        -f "  Number picks the interface; 0 for none; q keeps it unset." "$@")" || return 0
     [ -n "$choice" ] && [ "$choice" != none ] || return 0
     vps-network set-internal-interface "$choice"
     zz-log i "Internal interface: ${choice}"
@@ -48,7 +48,7 @@ confirm_visibility() {
 $(vps-network visibilities)
 EOF
     [ "$#" -gt 0 ] || return 0
-    out="$(zz-menu -t "Visibility (a number cycles public/internal, Enter confirms, q keeps)" -c public,internal "$@")" || return 0
+    out="$(zz-menu -t "Visibility" -f "  Number cycles public/internal; <enter> confirms; q keeps." -c public,internal "$@")" || return 0
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
         if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
