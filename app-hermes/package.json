@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-hermes",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "Hermes Agent (self-improving AI agent harness) installed with helm from this repo's chart",
   "bin": {
     "app-hermes": "run.sh"

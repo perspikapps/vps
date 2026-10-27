@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-cert-manager",
-  "version": "4.4.0",
+  "version": "4.8.0",
   "description": "Install cert-manager through Helm unless it is already installed",
   "bin": {
     "app-cert-manager": "run.sh"

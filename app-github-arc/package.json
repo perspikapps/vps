@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-github-arc",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "GitHub Actions Runner Controller and a runner scale set installed with helm from this repo's chart",
   "bin": {
     "app-github-arc": "run.sh"

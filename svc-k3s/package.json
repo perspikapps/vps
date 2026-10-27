@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/svc-k3s",
-  "version": "4.5.0",
+  "version": "4.8.0",
   "description": "k3s / kubectl / helm install (includes Traefik configuration)",
   "bin": {
     "svc-k3s": "run.sh"
