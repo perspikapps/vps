@@ -15,7 +15,7 @@ setup() {
     echo '{"name":"@x/beta","bin":{"beta":"run.sh"},"engines":{"zz-setup":"*"},"config":{"ports":[{"name":"beta_http","port":2222,"access":"private"}]}}' >"$work/beta/package.json"
     # not a step: no engines.zz-setup, so its ports must not count
     echo '{"name":"@x/lib","config":{"ports":[{"name":"lib_http","port":3333,"access":"public"}]}}' >"$work/lib/package.json"
-    export VPS_SETUP_ROOT="$work" SYSTEM_INTERNAL_ACCESS_FILE="$work/internal.env" SYSTEM_EXTERNAL_DOMAIN_FILE="$work/external.env"
+    export VPS_SETUP_ROOT="$work" SYSTEM_NETWORK_FILE="$work/network.env"
 }
 
 @test "run.sh parses as POSIX sh and is a script, not a step" {
@@ -85,7 +85,6 @@ setup() {
 }
 
 @test "internal-domain: defaults to the external domain" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" internal-domain
     [ "$output" = "apps.example.com" ]
 }
@@ -99,7 +98,6 @@ setup() {
 }
 
 @test "visibility: the system lists, then the saved choice, then config.visibility, else public; no per-app variable" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" visibility alpha
     [ "$output" = "public" ]
     echo '{"name":"@x/alpha","bin":{"alpha":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/alpha/package.json"
@@ -117,13 +115,11 @@ setup() {
 }
 
 @test "set-visibility rejects anything but public or internal" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     run sh "$SCRIPT" set-visibility alpha sideways
     [ "$status" -ne 0 ]
 }
 
 @test "internal-domain: SYSTEM_INTERNAL_DOMAIN, else the saved one" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     SYSTEM_INTERNAL_DOMAIN=in.example.com run sh "$SCRIPT" internal-domain
     [ "$output" = "in.example.com" ]
     sh "$SCRIPT" set-internal-domain saved.example.com
@@ -132,7 +128,6 @@ setup() {
 }
 
 @test "visibilities: the service names, without the vps- prefix or ./, with their visibility" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     mkdir -p "$work/vps-gamma"
     : >"$work/vps-gamma/run.sh"
     echo '{"workspaces":["alpha","beta","lib","vps-gamma"]}' >"$work/package.json"
@@ -143,7 +138,6 @@ setup() {
 }
 
 @test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
     [ "$status" -eq 0 ]
     [[ "$output" == *"route_access='public'"* ]]
@@ -158,7 +152,6 @@ setup() {
 }
 
 @test "access-route makes the caller exit 1 on a missing domain, and ignores a per-app ACCESS variable" {
-    export SYSTEM_ACCESS_FILE="$work/access.env"
     ALPHA_ACCESS=sideways run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"route_access='public'"* ]]
     SYSTEM_INTERNAL_APPS=alpha run sh "$SCRIPT" access-route alpha
@@ -166,7 +159,6 @@ setup() {
 }
 
 @test "internal-range: what the provider declared with the interface, forgotten with it; no environment variable" {
-    export NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env"
     sh "$SCRIPT" set-internal-interface wg0 10.9.0.0/24 >/dev/null 2>&1
     run sh "$SCRIPT" internal-range
     [ "$output" = "10.9.0.0/24" ]
@@ -178,7 +170,6 @@ setup() {
 }
 
 @test "internal-range: the internal address and loopback when the provider declared none" {
-    export NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env"
     mkdir -p "$work/bin"
     printf '#!/bin/sh\necho "3: tailscale0    inet 100.64.0.5/32 scope global tailscale0"\n' >"$work/bin/ip"
     chmod +x "$work/bin/ip"
@@ -193,4 +184,18 @@ setup() {
     chmod +x "$work/bin/ip"
     PATH="$work/bin:$PATH" run sh "$SCRIPT" public-ip
     [ "$output" = "10.0.0.5" ]
+}
+
+@test "everything persisted lands in the one network file; unset-access drops only the access choices" {
+    sh "$SCRIPT" set-internal-interface wg0 >/dev/null 2>&1
+    sh "$SCRIPT" set-external-domain apps.example.com
+    sh "$SCRIPT" set-internal-domain in.example.com
+    sh "$SCRIPT" set-visibility alpha internal
+    grep -q '^SYSTEM_INTERNAL_INTERFACE=wg0$' "$work/network.env"
+    grep -q '^SYSTEM_EXTERNAL_DOMAIN=apps.example.com$' "$work/network.env"
+    grep -q '^SYSTEM_ACCESS_ALPHA=internal$' "$work/network.env"
+    sh "$SCRIPT" unset-access
+    ! grep -q 'SYSTEM_ACCESS_ALPHA\|SYSTEM_INTERNAL_DOMAIN' "$work/network.env"
+    grep -q '^SYSTEM_INTERNAL_INTERFACE=wg0$' "$work/network.env"
+    grep -q '^SYSTEM_EXTERNAL_DOMAIN=apps.example.com$' "$work/network.env"
 }

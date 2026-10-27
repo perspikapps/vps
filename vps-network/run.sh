@@ -46,12 +46,21 @@ fi
 # Where the steps are: VPS_SETUP_ROOT, else ZZ_SETUP_ROOT (zz-setup exports it: an installed
 # bin is a copy), else the checkout this script sits in.
 root="${VPS_SETUP_ROOT:-${ZZ_SETUP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}}"
-# Internal network: ports with access "private" are only reachable over one interface.
-# Whoever provides that network persists it here; the environment wins.
-internal_file="${SYSTEM_INTERNAL_ACCESS_FILE:-/etc/vps-internal-access.env}"
-external_file="${SYSTEM_EXTERNAL_DOMAIN_FILE:-/etc/vps-external-domain.env}"
-# Access choices (vps-access): SYSTEM_ACCESS_<SERVICE> per service and the internal domain.
-access_file="${SYSTEM_ACCESS_FILE:-/etc/vps-access.env}"
+# Everything persisted here lives in one file; the environment wins. It holds the internal
+# interface and its source range (whoever provides the internal network sets them), the external
+# domain, and vps-access's choices: SYSTEM_ACCESS_<SERVICE> per service and the internal domain.
+state_file="${SYSTEM_NETWORK_FILE:-/etc/vps-network.env}"
+internal_file="$state_file" external_file="$state_file" access_file="$state_file"
+# Older versions kept those in three files: fold them in once.
+if [ -z "${SYSTEM_NETWORK_FILE:-}" ]; then
+    for old in /etc/vps-internal-access.env /etc/vps-external-domain.env /etc/vps-access.env; do
+        [ -f "$old" ] || continue
+        while IFS= read -r line; do
+            case "$line" in [A-Z]*=*) zz-persist -q -f "$state_file" "${line%%=*}" "${line#*=}" ;; esac
+        done <"$old"
+        rm -f "$old"
+    done
+fi
 
 # --- functions
 
@@ -306,7 +315,9 @@ set-visibility)
     zz-persist -f "$access_file" "SYSTEM_ACCESS_$(printf '%s' "${1:?usage: vps-network set-visibility <service> public|internal}" | tr '[:lower:]-' '[:upper:]_')" "$2"
     ;;
 set-internal-domain) zz-persist -f "$access_file" SYSTEM_INTERNAL_DOMAIN "${1:?usage: vps-network set-internal-domain <domain>}" ;;
-unset-access) rm -f "$access_file" ;;
+unset-access)
+    [ ! -f "$access_file" ] || zz-persist -q -f "$access_file" -u "SYSTEM_INTERNAL_DOMAIN $(sed -n 's/^\(SYSTEM_ACCESS_[A-Z0-9_]*\)=.*/\1/p' "$access_file" | tr '\n' ' ')"
+    ;;
 set-external-domain) zz-persist -f "$external_file" SYSTEM_EXTERNAL_DOMAIN "${1:?usage: vps-network set-external-domain <domain>}" ;;
 verify) verify_ports "${1:?usage: vps-network verify <public-ip> (from another machine)}" ;;
 reapply-guard)

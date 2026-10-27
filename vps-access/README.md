@@ -27,7 +27,7 @@ It runs after the internal network (`svc-tailscale`/`svc-cloudflare`) and before
 
 A service that exposes a route declares its default in `config.visibility` of its `package.json` (`public` or `internal`). A service is **public** (server IP, Traefik 80/443) or **internal** (a host on the internal domain, same Traefik 80/443, behind the `internal-only` middleware: only clients of the internal network get through), never both; the private (local) ports are unaffected.
 
-On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a internal address is kept `public` with a warning. Answers are saved to `/etc/vps-access.env`; `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` (for unattended runs) win over them. There is no per-app access, host or hostname variable: the apps read the system config.
+On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a internal address is kept `public` with a warning. Answers are saved to `/etc/vps-network.env`; `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` (for unattended runs) win over them. There is no per-app access, host or hostname variable: the apps read the system config.
 
 ## Internal interface
 
