@@ -188,3 +188,12 @@ setup() {
     run sh "$SCRIPT" internal-range
     [ "$output" = "100.64.0.0/10" ]
 }
+
+@test "public-ip: the cloud metadata (IMDSv2) wins over the NIC and the echo service" {
+    mkdir -p "$work/bin"
+    printf '#!/bin/sh\ncase "$*" in *api/token*) echo tok;; *public-ipv4*) echo 198.51.100.7;; *) echo 203.0.113.9;; esac\n' >"$work/bin/curl"
+    printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
+    chmod +x "$work/bin/curl" "$work/bin/ip"
+    PATH="$work/bin:$PATH" run sh "$SCRIPT" public-ip
+    [ "$output" = "198.51.100.7" ]
+}

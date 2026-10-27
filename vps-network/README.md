@@ -16,7 +16,7 @@ vps-network <command> [args...]
 
 | Command                         | Prints / does                                                                     |
 | ------------------------------- | --------------------------------------------------------------------------------- |
-| `public-ip`                     | public IPv4: the default-route source address, or - behind NAT - what an echo service sees |
+| `public-ip`                     | public IPv4: the cloud metadata (AWS IMDSv2 public-ipv4), else the default-route source address, or - behind NAT - what an echo service sees |
 | `internal-interface`             | the interface carrying the internal network (private-port services) (`SYSTEM_INTERNAL_INTERFACE`, else the persisted one) |
 | `internal-address`               | its first IPv4 address (empty until it has one)                                   |
 | `summary-host`                  | that address, else `<internal-ip>`, for the steps' summaries                       |

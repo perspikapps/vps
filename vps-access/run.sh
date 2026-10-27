@@ -80,7 +80,11 @@ confirm_domain() {
     fi
     resolved="$(getent hosts "vps-access-check.${domain}" 2>/dev/null | awk '{print $1; exit}' || true)"
     if [ "$resolved" != "$ip" ]; then
-        zz-log w "*.${domain} does not resolve to ${ip} (got '${resolved:-nothing}')."
+        if [ -z "$resolved" ]; then
+            zz-log w "*.${domain} does not resolve: create a wildcard A record *.${domain} -> ${ip}."
+        else
+            zz-log w "*.${domain} resolves to ${resolved}, not ${ip}: point the wildcard A record *.${domain} to ${ip} (a stale record, or a NAT/Elastic IP mismatch)."
+        fi
         if ask && [ "$(zz-menu -t "${label}: ${domain} is not ready" "keep=Keep ${domain}" "fallback=Use ${fallback}")" = "fallback" ]; then
             domain="$fallback"
         fi

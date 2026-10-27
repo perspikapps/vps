@@ -64,11 +64,20 @@ get_port_override() {
     eval "printf '%s' \"\${$var:-}\""
 }
 
-# get_public_ip: the default-route source address, or - behind NAT (a private
-# address, as on some clouds) - what an external echo service sees.
+# get_public_ip: the address the cloud says is the instance's public one (AWS metadata,
+# IMDSv2), else the default-route source address, or - behind NAT (a private address, as on
+# some clouds) - what an external echo service sees.
 get_public_ip() {
-    local ip
+    local ip token
 
+    token="$(curl -fsS -m 2 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token 2>/dev/null || true)"
+    if [ -n "$token" ]; then
+        ip="$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)"
+        if [ -n "$ip" ]; then
+            printf '%s' "$ip"
+            return 0
+        fi
+    fi
     ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
     # empty, or private / loopback / link-local / CGNAT: behind NAT
     if [ -z "$ip" ] || printf '%s\n' "$ip" | grep -Eq '^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)'; then
