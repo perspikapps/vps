@@ -150,3 +150,13 @@ shift; echo "$*"
         awk '/^summary\(\) \{/,/^}/' "$d/run.sh" | grep -qE 'vps-network summary-block|app-helm summary'
     done
 }
+
+@test "every chart with an Ingress builds it with the shared vps-lib library, which it depends on" {
+    [ "$(grep '^type:' "$REPO_ROOT/charts/_lib/Chart.yaml")" = "type: library" ]
+    for f in "$REPO_ROOT"/charts/*/templates/ingress.yaml; do
+        c="$(dirname "$(dirname "$f")")"
+        grep -q 'include "vps-lib.ingress"' "$f"
+        grep -q 'name: vps-lib' "$c/Chart.yaml"
+        grep -q 'repository: file://../_lib' "$c/Chart.yaml"
+    done
+}

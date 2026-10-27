@@ -3,7 +3,7 @@ apiVersion: v2
 name: hermes
 description: Hermes Agent - self-improving AI agent harness, wrapped for the Rancher Apps & Marketplace catalog
 type: application
-version: 1.1.0
+version: 1.2.0
 appVersion: 'latest'
 icon: https://hermes-agent.nousresearch.com/favicon.ico
 keywords:
@@ -14,3 +14,7 @@ keywords:
 home: https://github.com/NousResearch/hermes-agent
 sources:
     - https://github.com/NousResearch/hermes-agent
+dependencies:
+    - name: vps-lib
+      version: '1.x'
+      repository: file://../_lib

@@ -1,37 +1,4 @@
 {{/* @format */}}
 {{- if .Values.dashboard.ingress.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-    name: {{ include "hermes.fullname" . }}
-    labels:
-        {{- include "hermes.labels" . | nindent 8 }}
-    {{- if or .Values.dashboard.ingress.tlsIssuer .Values.dashboard.ingress.middlewares }}
-    annotations:
-        {{- if .Values.dashboard.ingress.tlsIssuer }}
-        cert-manager.io/cluster-issuer: {{ .Values.dashboard.ingress.tlsIssuer }}
-        {{- end }}
-        {{- if .Values.dashboard.ingress.middlewares }}
-        traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.dashboard.ingress.middlewares | quote }}
-        {{- end }}
-    {{- end }}
-spec:
-    ingressClassName: {{ .Values.dashboard.ingress.className }}
-    rules:
-        - host: {{ include "hermes.host" . }}
-          http:
-              paths:
-                  - path: /
-                    pathType: Prefix
-                    backend:
-                        service:
-                            name: {{ include "hermes.fullname" . }}
-                            port:
-                                name: dashboard
-    {{- if .Values.dashboard.ingress.tlsIssuer }}
-    tls:
-        - hosts:
-              - {{ include "hermes.host" . }}
-          secretName: {{ include "hermes.fullname" . }}-tls
-    {{- end }}
+{{ include "vps-lib.ingress" (dict "ctx" . "app" "hermes" "ingress" .Values.dashboard.ingress "name" (include "hermes.fullname" .) "service" (include "hermes.fullname" .) "port" "dashboard" "className" .Values.dashboard.ingress.className "labels" (include "hermes.labels" .) "tlsSecret" (ternary (printf "%s-tls" (include "hermes.fullname" .)) "" (ne (.Values.dashboard.ingress.tlsIssuer | default "") ""))) }}
 {{- end }}

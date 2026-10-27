@@ -1,24 +1,4 @@
 {{/* @format */}}
 {{- if .Values.ingress.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-    name: {{ .Release.Name }}-coder
-    {{- if .Values.ingress.middlewares }}
-    annotations:
-        traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.ingress.middlewares | quote }}
-    {{- end }}
-spec:
-    ingressClassName: {{ .Values.ingress.className }}
-    rules:
-        - host: {{ include "coder.host" . }}
-          http:
-              paths:
-                  - path: /
-                    pathType: Prefix
-                    backend:
-                        service:
-                            name: coder
-                            port:
-                                number: 80
+{{ include "vps-lib.ingress" (dict "ctx" . "app" "coder" "ingress" .Values.ingress "name" (printf "%s-coder" .Release.Name) "service" "coder" "port" 80 "className" .Values.ingress.className) }}
 {{- end }}

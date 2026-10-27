@@ -1,0 +1,6 @@
+# @format
+apiVersion: v2
+name: vps-lib
+description: Shared helpers for this catalog's charts - the app host and the Traefik Ingress. Not installable.
+type: library
+version: 1.0.0
