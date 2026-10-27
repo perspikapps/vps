@@ -32,7 +32,7 @@ EOF
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
         if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
-            zz-log w "[vps-setup] ${key}: no internal address (install vps-tailscale or vps-cloudflare); keeping it public."
+            zz-log w "[vps-setup] ${key}: no internal address (install svc-tailscale or svc-cloudflare); keeping it public."
             state=public
         fi
         vps-network set-visibility "$key" "$state"

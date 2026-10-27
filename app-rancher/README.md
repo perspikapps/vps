@@ -24,8 +24,8 @@ sudo zz-setup ./ -d app-rancher
 ## Public dashboard through Traefik
 
 The dashboard is served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
-the `letsencrypt` resolver; staging certs until `SYSTEM_TRAEFIK_ACME_STAGING=false`). `<domain>` is
-the system's external domain, else `<public-ip>.nip.io`. There is no host, hostname or access variable here: the system config (`vps-access`, see `SYSTEM_EXTERNAL_DOMAIN`, `SYSTEM_INTERNAL_DOMAIN`, `SYSTEM_INTERNAL_APPS`) decides where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<internal-ip>.nip.io` on the same 80/443, behind the `internal-only` Traefik middleware (see `vps-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through, with Traefik's default certificate. Plain HTTP only redirects to HTTPS (a second route, `rancher-traefik-http`, through the `redirect-https` middleware of `vps-k3s`), and both routes have priority 1000 so a `*.<domain>` catch-all such as Coder's never answers `rancher.<domain>`. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL is the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
+the `letsencrypt` resolver; staging certs until `K3S_TRAEFIK_ACME_STAGING=false`). `<domain>` is
+the system's external domain, else `<public-ip>.nip.io`. There is no host, hostname or access variable here: the system config (`vps-access`, see `SYSTEM_EXTERNAL_DOMAIN`, `SYSTEM_INTERNAL_DOMAIN`, `SYSTEM_INTERNAL_APPS`) decides where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<internal-ip>.nip.io` on the same 80/443, behind the `internal-only` Traefik middleware (see `svc-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through, with Traefik's default certificate. Plain HTTP only redirects to HTTPS (a second route, `rancher-traefik-http`, through the `redirect-https` middleware of `svc-k3s`), and both routes have priority 1000 so a `*.<domain>` catch-all such as Coder's never answers `rancher.<domain>`. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL is the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
 
 ## Installing from SUSE Rancher Prime
 
@@ -61,7 +61,7 @@ Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
 
 (`no pod in cattle-system yet` before the first pod exists.) The same helper,
 `kube-progress` (tomgrv/scripts), also covers the cert-manager install, this
-step's final rollout wait and the Traefik rollout in `vps-k3s`.
+step's final rollout wait and the Traefik rollout in `svc-k3s`.
 
 ## If the install fails or hangs
 
@@ -101,7 +101,7 @@ sudo vps-setup --down-app-rancher
 
 ## Dependencies
 
-Step dependency: `vps-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)).
+Step dependency: `svc-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Dependencies between steps](../README.md#dependencies-between-steps)).
 
 ## Tests
 

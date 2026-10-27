@@ -1,9 +1,9 @@
 {
-  "name": "@tomgrv/vps-cockpit",
+  "name": "@tomgrv/svc-cockpit",
   "version": "4.5.0",
   "description": "Cockpit install",
   "bin": {
-    "vps-cockpit": "run.sh"
+    "svc-cockpit": "run.sh"
   },
   "private": true,
   "scripts": {
@@ -25,12 +25,12 @@
     "outputs": {},
     "ports": [
       {
-        "name": "system_cockpit_http",
+        "name": "cockpit_http",
         "port": 9080,
         "access": "private"
       },
       {
-        "name": "system_cockpit_https",
+        "name": "cockpit_https",
         "port": 9083,
         "access": "private"
       }

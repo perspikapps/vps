@@ -27,7 +27,7 @@
         "default": ""
       },
       "SYSTEM_INTERNAL_INTERFACE": {
-        "description": "Interface carrying the internal network (private-port services) (set by vps-tailscale; give wg0, a LAN NIC... to use another network)",
+        "description": "Interface carrying the internal network (private-port services) (set by svc-tailscale; give wg0, a LAN NIC... to use another network)",
         "required": false,
         "default": ""
       },
@@ -44,7 +44,7 @@
     },
     "order": 2,
     "outputs": {
-      "SYSTEM_COCKPIT_ADMIN_PASSWORD_FILE": {
+      "COCKPIT_ADMIN_PASSWORD_FILE": {
         "description": "Owner-only env file holding COCKPIT_ADMIN_USER and COCKPIT_ADMIN_PASSWORD (the saved Cockpit/console login)",
         "value": "/root/.vps-secrets.env"
       }

@@ -21,7 +21,7 @@ sudo zz-setup ./ -o vps-access
 sudo zz-setup ./ -d vps-access
 ```
 
-It runs after the internal network (`vps-tailscale`/`vps-cloudflare`) and before `vps-k3s`, so the steps that expose something (`app-rancher`, `app-coder`) read its answers.
+It runs after the internal network (`svc-tailscale`/`svc-cloudflare`) and before `svc-k3s`, so the steps that expose something (`app-rancher`, `app-coder`) read its answers.
 
 ## Visibility
 
@@ -50,7 +50,7 @@ Every step summary has the same paragraph (`vps-network summary-block`): a `Publ
  Access (each service is public OR internal, never both):
    Public:    coder (coder.apps.example.com) - HTTP/HTTPS 80/443 on 203.0.113.7, from the internet
    Internal:  rancher (rancher.100-64-0-1.nip.io) - HTTP/HTTPS 80/443 on 100.64.0.1, clients of the internal network only (source range 100.64.0.0/10)
-   Local:     private ports, closed to the internet, on the VPS and its internal address: system_cockpit_http 9080, ...
+   Local:     private ports, closed to the internet, on the VPS and its internal address: cockpit_http 9080, ...
    External domain: *.apps.example.com - custom, resolves to 203.0.113.7
    Internal domain: *.100-64-0-1.nip.io - fallback (nip.io), resolves to 100.64.0.1
 ```

@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# vps-k3s
+# svc-k3s
 
 k3s / kubectl / helm install (includes Traefik configuration).
 
@@ -11,14 +11,14 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
-sudo vps-setup --only-vps-k3s
+sudo vps-setup --only-svc-k3s
 ```
 
 Or directly, from a checkout (`up` is the default action):
 
 ```bash
-sudo sh vps-k3s/run.sh up
-sudo sh vps-k3s/run.sh down
+sudo sh svc-k3s/run.sh up
+sudo sh svc-k3s/run.sh down
 ```
 
 ## Removing (`down`)
@@ -26,19 +26,19 @@ sudo sh vps-k3s/run.sh down
 `down` removes k3s itself, via its own uninstaller - **takes Rancher and every app-* app down with it**, since they all run on this cluster.
 
 ```bash
-sudo vps-setup --down-vps-k3s
+sudo vps-setup --down-svc-k3s
 ```
 
 ## Environment variables
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SYSTEM_K3S_EXTRA_ARGS` | no | _(unset)_ | Extra flags passed to the k3s installer |
-| `SYSTEM_K3S_VERSION` | no | _(unset)_ | Pin a k3s version |
-| `SYSTEM_INTERNAL_SOURCE_RANGE` | no | _(Tailscale `100.64.0.0/10`, else the internal address)_ | Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes (the `internal-only` middleware) |
-| `SYSTEM_TRAEFIK_ACME_EMAIL` | no | `admin@example.com` | Contact email registered with Let's Encrypt |
-| `SYSTEM_TRAEFIK_ACME_STAGING` | no | `true` | Use Let's Encrypt's staging environment (true/false) |
-| `SYSTEM_TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (private access only) |
+| `K3S_EXTRA_ARGS` | no | _(unset)_ | Extra flags passed to the k3s installer |
+| `K3S_VERSION` | no | _(unset)_ | Pin a k3s version |
+| `K3S_INTERNAL_SOURCE_RANGE` | no | _(Tailscale `100.64.0.0/10`, else the internal address)_ | Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes (the `internal-only` middleware) |
+| `K3S_TRAEFIK_ACME_EMAIL` | no | `admin@example.com` | Contact email registered with Let's Encrypt |
+| `K3S_TRAEFIK_ACME_STAGING` | no | `true` | Use Let's Encrypt's staging environment (true/false) |
+| `K3S_TRAEFIK_DASHBOARD_PORT` | no | `8088` | Traefik dashboard port (private access only) |
 
 ## Outputs
 

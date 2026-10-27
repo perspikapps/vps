@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Static checks for vps-cloudflare/run.sh and package.json - a live install
+# Static checks for svc-cloudflare/run.sh and package.json - a live install
 # needs a real root Ubuntu box and a Cloudflare tunnel, so this stops at
 # syntax + shape (see ../tests/ for repo-wide checks).
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-DIR="$REPO_ROOT/vps-cloudflare"
+DIR="$REPO_ROOT/svc-cloudflare"
 
 @test "run.sh parses as bash" {
     run dash -n "$DIR/run.sh"
@@ -24,15 +24,15 @@ DIR="$REPO_ROOT/vps-cloudflare"
 }
 
 @test "package.json bin name is not the bare 'cloudflared'" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['vps-cloudflare'] === 'run.sh' && !('cloudflared' in p.bin) ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['svc-cloudflare'] === 'run.sh' && !('cloudflared' in p.bin) ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
 
-@test "opt-in, and mutually exclusive with vps-tailscale on both sides" {
+@test "opt-in, and mutually exclusive with svc-tailscale on both sides" {
     run node -e "
-        const c = require('$DIR/package.json').config, t = require('$REPO_ROOT/vps-tailscale/package.json').config;
-        process.exit(c.default === false && c.conflicts.includes('vps-tailscale') && t.conflicts.includes('vps-cloudflare') ? 0 : 1)"
+        const c = require('$DIR/package.json').config, t = require('$REPO_ROOT/svc-tailscale/package.json').config;
+        process.exit(c.default === false && c.conflicts.includes('svc-tailscale') && t.conflicts.includes('svc-cloudflare') ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

@@ -1,9 +1,9 @@
 {
-  "name": "@tomgrv/vps-cloudflare",
+  "name": "@tomgrv/svc-cloudflare",
   "version": "4.7.0",
   "description": "Cloudflare Tunnel as the internal network (alternative to Tailscale)",
   "bin": {
-    "vps-cloudflare": "run.sh"
+    "svc-cloudflare": "run.sh"
   },
   "private": true,
   "scripts": {
@@ -14,35 +14,30 @@
   },
   "config": {
     "conflicts": [
-      "vps-tailscale"
+      "svc-tailscale"
     ],
     "default": false,
     "inputs": {
-      "SYSTEM_CLOUDFLARE_INTERNAL_IP": {
+      "CLOUDFLARE_INTERNAL_IP": {
         "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",
         "required": false,
         "default": "10.254.254.1"
       },
-      "SYSTEM_CLOUDFLARE_TUNNEL_TOKEN": {
+      "CLOUDFLARE_TUNNEL_TOKEN": {
         "description": "Cloudflare Tunnel token (Zero Trust > Networks > Tunnels)",
         "required": true,
         "default": "",
         "secret": true
       },
-      "SYSTEM_CLOUDFLARE_VERSION": {
+      "CLOUDFLARE_VERSION": {
         "description": "cloudflared release to install, e.g. 2025.1.0 (empty = latest)",
         "required": false,
         "default": ""
       },
-      "SYSTEM_CLOUDFLARE_SHA256": {
+      "CLOUDFLARE_SHA256": {
         "description": "sha256 of that release's binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
         "required": false,
         "default": ""
-      },
-      "SYSTEM_CLOUDFLARE_PURGE": {
-        "description": "Also remove the cloudflared package on down (true/false)",
-        "required": false,
-        "default": "false"
       }
     },
     "order": 1.5,

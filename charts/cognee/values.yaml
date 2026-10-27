@@ -62,7 +62,7 @@ ingress:
     enabled: true
     ingressClassName: traefik
     # Traefik middlewares of the route (annotation router.middlewares). Empty = public. For an
-    # internal route use kube-system-internal-only@kubernetescrd (created by vps-k3s) and an internal
+    # internal route use kube-system-internal-only@kubernetescrd (created by svc-k3s) and an internal
     # host (global.domain or host): clients of the internal network only.
     middlewares: ''
     # Override the generated <app>.<domain> host.

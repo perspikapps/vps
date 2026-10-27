@@ -24,9 +24,9 @@ up() {
 
     if [ "$need_install" -eq 1 ]; then
         zz-log i "[vps-setup] Installing k3s..."
-        INSTALL_K3S_EXEC="server ${SYSTEM_K3S_EXTRA_ARGS:-}"
+        INSTALL_K3S_EXEC="server ${K3S_EXTRA_ARGS:-}"
         export INSTALL_K3S_EXEC
-        [ -z "${SYSTEM_K3S_VERSION:-}" ] || export INSTALL_K3S_VERSION="$SYSTEM_K3S_VERSION"
+        [ -z "${K3S_VERSION:-}" ] || export INSTALL_K3S_VERSION="$K3S_VERSION"
         zz-install -u https://get.k3s.io -x sh k3s
     fi
 
@@ -62,32 +62,32 @@ up() {
     zz-log s "[vps-setup] k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
 
     # --- Traefik
-    SYSTEM_TRAEFIK_ACME_EMAIL="${SYSTEM_TRAEFIK_ACME_EMAIL:-admin@example.com}"
-    SYSTEM_TRAEFIK_ACME_STAGING="${SYSTEM_TRAEFIK_ACME_STAGING:-true}"
-    SYSTEM_TRAEFIK_DASHBOARD_PORT="$(vps-network port system_traefik_dashboard)"
+    K3S_TRAEFIK_ACME_EMAIL="${K3S_TRAEFIK_ACME_EMAIL:-admin@example.com}"
+    K3S_TRAEFIK_ACME_STAGING="${K3S_TRAEFIK_ACME_STAGING:-true}"
+    K3S_TRAEFIK_DASHBOARD_PORT="$(vps-network port k3s_traefik_dashboard)"
 
-    if [ "$SYSTEM_TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
-        zz-log w "[vps-setup] SYSTEM_TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
+    if [ "$K3S_TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
+        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
             "still issue certs with it, but you won't get expiry/problem notices." \
-            "Set SYSTEM_TRAEFIK_ACME_EMAIL to a real address you control."
+            "Set K3S_TRAEFIK_ACME_EMAIL to a real address you control."
     fi
-    if [ "$SYSTEM_TRAEFIK_ACME_STAGING" = "true" ]; then
-        zz-log w "[vps-setup] SYSTEM_TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
+    if [ "$K3S_TRAEFIK_ACME_STAGING" = "true" ]; then
+        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
             "environment issues untrusted certs (browsers will warn) but has no" \
             "rate limit - safe to test against repeatedly. Set" \
-            "SYSTEM_TRAEFIK_ACME_STAGING=false for real, trusted certs once ready" \
+            "K3S_TRAEFIK_ACME_STAGING=false for real, trusted certs once ready" \
             "(production Let's Encrypt has strict per-domain rate limits, so" \
             "avoid iterating against it)."
     fi
 
     # Let's Encrypt production unless staging was asked for (see above).
     TRAEFIK_ACME_CASERVER="https://acme-v02.api.letsencrypt.org/directory"
-    if [ "$SYSTEM_TRAEFIK_ACME_STAGING" = "true" ]; then
+    if [ "$K3S_TRAEFIK_ACME_STAGING" = "true" ]; then
         TRAEFIK_ACME_CASERVER="https://acme-staging-v02.api.letsencrypt.org/directory"
     fi
 
-    zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${SYSTEM_TRAEFIK_DASHBOARD_PORT})..."
-    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" SYSTEM_TRAEFIK_DASHBOARD_PORT="$SYSTEM_TRAEFIK_DASHBOARD_PORT" SYSTEM_TRAEFIK_ACME_EMAIL="$SYSTEM_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
+    zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
+    yaml-render "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
     zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
@@ -97,20 +97,20 @@ up() {
     kube-rollout -w kube-system traefik
 
     kubectl apply -f "$(dirname "$0")/helm/redirect-middleware.yaml" ||
-        zz-log w "[vps-setup] Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run vps-k3s."
+        zz-log w "[vps-setup] Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run svc-k3s."
 
     # The middleware every internal route uses: only the internal network's clients get through.
     INTERNAL_RANGE="$(vps-network internal-range | sed 's/[^,][^,]*/"&"/g; s/,/, /g')"
     if [ -n "$INTERNAL_RANGE" ]; then
         yaml-render "$(dirname "$0")/helm/internal-middleware.yaml" INTERNAL_RANGE="$INTERNAL_RANGE" | kubectl apply -f - ||
-            zz-log w "[vps-setup] Could not create the internal-only middleware (Traefik CRDs not ready?): re-run vps-k3s."
+            zz-log w "[vps-setup] Could not create the internal-only middleware (Traefik CRDs not ready?): re-run svc-k3s."
     else
-        zz-log w "[vps-setup] No internal network yet: internal routes would have no source limit, so none is created (run vps-tailscale or vps-cloudflare, then re-run vps-k3s)."
+        zz-log w "[vps-setup] No internal network yet: internal routes would have no source limit, so none is created (run svc-tailscale or svc-cloudflare, then re-run svc-k3s)."
     fi
 
     vps-network reapply-guard
 
-    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${SYSTEM_TRAEFIK_DASHBOARD_PORT} (private access only)."
+    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
@@ -131,7 +131,7 @@ summary() {
     vps-network summary-block "Traefik (k3s)" \
         "http://${host:-<public-ip>} and https://${host:-<public-ip>} (web/websecure, 80/443; Let's Encrypt resolver \"letsencrypt\")" \
         "the same 80/443 on $(vps-network summary-host), for internal hosts only (internal-only middleware: sources $(vps-network internal-range || true))" \
-        "dashboard http://localhost:$(vps-network port system_traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
+        "dashboard http://localhost:$(vps-network port k3s_traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
         "A \"letsencrypt\" certResolver is ready: it issues nothing until your Ingress has the router.tls.certresolver annotation (see README)." \
         "kubectl / helm: KUBECONFIG=/etc/rancher/k3s/k3s.yaml (exported via /etc/profile.d/k3s-kubeconfig.sh for new shells)"
 }

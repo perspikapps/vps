@@ -28,7 +28,7 @@ up() {
         # port check (ss) cannot see, so it would not notice the clash.
         if command -v k3s >/dev/null 2>&1; then
             zz-log e "[vps-setup] k3s is installed and its Traefik owns ports 80/443, which Dokploy's Traefik needs too." \
-                "Run one ingress: sudo vps-setup --down-app-rancher --down-vps-k3s --with-vps-dokploy" && exit 1
+                "Run one ingress: sudo vps-setup --down-app-rancher --down-svc-k3s --with-vps-dokploy" && exit 1
         fi
         # The installer runs 'docker swarm leave --force' first: refuse to take down a swarm that is not Dokploy's.
         if command -v docker >/dev/null 2>&1 && [ "$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)" = "active" ]; then
@@ -65,8 +65,8 @@ down() {
         zz-log w "[vps-setup] Docker not found; nothing to remove besides /etc/dokploy."
     fi
     rm -rf /etc/dokploy
-    if [ "${SYSTEM_DOKPLOY_REMOVE_DOCKER:-false}" = "true" ] && command -v docker >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Removing Docker (SYSTEM_DOKPLOY_REMOVE_DOCKER=true)..."
+    if command -v docker >/dev/null 2>&1; then
+        zz-log i "[vps-setup] Removing Docker (the Dokploy installer installed it)..."
         systemctl disable --now docker docker.socket containerd 2>/dev/null || true
         apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
         zz-install -r docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io docker.io || true

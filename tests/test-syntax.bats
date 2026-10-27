@@ -40,14 +40,14 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 }
 
 @test "steps leave require_root to dispatch_action (up/down) - no explicit call left" {
-    for f in "$REPO_ROOT"/{vps,app}-*/run.sh; do
+    for f in "$REPO_ROOT"/{vps,app,svc}-*/run.sh; do
         [[ "$f" == */vps-common/* || "$f" == */vps-setup/* ]] && continue
         ! grep -q '^\s*require_root$' "$f"
     done
 }
 
 @test "installer scripts are fetched with zz-install -x, not through a predictable /tmp path" {
-    ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/{vps,app}-*/run.sh
+    ! grep -nE '/tmp/[a-z0-9.-]*(install|get-helm)[a-z0-9.-]*' "$REPO_ROOT"/{vps,app,svc}-*/run.sh
 }
 
 # run_summary <step> <path with stubs>: run the step's summary action the way zz-setup does
@@ -56,7 +56,7 @@ run_summary() {
     # vps-network is on PATH through zz-use in a real run; here the checkout's own copy.
     printf '#!/bin/sh\nexec sh "%s/vps-network/run.sh" "$@"\n' "$REPO_ROOT" >"$2/vps-network"
     chmod +x "$2/vps-network"
-    run env SYSTEM_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$(ls -d "$REPO_ROOT/vps-$1" "$REPO_ROOT/app-$1" 2>/dev/null | head -1)"
+    run env SYSTEM_SECRETS_FILE=/dev/null PATH="$2:$PATH" sh -c 'cd "$1" && sh ./run.sh summary' sh "$(ls -d "$REPO_ROOT/vps-$1" "$REPO_ROOT/app-$1" "$REPO_ROOT/svc-$1" 2>/dev/null | head -1)"
 }
 
 @test "every step's summary action runs and prints its block" {
@@ -106,7 +106,7 @@ shift; echo "$*"
 }
 
 @test "every input a package.json declares is documented in that folder's README" {
-    for d in "$REPO_ROOT"/{vps,app}-*/; do
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
         for v in $(jq -r '(.config.inputs // {}) | keys[]' "$d/package.json"); do
             grep -q "\`$v\`" "$d/README.md"
         done
@@ -114,7 +114,7 @@ shift; echo "$*"
 }
 
 @test "credentials go through vps_secret*: the old one-value files only appear as legacy arguments" {
-    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/{vps,app}-*/run.sh | grep -v 'vps_secret'
+    ! grep -nE '(echo|cat|rm -f|>)[^#]*/root/\.(cockpit-admin|rancher-bootstrap)' "$REPO_ROOT"/{vps,app,svc}-*/run.sh | grep -v 'vps_secret'
 }
 
 @test "every run.sh is POSIX sh: #!/bin/sh and parses with dash (zz-setup conventions)" {
@@ -125,14 +125,14 @@ shift; echo "$*"
 }
 
 @test "a managed script sources nothing but zz-* scripts (shared logic is called, not sourced)" {
-    for f in "$REPO_ROOT"/{vps,app}-*/run.sh; do
+    for f in "$REPO_ROOT"/{vps,app,svc}-*/run.sh; do
         # the settings file of vps-setup is data in shell syntax (read under a comment saying so)
         [ -z "$(grep -E '^\s*(\.|source) ' "$f" | grep -v '\. zz-' | grep -v '\. "\$env_file"')" ]
     done
 }
 
 @test "steps dispatch up/down/summary; vps-network, app-cert-manager and app-helm are scripts, not steps" {
-    for d in "$REPO_ROOT"/{vps,app}-*/; do
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
         run node -e "
             const p = require('$d/package.json');
             process.exit(p.engines && p.engines['zz-setup'] ? 0 : 1)"
@@ -145,7 +145,7 @@ shift; echo "$*"
 }
 
 @test "every step summary prints its public, internal and local paragraph through vps-network summary-block" {
-    for d in "$REPO_ROOT"/{vps,app}-*/; do
+    for d in "$REPO_ROOT"/{vps,app,svc}-*/; do
         grep -q '^summary() {' "$d/run.sh" || continue
         awk '/^summary\(\) \{/,/^}/' "$d/run.sh" | grep -qE 'vps-network summary-block|app-helm summary'
     done

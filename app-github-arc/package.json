@@ -6,7 +6,7 @@
     "app-github-arc": "run.sh"
   },
   "dependencies": {
-    "@tomgrv/vps-k3s": "*"
+    "@tomgrv/svc-k3s": "*"
   },
   "private": true,
   "scripts": {

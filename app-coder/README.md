@@ -6,7 +6,7 @@
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
-**Opt-in** (`config.default: false`); it needs `app-rancher` (and so `vps-k3s`), which also registers the `bitnami` Helm repository.
+**Opt-in** (`config.default: false`); it needs `app-rancher` (and so `svc-k3s`), which also registers the `bitnami` Helm repository.
 
 ## Usage
 
@@ -33,7 +33,7 @@ sudo zz-setup ./ -d app-coder
 
 Coder's own `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that same domain on purpose (this step has no variable for them): Coder scopes its session cookie to the wildcard domain, so reaching the dashboard on a host outside it (or on another port) ends in a cookie error at login.
 
-**Public or internal, never both** (the system config: `vps-access`, `SYSTEM_INTERNAL_APPS`): `public` (default) serves Coder on the server IP; `internal` serves `http://coder.<internal-ip>.nip.io` (and `*.<internal-ip>.nip.io` for workspace apps) on the same 80/443, behind the `internal-only` Traefik middleware (see `vps-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through. Coder is a single route, so switching is a re-run with the other value.
+**Public or internal, never both** (the system config: `vps-access`, `SYSTEM_INTERNAL_APPS`): `public` (default) serves Coder on the server IP; `internal` serves `http://coder.<internal-ip>.nip.io` (and `*.<internal-ip>.nip.io` for workspace apps) on the same 80/443, behind the `internal-only` Traefik middleware (see `svc-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through. Coder is a single route, so switching is a re-run with the other value.
 
 **Public mode:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and terminate TLS in front of it; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
 
@@ -108,7 +108,7 @@ Deletes the `coder` namespace, **including the PostgreSQL volume: all Coder data
 
 ## Dependencies
 
-`app-rancher` (which brings `vps-k3s`).
+`app-rancher` (which brings `svc-k3s`).
 
 ## Not verified on a live host
 

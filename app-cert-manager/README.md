@@ -17,7 +17,7 @@ app-cert-manager [-v version]
 ```
 
 The chart version comes from `-v`, else `RANCHER_CERT_MANAGER_VERSION`, else the latest.
-Needs `helm` and `kubectl` (from `vps-k3s`).
+Needs `helm` and `kubectl` (from `svc-k3s`).
 
 ## Tests
 

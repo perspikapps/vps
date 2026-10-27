@@ -1,9 +1,9 @@
 {
-  "name": "@tomgrv/vps-k3s",
+  "name": "@tomgrv/svc-k3s",
   "version": "4.5.0",
   "description": "k3s / kubectl / helm install (includes Traefik configuration)",
   "bin": {
-    "vps-k3s": "run.sh"
+    "svc-k3s": "run.sh"
   },
   "private": true,
   "scripts": {
@@ -15,27 +15,27 @@
   "config": {
     "default": true,
     "inputs": {
-      "SYSTEM_INTERNAL_SOURCE_RANGE": {
+      "K3S_INTERNAL_SOURCE_RANGE": {
         "description": "Source CIDRs (comma separated) of the internal network's clients, allowed on internal routes; empty = Tailscale's 100.64.0.0/10, else the internal address",
         "required": false,
         "default": ""
       },
-      "SYSTEM_K3S_EXTRA_ARGS": {
+      "K3S_EXTRA_ARGS": {
         "description": "Extra flags passed to the k3s installer",
         "required": false,
         "default": ""
       },
-      "SYSTEM_K3S_VERSION": {
+      "K3S_VERSION": {
         "description": "Pin a k3s version",
         "required": false,
         "default": ""
       },
-      "SYSTEM_TRAEFIK_ACME_EMAIL": {
+      "K3S_TRAEFIK_ACME_EMAIL": {
         "description": "Contact email registered with Let's Encrypt",
         "required": false,
         "default": "admin@example.com"
       },
-      "SYSTEM_TRAEFIK_ACME_STAGING": {
+      "K3S_TRAEFIK_ACME_STAGING": {
         "description": "Use Let's Encrypt's staging environment (true/false)",
         "required": false,
         "default": "true"
@@ -50,19 +50,19 @@
     },
     "ports": [
       {
-        "name": "system_http",
+        "name": "k3s_http",
         "port": 80,
         "access": "public",
         "note": "HTTP Traefik ingress, also required for the Lets Encrypt HTTP-01 challenge"
       },
       {
-        "name": "system_https",
+        "name": "k3s_https",
         "port": 443,
         "access": "public",
         "note": "HTTPS Traefik ingress"
       },
       {
-        "name": "system_traefik_dashboard",
+        "name": "k3s_traefik_dashboard",
         "port": 8088,
         "access": "private"
       }

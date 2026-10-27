@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# vps-tailscale
+# svc-tailscale
 
 Tailscale install.
 
@@ -11,14 +11,14 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
-sudo vps-setup --only-vps-tailscale
+sudo vps-setup --only-svc-tailscale
 ```
 
 Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
-sudo zz-setup ./ -o vps-tailscale
-sudo zz-setup ./ -d vps-tailscale
+sudo zz-setup ./ -o svc-tailscale
+sudo zz-setup ./ -d svc-tailscale
 ```
 
 ## Internal access
@@ -29,29 +29,28 @@ final summary read it, so they never mention Tailscale themselves; it is also wh
 this step runs before `vps-security`. See the root README's
 [Internal access](../README.md#private-access).
 
-`vps-tailscale` and [`vps-cloudflare`](../vps-cloudflare/README.md) are **mutually exclusive** (`config.conflicts` on both sides): pick one internal network per VPS.
+`svc-tailscale` and [`svc-cloudflare`](../svc-cloudflare/README.md) are **mutually exclusive** (`config.conflicts` on both sides): pick one internal network per VPS.
 
 ## Removing (`down`)
 
-`down` logs out of the tailnet and disables `tailscaled`. Leaves the `tailscale` package itself installed unless `SYSTEM_TAILSCALE_PURGE=true`.
+`down` logs out of the tailnet and disables `tailscaled`. Removes the `tailscale` package too.
 
 ```bash
-sudo vps-setup --down-vps-tailscale
+sudo vps-setup --down-svc-tailscale
 ```
 
 ## Environment variables
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SYSTEM_TAILSCALE_PURGE` | no | `false` | Also remove the tailscale package on down (true/false) |
-| `SYSTEM_TAILSCALE_AUTHKEY` | yes | _(unset)_ | Auth key to auto-join a tailnet |
-| `SYSTEM_TAILSCALE_EXTRA_ARGS` | no | _(unset)_ | Extra flags appended to tailscale up |
+| `TAILSCALE_AUTHKEY` | yes | _(unset)_ | Auth key to auto-join a tailnet |
+| `TAILSCALE_EXTRA_ARGS` | no | _(unset)_ | Extra flags appended to tailscale up |
 
 ## Dependencies
 
 No other step is required.
 
-## Why `vps-tailscale`, not `tailscale`
+## Why `svc-tailscale`, not `tailscale`
 
 This folder's `run.sh` calls the real `tailscale` CLI internally, so a
 folder named plain `tailscale/` would make `zz-use perspikapps/vps/tailscale`

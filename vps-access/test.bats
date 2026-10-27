@@ -22,7 +22,7 @@ DIR="$REPO_ROOT/vps-access"
 }
 
 @test "runs after the internal network and before k3s, with the DNS inputs declared" {
-    run node -e "const p = require('$DIR/package.json'); const t = require('$REPO_ROOT/vps-tailscale/package.json'); const k = require('$REPO_ROOT/vps-k3s/package.json'); process.exit(p.bin['vps-access'] === 'run.sh' && p.config.order > t.config.order && p.config.order < k.config.order && p.config.inputs.SYSTEM_INTERNAL_DOMAIN && p.config.inputs.SYSTEM_ACCESS_MENU ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); const t = require('$REPO_ROOT/svc-tailscale/package.json'); const k = require('$REPO_ROOT/svc-k3s/package.json'); process.exit(p.bin['vps-access'] === 'run.sh' && p.config.order > t.config.order && p.config.order < k.config.order && p.config.inputs.SYSTEM_INTERNAL_DOMAIN && p.config.inputs.SYSTEM_ACCESS_MENU ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

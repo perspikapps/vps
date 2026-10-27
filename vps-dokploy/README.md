@@ -6,7 +6,7 @@
 
 Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `vps-setup`'s install sequence (order and default: `config` in its `package.json`). See the root README's [One folder per feature](../README.md#one-folder-per-feature) for the full convention this folder follows.
 
-**Opt-in** (`config.default: false`), and an **alternative to `vps-k3s`**, not an addition: both run a Traefik that must own ports 80/443. `config.conflicts` makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while k3s is installed (a host set up by an earlier run).
+**Opt-in** (`config.default: false`), and an **alternative to `svc-k3s`**, not an addition: both run a Traefik that must own ports 80/443. `config.conflicts` makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while k3s is installed (a host set up by an earlier run).
 
 ## Usage
 
@@ -14,7 +14,7 @@ Runs as one step of a full `vps-setup` install/removal, or on its own through `z
 
 ```bash
 # Fresh box, Dokploy instead of the k3s/Rancher stack:
-sudo vps-setup --skip-vps-k3s --skip-app-rancher --with-vps-dokploy
+sudo vps-setup --skip-svc-k3s --skip-app-rancher --with-vps-dokploy
 
 # Only the Dokploy step:
 sudo vps-setup --only-vps-dokploy
@@ -38,7 +38,7 @@ sudo zz-setup ./ -d vps-dokploy
 
 ## Removing (`down`)
 
-`down` removes Dokploy **and everything it deployed**: the Traefik container, the swarm services, the `dokploy*` volumes, the swarm itself and `/etc/dokploy`. Docker stays unless `SYSTEM_DOKPLOY_REMOVE_DOCKER=true`. The old `vps-dockermanager` Cockpit plugin is gone; `cockpit-packagekit` and `cockpit-files` now come with `vps-cockpit`.
+`down` removes Dokploy **and everything it deployed**: the Traefik container, the swarm services, the `dokploy*` volumes, the swarm itself and `/etc/dokploy`. Docker itself is removed too (its installer put it there). The old `vps-dockermanager` Cockpit plugin is gone; `cockpit-packagekit` and `cockpit-files` now come with `svc-cockpit`.
 
 ```bash
 sudo vps-setup --down-vps-dokploy
@@ -53,13 +53,12 @@ Passed to the upstream installer under its own names.
 | `SYSTEM_DOKPLOY_ADVERTISE_ADDR` | no | first IPv4 of the host | Address Docker Swarm advertises |
 | `SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS` | no | _(empty)_ | Extra `docker swarm init` flags, e.g. `--default-addr-pool 172.20.0.0/16` to avoid clashing with a VPC |
 | `SYSTEM_DOKPLOY_VERSION` | no | latest stable | Dokploy release tag to install (e.g. `v0.26.6`, `canary`) |
-| `SYSTEM_DOKPLOY_REMOVE_DOCKER` | no | `false` | Also remove Docker itself on down (true/false) |
 
 The ports (`80`/`443` public, `3000` private) are fixed by the installer; overriding `DOKPLOY_*_PORT` only changes the firewall, not Dokploy.
 
 ## Dependencies
 
-It needs no other step, and conflicts with `vps-k3s` (see above).
+It needs no other step, and conflicts with `svc-k3s` (see above).
 
 ## Tests
 

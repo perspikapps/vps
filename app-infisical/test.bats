@@ -17,7 +17,7 @@ DIR="$REPO_ROOT/app-infisical"
 }
 
 @test "it is an opt-in step after the cluster, with its bin named like the folder" {
-    run node -e "const p = require('$DIR/package.json'); const k = require('$REPO_ROOT/vps-k3s/package.json'); process.exit(p.bin['app-infisical'] === 'run.sh' && p.config.default === false && p.config.order > k.config.order && p.engines['zz-setup'] ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); const k = require('$REPO_ROOT/svc-k3s/package.json'); process.exit(p.bin['app-infisical'] === 'run.sh' && p.config.default === false && p.config.order > k.config.order && p.engines['zz-setup'] ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

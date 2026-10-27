@@ -18,11 +18,11 @@ The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds t
 
 ## Public or internal
 
-The route is **public** (server IP) or **internal** (the internal network only), never both: `config.visibility` is the default, the system config (`vps-access`, or `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS`) overrides it. For an internal route `app-helm` sets the chart's `ingress.middlewares` to the shared `internal-only` Traefik middleware (`vps-network access-route`, see `vps-k3s`).
+The route is **public** (server IP) or **internal** (the internal network only), never both: `config.visibility` is the default, the system config (`vps-access`, or `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS`) overrides it. For an internal route `app-helm` sets the chart's `ingress.middlewares` to the shared `internal-only` Traefik middleware (`vps-network access-route`, see `svc-k3s`).
 
 ## Dependencies
 
-`vps-k3s` (kubectl and helm).
+`svc-k3s` (kubectl and helm).
 
 ## Tests
 

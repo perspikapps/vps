@@ -10,11 +10,11 @@
 #   summary-block <title> <public> <internal> <local> [note...]   the public/internal/local paragraph of a step summary
 #   port <name>                     a port by name (<NAME>_PORT wins over package.json)
 #   ports                           every step's ports as TSV: name port access note
-#   set-internal-interface <iface>   persist the internal interface (vps-tailscale, vps-cloudflare)
+#   set-internal-interface <iface>   persist the internal interface (svc-tailscale, svc-cloudflare)
 #   unset-internal-interface <iface> forget it again, when it is still <iface>
 #   access-domain public|internal   the domain a service is reached on (public: external-domain; internal: internal-domain)
 #   access-route <service>          shell to eval: route_access, route_domain, route_middlewares, route_certresolver of a service
-#   internal-range                  source CIDRs of the internal network (SYSTEM_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
+#   internal-range                  source CIDRs of the internal network (K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else the internal address)
 #   internal-domain                 SYSTEM_INTERNAL_DOMAIN, else <internal-ip>.nip.io
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
 #   visibilities                    every service declaring config.visibility, as TSV: name, visibility
@@ -57,7 +57,7 @@ access_file="${SYSTEM_ACCESS_FILE:-/etc/vps-access.env}"
 
 # get_port_override <name>: the value of <NAME>_PORT in the environment, if any.
 get_port_override() {
-    local name="$1" # port name, e.g. system_cockpit_http (mandatory)
+    local name="$1" # port name, e.g. cockpit_http (mandatory)
     local var
 
     var="$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')_PORT"
@@ -146,7 +146,7 @@ get_visibility() {
         value="$(zz-persist -f "$access_file" -r "SYSTEM_ACCESS_$(printf '%s' "$name" | tr '[:lower:]-' '[:upper:]_')")"
     fi
     if [ -z "$value" ]; then
-        for dir in "vps-$name" "app-$name" "$name"; do
+        for dir in "vps-$name" "app-$name" "svc-$name" "$name"; do
             [ -f "$root/$dir/package.json" ] || continue
             value="$(jq -r '.config.visibility // empty' "$root/$dir/package.json" 2>/dev/null || true)"
             break
@@ -164,18 +164,19 @@ list_visibilities() {
         name="${dir#./}"
         name="${name#vps-}"
         name="${name#app-}"
+        name="${name#svc-}"
         printf '%s\t%s\n' "$name" "$(get_visibility "$name")"
     done
 }
 
 # get_internal_range: the source CIDRs of the internal network's clients (comma separated):
-# SYSTEM_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
+# K3S_INTERNAL_SOURCE_RANGE, else Tailscale's 100.64.0.0/10, else this host's internal address
 # and loopback. Empty until there is an internal network.
 get_internal_range() {
     local iface ip
 
-    if [ -n "${SYSTEM_INTERNAL_SOURCE_RANGE:-}" ]; then
-        printf '%s' "$SYSTEM_INTERNAL_SOURCE_RANGE"
+    if [ -n "${K3S_INTERNAL_SOURCE_RANGE:-}" ]; then
+        printf '%s' "$K3S_INTERNAL_SOURCE_RANGE"
         return 0
     fi
     iface="$(get_internal_interface)"
@@ -196,7 +197,7 @@ get_access_domain() {
         public) get_external_domain ;;
         internal)
             ip="$(get_internal_domain)"
-            [ -n "$ip" ] || { echo "vps-network: no internal address: install vps-tailscale or vps-cloudflare for internal access" >&2 && return 1; }
+            [ -n "$ip" ] || { echo "vps-network: no internal address: install svc-tailscale or svc-cloudflare for internal access" >&2 && return 1; }
             printf '%s' "$ip"
             ;;
         *) echo "usage: vps-network access-domain public|internal" >&2 && return 1 ;;

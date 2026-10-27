@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cockpit, on SYSTEM_COCKPIT_HTTP_PORT/SYSTEM_COCKPIT_HTTPS_PORT. Env vars: see README.
+# Cockpit, on COCKPIT_HTTP_PORT/COCKPIT_HTTPS_PORT. Env vars: see README.
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
@@ -10,8 +10,8 @@ zz-use zz-colors zz-log zz-persist zz-install
 up() {
     local http_port https_port
 
-    http_port="$(vps-network port system_cockpit_http)"
-    https_port="$(vps-network port system_cockpit_https)"
+    http_port="$(vps-network port cockpit_http)"
+    https_port="$(vps-network port cockpit_https)"
 
     zz-log i "[vps-setup] Installing Cockpit..."
     zz-install -m  cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
@@ -47,8 +47,8 @@ summary() {
 
     host="$(vps-network summary-host)"
     vps-network summary-block Cockpit - \
-        "https://${host}:$(vps-network port system_cockpit_http) and https://${host}:$(vps-network port system_cockpit_https) (internal address, private port)" \
-        "https://localhost:$(vps-network port system_cockpit_http) and https://localhost:$(vps-network port system_cockpit_https) (on the VPS)" \
+        "https://${host}:$(vps-network port cockpit_http) and https://${host}:$(vps-network port cockpit_https) (internal address, private port)" \
+        "https://localhost:$(vps-network port cockpit_http) and https://localhost:$(vps-network port cockpit_https) (on the VPS)" \
         "user:     $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r COCKPIT_ADMIN_USER | grep . || echo 'not set - run vps-security/run.sh')" \
         "password: $(zz-persist -f "$SYSTEM_SECRETS_FILE" -r COCKPIT_ADMIN_PASSWORD | grep . || echo 'not set - run vps-security/run.sh')" \
         "(saved to ${SYSTEM_SECRETS_FILE}; PAM login, same account you'd use on the local console - separate from SSH, which stays key-only)"

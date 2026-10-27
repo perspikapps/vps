@@ -23,7 +23,7 @@ sudo zz-setup ./ -d vps-security
 
 ## Private ports and the FORWARD guard
 
-ufw filters INPUT only. Ports that k3s's ServiceLB (the Traefik dashboard) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `vps-k3s`, `app-coder` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the internal network: `curl -m 5 http://<public-ip>:9083` must time out.
+ufw filters INPUT only. Ports that k3s's ServiceLB (the Traefik dashboard) or Docker (the Dokploy UI) publish are DNAT-ed through FORWARD, where both accept them ahead of ufw, so a ufw `private` rule alone leaves them open on the public interface. `up` therefore also installs `vps-private-ports-guard.service` (and `/usr/local/sbin/vps-private-ports-guard`), which drops DNAT-ed connections to every `access: "private"` port of every feature on the default-route interface, first in FORWARD, unless that interface is the private one. `svc-k3s`, `app-coder` and `vps-dokploy` run `reapply_private_guard` once they are up, since k3s and Docker insert their own rules when they start. IPv4 only. Verify from outside the internal network: `curl -m 5 http://<public-ip>:9083` must time out.
 
 ## Removing (`down`)
 
@@ -44,13 +44,13 @@ sudo vps-setup --down-vps-security
 | `SYSTEM_ADMIN_PASSWORD` | no | _(unset)_ | Cockpit/console login password for SYSTEM_ADMIN_USER (or root if unset) |
 | `SYSTEM_ADMIN_SSH_KEY` | no | _(unset)_ | Public key to authorize for SYSTEM_ADMIN_USER and root |
 | `SYSTEM_ADMIN_USER` | no | _(unset)_ | Optional non-root sudo user to create |
-| `SYSTEM_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `vps-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
+| `SYSTEM_INTERNAL_INTERFACE` | no | _(persisted by the provider, e.g. `svc-tailscale`)_ | Interface that carries `access: "private"` ports (ufw opens them on it only); with none, they stay closed |
 
 ## Outputs
 
 | Output | Description |
 | --- | --- |
-| `SYSTEM_COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
+| `COCKPIT_ADMIN_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `COCKPIT_ADMIN_USER` and `COCKPIT_ADMIN_PASSWORD`, the saved Cockpit/console login (older hosts: `/root/.cockpit-admin-*`, migrated on the next run) |
 
 ## Dependencies
 

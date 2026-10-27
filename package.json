@@ -158,15 +158,15 @@
     "app-hermes",
     "app-infisical",
     "app-rancher",
+    "svc-cloudflare",
+    "svc-cockpit",
+    "svc-k3s",
+    "svc-tailscale",
     "vps-access",
-    "vps-cloudflare",
-    "vps-cockpit",
     "vps-dokploy",
-    "vps-k3s",
     "vps-network",
     "vps-security",
     "vps-setup",
-    "vps-system",
-    "vps-tailscale"
+    "vps-system"
   ]
 }

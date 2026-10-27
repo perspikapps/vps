@@ -23,7 +23,7 @@ For an unattended run, pass the inputs as variables:
 ```bash
 sudo SYSTEM_ADMIN_USER=ops \
     SYSTEM_ADMIN_SSH_KEY="ssh-ed25519 AAAA... you@laptop" \
-    SYSTEM_TAILSCALE_AUTHKEY="tskey-auth-..." \
+    TAILSCALE_AUTHKEY="tskey-auth-..." \
     SYSTEM_INTERNAL_APPS="rancher" \
     vps-setup
 ```
@@ -38,15 +38,17 @@ at the end and saved in `/root/.vps-secrets.env`. `vps-setup -h` lists every fla
 
 Steps run in this order. Each has its own README with its variables.
 
+Naming: `vps-*` are system steps (their variables are `SYSTEM_<VAR>`), `svc-*` services installed as packages or binaries (`<SERVICE>_<VAR>`, e.g. `TAILSCALE_AUTHKEY`), and `app-*` Helm charts (`<APP>_<VAR>`).
+
 | Step                                           | What it does                                                         | Default |
 | ---------------------------------------------- | -------------------------------------------------------------------- | ------- |
 | [`vps-system`](vps-system/README.md)           | System update, base tools, unattended security upgrades              | on      |
-| [`vps-tailscale`](vps-tailscale/README.md)     | Installs Tailscale and joins your tailnet (the internal network)      | on      |
-| [`vps-cloudflare`](vps-cloudflare/README.md)   | Cloudflare Tunnel + WARP as the internal network instead of Tailscale | opt-in  |
+| [`svc-tailscale`](svc-tailscale/README.md)     | Installs Tailscale and joins your tailnet (the internal network)      | on      |
+| [`svc-cloudflare`](svc-cloudflare/README.md)   | Cloudflare Tunnel + WARP as the internal network instead of Tailscale | opt-in  |
 | [`vps-security`](vps-security/README.md)       | Admin user, firewall, SSH hardening, fail2ban, Cockpit login         | on      |
 | [`vps-access`](vps-access/README.md)           | Confirms public/internal visibility per service and the DNS domains  | on      |
-| [`vps-cockpit`](vps-cockpit/README.md)         | Cockpit web console                                                  | on      |
-| [`vps-k3s`](vps-k3s/README.md)                 | k3s, kubectl, Helm and Traefik as the public HTTP/HTTPS ingress      | on      |
+| [`svc-cockpit`](svc-cockpit/README.md)         | Cockpit web console                                                  | on      |
+| [`svc-k3s`](svc-k3s/README.md)                 | k3s, kubectl, Helm and Traefik as the public HTTP/HTTPS ingress      | on      |
 | [`app-rancher`](app-rancher/README.md)         | cert-manager and Rancher                                             | on      |
 | [`vps-dokploy`](vps-dokploy/README.md)         | Dokploy, an alternative to the k3s stack                             | opt-in  |
 | [`app-coder`](app-coder/README.md)             | Coder cloud development environments (needs Rancher)                 | opt-in  |
@@ -60,26 +62,26 @@ Steps run in this order. Each has its own README with its variables.
 Choose what runs with flags, or with the menu:
 
 ```bash
-sudo vps-setup --skip-vps-cockpit               # everything except Cockpit
+sudo vps-setup --skip-svc-cockpit               # everything except Cockpit
 sudo vps-setup --with-app-coder                 # also run an opt-in step
 sudo vps-setup --only-app-rancher               # just this step (e.g. after changing a variable)
-sudo vps-setup --skip-vps-tailscale --with-vps-cloudflare   # Cloudflare instead of Tailscale
-sudo vps-setup --skip-vps-k3s --skip-app-rancher --with-vps-dokploy   # Dokploy instead of k3s
+sudo vps-setup --skip-svc-tailscale --with-svc-cloudflare   # Cloudflare instead of Tailscale
+sudo vps-setup --skip-svc-k3s --skip-app-rancher --with-vps-dokploy   # Dokploy instead of k3s
 ```
 
 A step's dependencies are enabled for you (`--only-app-argocd` also runs
-`vps-k3s`). Tailscale and Cloudflare cannot run together, nor
+`svc-k3s`). Tailscale and Cloudflare cannot run together, nor
 can k3s and Dokploy: `vps-setup` stops before running anything if you select both.
 
 ## Remove a step
 
 ```bash
 sudo vps-setup --down-app-argocd
-sudo vps-setup --down-vps-k3s --down-app-rancher   # the whole cluster (apps go with k3s)
+sudo vps-setup --down-svc-k3s --down-app-rancher   # the whole cluster (apps go with k3s)
 ```
 
 A step is refused while something that depends on it is still enabled; bring
-the dependents down in the same run, or add `--force-down`. Removing `vps-k3s`
+the dependents down in the same run, or add `--force-down`. Removing `svc-k3s`
 takes Rancher and every app installed from the catalog with it; removing
 `vps-dokploy` takes every app it deployed. Each step's README lists what its
 `down` removes and keeps.
@@ -96,15 +98,15 @@ need and remembers your answers in `/etc/vps.env`.
 | `SYSTEM_ADMIN_SSH_KEY`          | unset                    | Authorized SSH key for the admin user and root                               |
 | `SYSTEM_ADMIN_PASSWORD`         | random                   | Cockpit/console password (SSH stays key-only)                                |
 | `SYSTEM_SSH_PORT`                   | `22`                     | SSH port kept open publicly                                                  |
-| `SYSTEM_TAILSCALE_AUTHKEY`          | none                     | **Required** with `vps-tailscale` (or pass `--skip-vps-tailscale`)           |
-| `SYSTEM_CLOUDFLARE_TUNNEL_TOKEN`    | none                     | **Required** with `vps-cloudflare`                                           |
+| `TAILSCALE_AUTHKEY`          | none                     | **Required** with `svc-tailscale` (or pass `--skip-svc-tailscale`)           |
+| `CLOUDFLARE_TUNNEL_TOKEN`    | none                     | **Required** with `svc-cloudflare`                                           |
 | `SYSTEM_INTERNAL_INTERFACE`      | `tailscale0`             | Internal network interface, e.g. `wg0` when you bring your own                |
 | `RANCHER_HOSTNAME`           | internal IP, else node IP | Hostname in Rancher's certificate                                            |
 | `RANCHER_BOOTSTRAP_PASSWORD` | random                   | Rancher `admin` initial password                                             |
-| `SYSTEM_TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
-| `SYSTEM_TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
+| `K3S_TRAEFIK_ACME_EMAIL`         | placeholder              | Let's Encrypt contact email: set a real one                                  |
+| `K3S_TRAEFIK_ACME_STAGING`       | `true`                   | `false` for trusted Let's Encrypt certificates                               |
 | `SYSTEM_EXTERNAL_DOMAIN`            | nip.io fallback          | Wildcard DNS domain for apps that need subdomains                            |
-| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `SYSTEM_COCKPIT_HTTPS_PORT` |
+| `<NAME>_PORT`                | per step                 | Override a port for one run, e.g. `COCKPIT_HTTPS_PORT` |
 
 To keep a set of inputs in a file instead, use `/etc/vps-setup.env`
 (`KEY=VALUE`, or the file named by `VPS_SETUP_ENV_FILE`); it is read on every
@@ -115,7 +117,7 @@ run and wins over `/etc/vps.env`.
 - **SSH key** (`SYSTEM_ADMIN_SSH_KEY`): generate it on your own machine,
   `ssh-keygen -t ed25519 -C "you@laptop"`, and paste the whole `.pub` line. Your
   GitHub keys are at `https://github.com/<you>.keys`.
-- **Tailscale auth key** (`SYSTEM_TAILSCALE_AUTHKEY`): create it at
+- **Tailscale auth key** (`TAILSCALE_AUTHKEY`): create it at
   <https://login.tailscale.com/admin/settings/keys>. For a server choose
   reusable, not ephemeral, pre-approved if your tailnet requires approval, with
   a short expiry. Without it Tailscale is still installed; run `tailscale up`
@@ -179,7 +181,7 @@ flowchart LR
 - **Websites.** Traefik serves any hostname pointed at the VPS, from the
   `Ingress` that declares it. To get a Let's Encrypt certificate, annotate the
   `Ingress` with `traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt`.
-  Certificates are staging ones until you set `SYSTEM_TRAEFIK_ACME_STAGING=false`.
+  Certificates are staging ones until you set `K3S_TRAEFIK_ACME_STAGING=false`.
 - **Traefik dashboard.** `http://<internal-ip>:8088/dashboard/` (trailing slash
   required), internal network only.
 
@@ -221,7 +223,7 @@ data" field, and follow progress in `/var/log/vps-setup.log`.
 - **A step fails.** `vps-setup` stops at the first failing step and prints the
   command to re-run just that step, for example `sudo vps-setup --only-app-rancher`.
 - **A step stops without output.** A prerequisite was probably skipped, for
-  example `--only-app-rancher` on a box where `vps-k3s` never ran. Run the
+  example `--only-app-rancher` on a box where `svc-k3s` never ran. Run the
   missing step first.
 - **`command not found` after an upgrade.** Refresh the cached copy:
   `sudo zz-use --force perspikapps/vps/vps-setup`.

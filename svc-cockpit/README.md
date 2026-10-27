@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# vps-cockpit
+# svc-cockpit
 
 Cockpit install, with the `cockpit-packagekit` (software updates) and `cockpit-files` modules.
 
@@ -11,14 +11,14 @@ Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - one step in `v
 Runs as one step of a full `vps-setup` install/removal, or on its own through `zz-setup`, from a checkout:
 
 ```bash
-sudo vps-setup --only-vps-cockpit
+sudo vps-setup --only-svc-cockpit
 ```
 
 Or from a checkout, without `vps-setup` (`up` by default; `zz-setup` runs the step's `run.sh`):
 
 ```bash
-sudo zz-setup ./ -o vps-cockpit
-sudo zz-setup ./ -d vps-cockpit
+sudo zz-setup ./ -o svc-cockpit
+sudo zz-setup ./ -d svc-cockpit
 ```
 
 ## Removing (`down`)
@@ -26,7 +26,7 @@ sudo zz-setup ./ -d vps-cockpit
 `down` removes the Cockpit packages (including `cockpit-packagekit` and `cockpit-files`) and socket config.
 
 ```bash
-sudo vps-setup --down-vps-cockpit
+sudo vps-setup --down-svc-cockpit
 ```
 
 ## Environment variables
@@ -34,8 +34,8 @@ sudo vps-setup --down-vps-cockpit
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `SYSTEM_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
-| `SYSTEM_COCKPIT_HTTPS_PORT` | no | `9083` | Cockpit HTTPS port |
-| `SYSTEM_COCKPIT_HTTP_PORT` | no | `9080` | Cockpit HTTP port |
+| `COCKPIT_HTTPS_PORT` | no | `9083` | Cockpit HTTPS port |
+| `COCKPIT_HTTP_PORT` | no | `9080` | Cockpit HTTP port |
 
 ## Dependencies
 

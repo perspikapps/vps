@@ -42,8 +42,8 @@ DIR="$REPO_ROOT/app-rancher"
 }
 
 
-@test "package.json depends on @tomgrv/vps-k3s" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/vps-k3s'] === '*' ? 0 : 1)"
+@test "package.json depends on @tomgrv/svc-k3s" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.dependencies['@tomgrv/svc-k3s'] === '*' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 

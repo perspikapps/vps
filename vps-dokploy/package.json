@@ -14,7 +14,7 @@
   },
   "config": {
     "conflicts": [
-      "vps-k3s"
+      "svc-k3s"
     ],
     "default": false,
     "inputs": {
@@ -32,11 +32,6 @@
         "description": "Dokploy release tag to install (e.g. v0.26.6, canary); empty = latest stable",
         "required": false,
         "default": ""
-      },
-      "SYSTEM_DOKPLOY_REMOVE_DOCKER": {
-        "description": "Also remove Docker itself on down (true/false)",
-        "required": false,
-        "default": "false"
       }
     },
     "order": 6,

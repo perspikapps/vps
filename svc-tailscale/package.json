@@ -1,9 +1,9 @@
 {
-  "name": "@tomgrv/vps-tailscale",
+  "name": "@tomgrv/svc-tailscale",
   "version": "4.5.0",
   "description": "Tailscale install",
   "bin": {
-    "vps-tailscale": "run.sh"
+    "svc-tailscale": "run.sh"
   },
   "private": true,
   "scripts": {
@@ -14,22 +14,17 @@
   },
   "config": {
     "conflicts": [
-      "vps-cloudflare"
+      "svc-cloudflare"
     ],
     "default": true,
     "inputs": {
-      "SYSTEM_TAILSCALE_PURGE": {
-        "description": "Also remove the tailscale package on down (true/false)",
-        "required": false,
-        "default": "false"
-      },
-      "SYSTEM_TAILSCALE_AUTHKEY": {
+      "TAILSCALE_AUTHKEY": {
         "description": "Auth key to auto-join a tailnet",
         "required": true,
         "default": "",
         "secret": true
       },
-      "SYSTEM_TAILSCALE_EXTRA_ARGS": {
+      "TAILSCALE_EXTRA_ARGS": {
         "description": "Extra flags appended to tailscale up",
         "required": false,
         "default": ""

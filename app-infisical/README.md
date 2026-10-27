@@ -24,7 +24,7 @@ The step is a thin wrapper over [`app-helm`](../app-helm/README.md): it builds t
 
 ## Dependencies
 
-`vps-k3s` (kubectl and helm).
+`svc-k3s` (kubectl and helm).
 
 ## Tests
 

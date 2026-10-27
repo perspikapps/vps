@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Static checks for vps-k3s/run.sh and package.json - a live install
+# Static checks for svc-k3s/run.sh and package.json - a live install
 # needs a real root Ubuntu box, so this stops at syntax + shape (see
 # this folder's README's "Tests" section, and ../tests/ for repo-wide checks).
 
 REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-DIR="$REPO_ROOT/vps-k3s"
+DIR="$REPO_ROOT/svc-k3s"
 
 @test "run.sh parses as POSIX sh" {
     run dash -n "$DIR/run.sh"
@@ -32,7 +32,7 @@ DIR="$REPO_ROOT/vps-k3s"
 }
 
 @test "package.json bin entry matches the folder name" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['vps-k3s'] === 'run.sh' ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['svc-k3s'] === 'run.sh' ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
