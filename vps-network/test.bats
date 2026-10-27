@@ -90,16 +90,11 @@ setup() {
     [ "$output" = "apps.example.com" ]
 }
 
-@test "external-domain: the nip.io fallback uses the public address, never the internal interface" {
+@test "external-domain: the nip.io fallback uses the instance (default route) address, never the internal interface" {
     mkdir -p "$work/bin"
-    printf '#!/bin/sh\ncase "$*" in *169.254*) exit 22;; esac\necho 203.0.113.9\n' >"$work/bin/curl"
-    printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
-    chmod +x "$work/bin/curl" "$work/bin/ip"
-    # NAT'd default-route address -> asks the echo service; a internal interface is set but ignored
-    PATH="$work/bin:$PATH" SYSTEM_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
-    [ "$output" = "203-0-113-9.nip.io" ]
     printf '#!/bin/sh\necho "1.1.1.1 via 54.37.230.1 dev eth0 src 54.37.230.112"\n' >"$work/bin/ip"
-    PATH="$work/bin:$PATH" run sh "$SCRIPT" external-domain
+    chmod +x "$work/bin/ip"
+    PATH="$work/bin:$PATH" SYSTEM_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" external-domain
     [ "$output" = "54-37-230-112.nip.io" ]
 }
 
@@ -182,18 +177,20 @@ setup() {
     [ -z "$output" ]
 }
 
-@test "internal-range: Tailscale's CGNAT range when the provider declared none" {
+@test "internal-range: the internal address and loopback when the provider declared none" {
     export NETWORK_INTERNAL_ACCESS_FILE="$work/internal.env"
+    mkdir -p "$work/bin"
+    printf '#!/bin/sh\necho "3: tailscale0    inet 100.64.0.5/32 scope global tailscale0"\n' >"$work/bin/ip"
+    chmod +x "$work/bin/ip"
     sh "$SCRIPT" set-internal-interface tailscale0 >/dev/null 2>&1
-    run sh "$SCRIPT" internal-range
-    [ "$output" = "100.64.0.0/10" ]
+    PATH="$work/bin:$PATH" run sh "$SCRIPT" internal-range
+    [ "$output" = "100.64.0.5/32,127.0.0.1/32" ]
 }
 
-@test "public-ip: the cloud metadata (IMDSv2) wins over the NIC and the echo service" {
+@test "public-ip: the source address of the default route" {
     mkdir -p "$work/bin"
-    printf '#!/bin/sh\ncase "$*" in *api/token*) echo tok;; *public-ipv4*) echo 198.51.100.7;; *) echo 203.0.113.9;; esac\n' >"$work/bin/curl"
     printf '#!/bin/sh\necho "1.1.1.1 via 10.0.0.1 dev eth0 src 10.0.0.5"\n' >"$work/bin/ip"
-    chmod +x "$work/bin/curl" "$work/bin/ip"
+    chmod +x "$work/bin/ip"
     PATH="$work/bin:$PATH" run sh "$SCRIPT" public-ip
-    [ "$output" = "198.51.100.7" ]
+    [ "$output" = "10.0.0.5" ]
 }

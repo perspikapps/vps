@@ -64,26 +64,9 @@ get_port_override() {
     eval "printf '%s' \"\${$var:-}\""
 }
 
-# get_public_ip: the address the cloud says is the instance's public one (AWS metadata,
-# IMDSv2), else the default-route source address, or - behind NAT (a private address, as on
-# some clouds) - what an external echo service sees.
+# get_public_ip: the instance address, the source of the default route.
 get_public_ip() {
-    local ip token
-
-    token="$(curl -fsS -m 2 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token 2>/dev/null || true)"
-    if [ -n "$token" ]; then
-        ip="$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)"
-        if [ -n "$ip" ]; then
-            printf '%s' "$ip"
-            return 0
-        fi
-    fi
-    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true)"
-    # empty, or private / loopback / link-local / CGNAT: behind NAT
-    if [ -z "$ip" ] || printf '%s\n' "$ip" | grep -Eq '^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)'; then
-        ip="$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || true)"
-    fi
-    printf '%s' "$ip"
+    ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}' || true
 }
 
 # get_internal_interface: SYSTEM_INTERNAL_INTERFACE, else the persisted one.
@@ -176,23 +159,17 @@ list_visibilities() {
 
 # get_internal_range: the source CIDRs of the internal network's clients (comma separated):
 # the range the provider declared when it set the interface (SYSTEM_INTERNAL_SOURCE_RANGE), else
-# Tailscale's 100.64.0.0/10, else this host's internal address and loopback. Empty until there is
-# an internal network.
+# this host's internal address and loopback. Empty until there is an internal network.
 get_internal_range() {
-    local iface ip range
+    local ip range
 
     [ ! -f "$internal_file" ] || range="$(zz-persist -f "$internal_file" -r SYSTEM_INTERNAL_SOURCE_RANGE)"
     if [ -n "${range:-}" ]; then
         printf '%s' "$range"
         return 0
     fi
-    iface="$(get_internal_interface)"
     ip="$(get_internal_address)"
-    case "$iface" in
-        "") ;;
-        tailscale*) printf '100.64.0.0/10' ;;
-        *) [ -z "$ip" ] || printf '%s/32,127.0.0.1/32' "$ip" ;;
-    esac
+    [ -z "$ip" ] || printf '%s/32,127.0.0.1/32' "$ip"
 }
 
 # get_access_domain <public|internal>: the nip.io domain a service is reached on.
