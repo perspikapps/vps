@@ -137,6 +137,17 @@ setup() {
     [ "$output" = "$(printf 'gamma\tinternal')" ]
 }
 
+@test "visibilities: under zz-setup, only the services this run brings up (ZZ_SETUP_UP)" {
+    mkdir -p "$work/vps-gamma"
+    : >"$work/vps-gamma/run.sh"
+    echo '{"workspaces":["alpha","beta","lib","vps-gamma"]}' >"$work/package.json"
+    echo '{"name":"@x/vps-gamma","bin":{"vps-gamma":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/vps-gamma/package.json"
+    ZZ_SETUP_UP=" alpha beta " run sh "$SCRIPT" visibilities
+    [ -z "$output" ]
+    ZZ_SETUP_UP=" alpha vps-gamma " run sh "$SCRIPT" visibilities
+    [ "$output" = "$(printf 'gamma\tinternal')" ]
+}
+
 @test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
     SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" access-route alpha
     [ "$status" -eq 0 ]

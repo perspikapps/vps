@@ -158,6 +158,8 @@ list_visibilities() {
 
     ws-list -b -e zz-setup "$root" | while IFS= read -r dir; do
         jq -e '.config.visibility' "$root/$dir/package.json" >/dev/null 2>&1 || continue
+        # under zz-setup (ZZ_SETUP_UP set): only the apps this run brings up
+        case "${ZZ_SETUP_UP:-}" in "") ;; *" ${dir#./} "*) ;; *) continue ;; esac
         name="${dir#./}"
         name="${name#vps-}"
         name="${name#app-}"
