@@ -8,7 +8,7 @@ the final connection summary (Tailscale IP, Cockpit/Rancher credentials, etc).
 Feature discovery, the skip/up/down menu, dependency resolution and the input
 prompts are all `zz-setup`'s.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps). Unlike every
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps). Unlike every
 other feature folder, this one isn't itself an installable step, so it has no
 `engines.zz-setup` field in its `package.json` and `zz-setup` never proposes it (like
 `vps-network` and `app-cert-manager`, which are scripts). See the root README's
@@ -19,7 +19,7 @@ other feature folder, this one isn't itself an installable step, so it has no
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-zz-use perspikapps/vps/vps-setup
+zz-use tomgrv/vps/vps-setup
 sudo vps-setup
 ```
 

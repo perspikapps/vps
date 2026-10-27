@@ -21,7 +21,7 @@ with the placeholders below, which you do not want) otherwise:
 
 | Value                                                   | Purpose                                                                                                                                                                      |
 | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gha-runner-scale-set.githubConfigUrl`                  | Org or repo URL runners register against, e.g. `https://github.com/perspikapps` or `https://github.com/perspikapps/vps`                                                      |
+| `gha-runner-scale-set.githubConfigUrl`                  | Org or repo URL runners register against, e.g. `https://github.com/tomgrv` or `https://github.com/tomgrv/vps`                                                      |
 | `gha-runner-scale-set.githubConfigSecret.github_app_id` | GitHub App ID                                                                                                                                                                |
 | `...github_app_installation_id`                         | GitHub App installation ID                                                                                                                                                   |
 | `...github_app_private_key`                             | The GitHub App's private key PEM's full contents (paste the whole file, not a path - there's no host filesystem to read a path from once this installs through Rancher's UI) |
@@ -41,7 +41,7 @@ target via `runs-on: [self-hosted, <this-name>]`) and
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. **Apps & Marketplace → Charts**, pick **github-arc**, fill in the
    required values above, and install. Both Helm releases land in a
    single `github` namespace.

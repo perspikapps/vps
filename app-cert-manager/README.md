@@ -8,7 +8,7 @@ unless the deployment already exists, logging progress through `kube-progress`
 `bin` but no `engines.zz-setup`, so `zz-setup` never lists it. `app-rancher` calls it
 (by path, `$(dirname "$0")/../app-cert-manager/run.sh`).
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps).
 
 ## Usage
 

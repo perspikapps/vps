@@ -4,7 +4,7 @@
 
 Rancher install.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 5 · on by default · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 5 · on by default · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 

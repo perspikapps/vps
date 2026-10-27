@@ -4,7 +4,7 @@
 
 Cockpit install, with the `cockpit-packagekit` (software updates) and `cockpit-files` modules.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 3 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 3 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
 
 ## Usage
 

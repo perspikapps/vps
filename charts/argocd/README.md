@@ -12,7 +12,7 @@ of its own - just a dependency pin and defaults under `values.yaml`'s
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. **Apps & Marketplace → Charts**, pick **argocd**, review/edit the
    values (see `values.yaml`'s comments - in particular whether
    `server.extraArgs: [--insecure]` suits your cluster, or whether you'd

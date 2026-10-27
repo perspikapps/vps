@@ -6,7 +6,7 @@
 
 **Opt-in** (`config.default: false`), and an **alternative to `svc-k3s`**, not an addition: both run a Traefik that must own ports 80/443. `config.conflicts` makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while k3s is installed (a host set up by an earlier run).
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 6 · opt-in · needs root, Ubuntu · cannot run with `svc-k3s` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 6 · opt-in · needs root, Ubuntu · cannot run with `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 

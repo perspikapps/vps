@@ -4,7 +4,7 @@
 
 Installs a chart of this repo's catalog (`charts/<app>`) with helm. A **script, not a step**: the `app-*` steps call it, and `zz-setup` puts it on `PATH`.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps).
 
 ## Usage
 

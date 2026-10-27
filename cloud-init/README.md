@@ -4,7 +4,7 @@
 
 First-boot user-data that installs the VPS stack unattended.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps) - see the root README's [Provision at first boot](../README.md#provision-at-first-boot).
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps) - see the root README's [Provision at first boot](../README.md#provision-at-first-boot).
 
 ## Usage
 

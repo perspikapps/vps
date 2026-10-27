@@ -6,7 +6,7 @@ Cloudflare Tunnel (`cloudflared`) plus WARP internal network routes, as the VPS'
 
 **Opt-in** (`config.default: false`), and an **alternative to `svc-tailscale`**, not an addition: both provide the internal network that `access: "private"` ports (Cockpit, Rancher, the Traefik dashboard, the k3s API) are reachable on. `config.conflicts` (declared on both sides) makes `zz-setup` abort before any step starts when both are selected, and `up` itself refuses to run while Tailscale is up or persisted as the internal interface (a host set up by an earlier run): run `sudo vps-setup --down-svc-tailscale` first, mind your SSH path.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 1.5 · opt-in · needs root, Ubuntu · cannot run with `svc-tailscale` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 1.5 · opt-in · needs root, Ubuntu · cannot run with `svc-tailscale` · [how steps work](../README.md#contributing).
 
 ## Usage
 

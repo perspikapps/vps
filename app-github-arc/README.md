@@ -4,7 +4,7 @@
 
 GitHub Actions Runner Controller and a runner scale set, installed with helm from this repo's [`charts/github-arc`](../charts/github-arc/README.md) (an opt-in step).
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 13 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 13 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 

@@ -21,7 +21,7 @@ Fill these in before installing:
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. Create the `infisical-secrets` Secret in the target namespace (see
    `values.yaml`'s comments) - the install will fail without it.
 3. **Apps & Marketplace → Charts**, pick **infisical**, set

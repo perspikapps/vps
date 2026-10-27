@@ -4,7 +4,7 @@
 
 Confirms which services are **public** or **internal**, and the DNS domains they are reached on.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 3.5 · on by default · needs root · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 3.5 · on by default · needs root · [how steps work](../README.md#contributing).
 
 ## Usage
 

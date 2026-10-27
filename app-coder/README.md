@@ -6,7 +6,7 @@
 
 **Opt-in** (`config.default: false`); it needs `app-rancher` (and so `svc-k3s`), which also registers the `bitnami` Helm repository.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 8 · opt-in · needs root, Ubuntu · needs step `app-rancher` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 8 · opt-in · needs root, Ubuntu · needs step `app-rancher` · [how steps work](../README.md#contributing).
 
 ## Usage
 
@@ -67,7 +67,7 @@ After the admin exists, one template is pushed (once; an existing one is left as
 - **`devcontainer` (Envbuilder starter)** otherwise, following [Add Envbuilder to a template](https://coder.com/docs/admin/integrations/devcontainers/envbuilder/add-envbuilder): the starter embedded in the server's own `coder` binary, with `namespace=<workspace namespace>` and `use_kubeconfig=false`.
 
 ```bash
-sudo ZZ_SETUP_REF=<ref> CODER_DEVCONTAINER_BUILDER_REF=<tag> zz-setup perspikapps/vps -o app-coder
+sudo ZZ_SETUP_REF=<ref> CODER_DEVCONTAINER_BUILDER_REF=<tag> zz-setup tomgrv/vps -o app-coder
 ```
 
 BuildKit's `buildkitd.toml` is set to push to the in-cluster registry over plain HTTP (`http = true`); an external registry needs nothing.

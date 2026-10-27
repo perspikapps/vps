@@ -23,7 +23,7 @@ As root on a fresh Ubuntu VPS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh | sh
-zz-use perspikapps/vps/vps-setup
+zz-use tomgrv/vps/vps-setup
 sudo vps-setup
 ```
 
@@ -209,7 +209,7 @@ the GitHub App for ARC...); each README lists them.
 
 ## Rancher Marketplace
 
-The same charts are published as a Helm repository (`https://perspikapps.github.io/vps/`). To
+The same charts are published as a Helm repository (`https://tomgrv.github.io/vps/`). To
 install one from Rancher's UI instead, add it under **Apps & Marketplace → Repositories** by hand,
 then pick the chart under **Charts**; each chart's README lists the values to fill in.
 
@@ -239,11 +239,11 @@ data" field, and follow progress in `/var/log/vps-setup.log`.
   example `--only-app-rancher` on a box where `svc-k3s` never ran. Run the
   missing step first.
 - **`command not found` after an upgrade.** Refresh the cached copy:
-  `sudo zz-use --force perspikapps/vps/vps-setup`.
+  `sudo zz-use --force tomgrv/vps/vps-setup`.
 - **Test a branch or fork.** Fetch it and point `vps-setup` at the same ref:
 
     ```bash
-    zz-use "perspikapps/vps/vps-setup@my-branch"
+    zz-use "tomgrv/vps/vps-setup@my-branch"
     sudo ZZ_SETUP_REF=my-branch vps-setup      # fork: add VPS_SETUP_REPO_URL=https://github.com/<you>/vps.git
     ```
 

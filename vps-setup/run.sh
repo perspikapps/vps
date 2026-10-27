@@ -37,7 +37,7 @@ if [ -f "$script_dir/../vps-network/run.sh" ]; then
     repo="$checkout"
 else
     # Standalone zz-use install: zz-setup fetches the whole repo into /opt/<repo>.
-    repo_url="${VPS_SETUP_REPO_URL:-https://github.com/perspikapps/vps.git}"
+    repo_url="${VPS_SETUP_REPO_URL:-https://github.com/tomgrv/vps.git}"
     repo_path="$(printf '%s' "$repo_url" | sed -E 's#^[A-Za-z+]+://[^/]+/##; s#\.git$##')"
     export ZZ_SETUP_URL_BASE="${repo_url%/"$repo_path"*}"
     export ZZ_SETUP_DIR="${ZZ_SETUP_DIR:-/opt}"

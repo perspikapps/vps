@@ -4,7 +4,7 @@
 
 k3s / kubectl / helm install (includes Traefik configuration).
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 4 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 4 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
 
 ## Usage
 

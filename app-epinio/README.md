@@ -4,7 +4,7 @@
 
 Epinio (deploy apps from source), installed with helm from this repo's [`charts/epinio`](../charts/epinio/README.md) (an opt-in step).
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 12 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 12 · opt-in · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
 
 ## Usage
 

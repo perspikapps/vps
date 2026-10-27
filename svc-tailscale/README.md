@@ -4,7 +4,7 @@
 
 Tailscale install.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 1 · on by default · needs root, Ubuntu · cannot run with `svc-cloudflare` · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 1 · on by default · needs root, Ubuntu · cannot run with `svc-cloudflare` · [how steps work](../README.md#contributing).
 
 ## Usage
 
@@ -28,7 +28,7 @@ this step runs before `vps-security`. See the root README's
 ## Why `svc-tailscale`, not `tailscale`
 
 This folder's `run.sh` calls the real `tailscale` CLI internally, so a
-folder named plain `tailscale/` would make `zz-use perspikapps/vps/tailscale`
+folder named plain `tailscale/` would make `zz-use tomgrv/vps/tailscale`
 install this feature's own script as `tailscale`, shadowing the actual
 binary it depends on (`zz-use` always installs `<name>/run.sh` under the
 literal folder name requested - it has no notion of `package.json`'s

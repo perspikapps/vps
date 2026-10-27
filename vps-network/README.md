@@ -6,7 +6,7 @@ The network facts and state of this VPS, in one place. A **script, not a step**:
 its `package.json` has a `bin` but no `engines.zz-setup`, so `zz-setup` never lists it.
 `zz-setup` puts every workspace bin on `PATH` (a copy, which finds the steps through `ZZ_SETUP_ROOT`, or `VPS_SETUP_ROOT`), so the steps call `vps-network <command>` and never source it. Run by hand outside `zz-setup`, set `VPS_SETUP_ROOT` to the checkout.
 
-Part of [`perspikapps/vps`](https://github.com/perspikapps/vps).
+Part of [`tomgrv/vps`](https://github.com/tomgrv/vps).
 
 ## Usage
 

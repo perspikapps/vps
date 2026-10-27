@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     # so there's nothing here to duplicate/keep in sync.
     [ ! -e "$REPO_ROOT/setup.sh" ]
     for f in "$REPO_ROOT"/*/run.sh "$REPO_ROOT"/README.md; do
-        ! grep -qE 'perspikapps/vps/[^ ]*setup\.sh' "$f"
+        ! grep -qE 'tomgrv/vps/[^ ]*setup\.sh' "$f"
     done
 }
 

@@ -4,7 +4,7 @@
 
 Firewall / SSH / fail2ban hardening.
 
-Part of [`vps`](https://github.com/perspikapps/vps) · order 2 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
+Part of [`vps`](https://github.com/tomgrv/vps) · order 2 · on by default · needs root, Ubuntu · [how steps work](../README.md#contributing).
 
 ## Usage
 
