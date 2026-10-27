@@ -3,6 +3,7 @@
 # checkout with helm (a script shared by the app-* steps, not a step). Options:
 #   --middlewares-key <dotted.path>   the chart value that takes the Traefik middlewares of the route (set for internal)
 #   --note <text>                a line added to the summary (repeatable)
+#   --values-stdin               extra chart values (JSON or YAML) read from stdin, kept in a private temp file
 # Every other argument goes to `helm upgrade --install` (e.g. --set, --values).
 
 set -eu
@@ -16,7 +17,7 @@ if [ "$#" -lt 2 ]; then
 fi
 action="$1" app="$2"
 shift 2
-middlewares_key="" notes=""
+middlewares_key="" notes="" values_stdin=""
 rest=""
 # Options are split from the helm arguments; the helm ones are kept quoted in "$@".
 n=$#
@@ -26,6 +27,7 @@ while [ "$n" -gt 0 ]; do
     n=$((n - 1))
     case "$arg" in
         --middlewares-key) middlewares_key="$1" && shift && n=$((n - 1)) ;;
+        --values-stdin) values_stdin=1 ;;
         --note) notes="${notes}${1}
 " && shift && n=$((n - 1)) ;;
         *) set -- "$@" "$arg"; rest=1 ;;
@@ -37,7 +39,7 @@ chart="$root/charts/$app"
 ns="${APP_NAMESPACE:-$app}"
 
 up() {
-    local access domain values
+    local access domain values extra=""
 
     eval "$(kube-require)"
     [ -f "$chart/Chart.yaml" ] || { zz-log e "No chart at ${chart}." && exit 1; }
@@ -50,6 +52,14 @@ up() {
     values="$(mktemp)"
     jq -n --arg d "$domain" --arg m "$route_middlewares" --arg k "$middlewares_key" \
         '{global: {domain: $d}} | if $k != "" and $m != "" then setpath($k | split("."); $m) else . end' >"$values"
+
+    # read before anything else: stdin is the caller's pipe
+    if [ -n "$values_stdin" ]; then
+        extra="$(mktemp)"
+        trap 'rm -f "$extra"' EXIT
+        cat >"$extra"
+        set -- --values "$extra" "$@"
+    fi
 
     zz-log i "Installing ${app} (${access}, *.${domain}) from ${chart}..."
     helm dependency update "$chart" >/dev/null ||

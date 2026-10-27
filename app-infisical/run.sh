@@ -4,12 +4,12 @@
 # run with up, down or summary as its first argument.
 
 set -eu
-zz-use zz-colors zz-log zz-persist
+zz-use zz-colors zz-log zz-persist zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
 up() {
-    local values domain host enc auth
+    local domain host enc auth
 
     domain="$(vps-network access-domain public)" || exit 1
     [ -n "$domain" ] || { zz-log e "No domain: set SYSTEM_EXTERNAL_DOMAIN." && exit 1; }
@@ -21,10 +21,8 @@ up() {
     kubectl -n infisical create secret generic infisical-secrets \
         --from-literal=ENCRYPTION_KEY="$enc" --from-literal=AUTH_SECRET="$auth" --from-literal=SITE_URL="http://${host}" \
         --dry-run=client -o yaml | kubectl apply -f -
-    values="$(mktemp)"
-    jq -n --arg h "$host" '{"infisical-standalone": {ingress: {hostName: $h}}}' >"$values"
-    app-helm up infisical --values "$values" || { rm -f "$values" && exit 1; }
-    rm -f "$values"
+    jq -n --arg h "$host" '{"infisical-standalone": {ingress: {hostName: $h}}}' |
+    app-helm up infisical --values-stdin
 }
 
 down() {
@@ -36,8 +34,4 @@ summary() {
     app-helm summary infisical --note "root credentials: Secret infisical-secrets (namespace infisical); keys saved to the secrets file"
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

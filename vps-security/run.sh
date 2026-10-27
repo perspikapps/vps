@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install systemd-service
+zz-use zz-colors zz-log zz-persist zz-install systemd-service zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -171,6 +171,9 @@ EOF
     done <<EOF
 $(vps-network ports)
 EOF
+    # SSH stays reachable on the internal network whatever its access: ufw's public rule
+    # already covers it, firewalld needs it in the internal zone too.
+    [ "$firewall" != firewalld ] || [ -z "$internal_iface" ] || fw_d internal "${ssh_port}/tcp"
 
     if [ -f "$ufw_state" ]; then
         # shellcheck disable=SC2046
@@ -227,6 +230,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=${GUARD_BIN} add ${private} $(printf '%s ' $ports)
 
 [Install]
@@ -282,8 +286,4 @@ summary() {
         "private ports (Cockpit, Traefik dashboard, Dokploy UI, k3s API): closed to the internet, open on the internal address only - connect to the internal network first"
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

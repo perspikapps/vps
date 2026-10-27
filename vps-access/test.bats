@@ -13,7 +13,7 @@ DIR="$REPO_ROOT/vps-access"
 @test "defines up() and down() and dispatches up, down and summary" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
 }
 
 @test "menus only run on a terminal and can be switched off with SYSTEM_ACCESS_MENU" {

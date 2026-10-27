@@ -22,7 +22,7 @@ vps-network <command> [args...]
 | `summary-host`                  | that address, else `<internal-ip>`, for the steps' summaries                       |
 | `external-domain`               | `SYSTEM_EXTERNAL_DOMAIN`, else the persisted one, else `<public-ip>.nip.io` (public address, never the internal one) |
 | `access-domain public\|internal` | `external-domain`, or `<internal-ip>.nip.io` (dashes) for internal access; fails without a internal address |
-| `internal-domain` | `SYSTEM_INTERNAL_DOMAIN`, else the saved one, else `<internal-ip>.nip.io` |
+| `internal-domain` | `SYSTEM_INTERNAL_DOMAIN`, else the saved one, else the external domain |
 | `internal-range` | source CIDRs of the internal network's clients: what the provider declared with `set-internal-interface <iface> <range>`, else Tailscale's `100.64.0.0/10`, else the internal address and loopback (used by the `internal-only` Traefik middleware) |
 | `access-route <service>` | shell to `eval`: `route_access`, `route_domain`, `route_middlewares` (the `internal-only` Traefik middleware for internal, else empty) and `route_certresolver` (`letsencrypt` for public, none for internal); logs and prints `exit 1` on a bad choice or no domain |
 | `visibility <service>` | `public` or `internal`, from the system config only: `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` (comma lists), else the saved choice, else `config.visibility` of `vps-<service>`, else `public` |

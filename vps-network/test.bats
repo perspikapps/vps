@@ -84,6 +84,12 @@ setup() {
     [ "$output" = "saved.example.com" ]
 }
 
+@test "internal-domain: defaults to the external domain" {
+    export SYSTEM_ACCESS_FILE="$work/access.env"
+    SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" internal-domain
+    [ "$output" = "apps.example.com" ]
+}
+
 @test "external-domain: the nip.io fallback uses the public address, never the internal interface" {
     mkdir -p "$work/bin"
     printf '#!/bin/sh\necho 203.0.113.9\n' >"$work/bin/curl"

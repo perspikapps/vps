@@ -5,7 +5,7 @@
 # run with up, down or summary as its first argument. The menus only run on a terminal.
 
 set -eu
-zz-use zz-colors zz-log zz-menu zz-prompt
+zz-use zz-colors zz-log zz-menu zz-prompt zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -153,8 +153,4 @@ summary() {
         "(change: sudo vps-setup --only-vps-access, then re-run the service step)"
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

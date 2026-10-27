@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install systemd-service
+zz-use zz-colors zz-log zz-install systemd-service zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -65,8 +65,4 @@ summary() {
     fi
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

@@ -4,7 +4,7 @@
 # helm CLI instead of the Rancher UI. Env vars: see README.
 
 set -eu
-zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install kube-apply
+zz-use zz-colors zz-log zz-persist yaml-render kube-require kube-rollout kube-teardown helm-repo helm-install kube-apply zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -326,8 +326,4 @@ summary() {
         "(saved to ${ZZ_SECRETS_FILE}; template: kubernetes-devcontainer or devcontainer)"
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

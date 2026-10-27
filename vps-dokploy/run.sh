@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-install
+zz-use zz-colors zz-log zz-install zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -83,8 +83,4 @@ summary() {
         "The first visit creates the admin account: join the internal network first."
 }
 
-case "${1:-}" in
-    up | down) "$1" ;;
-    summary) if command -v summary >/dev/null 2>&1; then summary; fi ;;
-    *) zz-log e "Usage: $0 up|down|summary" && exit 1 ;;
-esac
+. zz-step

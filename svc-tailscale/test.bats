@@ -13,7 +13,7 @@ DIR="$REPO_ROOT/svc-tailscale"
 
 @test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
     grep -q '^\. zz-colors$' "$DIR/run.sh"
-    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -Ev '\. zz-(colors|step)$')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -23,8 +23,8 @@ DIR="$REPO_ROOT/svc-tailscale"
 
 @test "defines up() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
-    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
+    ! grep -q 'dispatch_action' "$DIR/run.sh"
 }
 
 @test "defines down()" {

@@ -112,18 +112,14 @@ get_external_domain() {
     printf '%s' "$domain"
 }
 
-# get_internal_domain: SYSTEM_INTERNAL_DOMAIN, else the persisted one, else nip.io on the
-# internal (Tailscale/Cloudflare) address.
+# get_internal_domain: SYSTEM_INTERNAL_DOMAIN, else the persisted one, else the external domain.
 get_internal_domain() {
-    local domain="${SYSTEM_INTERNAL_DOMAIN:-}" ip
+    local domain="${SYSTEM_INTERNAL_DOMAIN:-}"
 
     if [ -z "$domain" ] && [ -f "$access_file" ]; then
         domain="$(zz-persist -f "$access_file" -r SYSTEM_INTERNAL_DOMAIN)"
     fi
-    if [ -z "$domain" ]; then
-        ip="$(get_internal_address)"
-        [ -z "$ip" ] || domain="$(printf '%s' "$ip" | tr . -).nip.io"
-    fi
+    [ -n "$domain" ] || domain="$(get_external_domain)"
     printf '%s' "$domain"
 }
 

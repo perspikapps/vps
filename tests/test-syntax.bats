@@ -136,7 +136,7 @@ shift; echo "$*"
         run node -e "
             const p = require('$d/package.json');
             process.exit(p.engines && p.engines['zz-setup'] ? 0 : 1)"
-        [ "$status" -ne 0 ] || grep -q '^case "${1:-}" in' "$d/run.sh"
+        [ "$status" -ne 0 ] || grep -q '^\. zz-step$' "$d/run.sh"
     done
     for s in vps-network app-cert-manager app-helm; do
         run node -e "const p = require('$REPO_ROOT/$s/package.json'); process.exit(p.bin['$s'] && !p.engines ? 0 : 1)"

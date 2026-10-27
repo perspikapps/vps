@@ -13,14 +13,14 @@ DIR="$REPO_ROOT/svc-cloudflare"
 
 @test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
     grep -q '^\. zz-colors$' "$DIR/run.sh"
-    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -Ev '\. zz-(colors|step)$')" ]
 }
 
 @test "defines up(), down() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
     grep -q '^down() {' "$DIR/run.sh"
-    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
-    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
+    ! grep -q 'dispatch_action' "$DIR/run.sh"
 }
 
 @test "package.json bin name is not the bare 'cloudflared'" {
