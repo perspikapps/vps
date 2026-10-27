@@ -12,7 +12,7 @@ up() {
     local values v
 
     for v in GITHUB_ARC_CONFIG_URL GITHUB_ARC_APP_ID GITHUB_ARC_APP_INSTALLATION_ID GITHUB_ARC_APP_PRIVATE_KEY; do
-        eval "[ -n \"\${$v:-}\" ]" || { zz-log e "[vps-setup] ${v} is required (see charts/github-arc/README.md)." && exit 1; }
+        eval "[ -n \"\${$v:-}\" ]" || { zz-log e "${v} is required (see charts/github-arc/README.md)." && exit 1; }
     done
     values="$(mktemp)"
     jq -n --arg u "$GITHUB_ARC_CONFIG_URL" --arg i "$GITHUB_ARC_APP_ID" --arg n "$GITHUB_ARC_APP_INSTALLATION_ID" --arg k "$GITHUB_ARC_APP_PRIVATE_KEY" \

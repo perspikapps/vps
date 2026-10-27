@@ -13,7 +13,7 @@ CODER_NAMESPACE=coder
 # the RBAC (the Coder chart's own permissions cover only its release namespace). The platform page's name.
 WORKSPACE_NAMESPACE="${CODER_WORKSPACE_NAMESPACE:-coder-workspaces}"
 printf '%s\n' "$WORKSPACE_NAMESPACE" | grep -Eq '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$' ||
-    { zz-log e "[vps-setup] CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')." && exit 1; }
+    { zz-log e "CODER_WORKSPACE_NAMESPACE must be a lowercase RFC 1123 label (got '${WORKSPACE_NAMESPACE}')." && exit 1; }
 REGISTRY_PORT="$(vps-network port coder_registry)"
 export KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 CODER_API=http://127.0.0.1:18080/api/v2
@@ -26,7 +26,7 @@ ensure_workspace_namespace() {
     local coder_namespace="$CODER_NAMESPACE"
 
     [ "$WORKSPACE_NAMESPACE" != "$CODER_NAMESPACE" ] || return 0
-    zz-log i "[vps-setup] Preparing the workspace namespace '${WORKSPACE_NAMESPACE}' (Coder's service account may manage workspaces there)..."
+    zz-log i "Preparing the workspace namespace '${WORKSPACE_NAMESPACE}' (Coder's service account may manage workspaces there)..."
     kubectl create namespace "$WORKSPACE_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
     yaml-render "$HELM_DIR/workspace-rbac.yaml" coder_namespace="$coder_namespace" | kubectl apply -n "$WORKSPACE_NAMESPACE" -f -
 }
@@ -45,38 +45,38 @@ bootstrap_coder() {
         curl -fs -o /dev/null "$CODER_API/buildinfo" && break
         sleep 2
     done
-    run_bootstrap_steps "$email" "$user" "$pw" || zz-log w "[vps-setup] Coder admin/template bootstrap incomplete (see above); finish it in the UI."
+    run_bootstrap_steps "$email" "$user" "$pw" || zz-log w "Coder admin/template bootstrap incomplete (see above); finish it in the UI."
     kill "$pf_pid" 2>/dev/null || true
 }
 
 run_bootstrap_steps() {
     local email="$1" user="$2" pw="$3" code token
 
-    curl -fs -o /dev/null "$CODER_API/buildinfo" || { zz-log w "[vps-setup] Coder API not reachable through the port-forward." && return 1; }
+    curl -fs -o /dev/null "$CODER_API/buildinfo" || { zz-log w "Coder API not reachable through the port-forward." && return 1; }
 
     code="$(curl -s -o /dev/null -w '%{http_code}' "$CODER_API/users/first")"
     if [ "$code" = "404" ]; then
-        zz-log i "[vps-setup] Creating the Coder admin user '${user}'..."
+        zz-log i "Creating the Coder admin user '${user}'..."
         jq -n --arg e "$email" --arg u "$user" --arg p "$pw" '{email: $e, username: $u, name: $u, password: $p, trial: false}' |
             curl -fsS -o /dev/null -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/first" ||
-            { zz-log w "[vps-setup] Creating the first Coder user failed (POST /users/first)." && return 1; }
+            { zz-log w "Creating the first Coder user failed (POST /users/first)." && return 1; }
     fi
 
     token="$(jq -n --arg e "$email" --arg p "$pw" '{email: $e, password: $p}' |
         curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$CODER_API/users/login" 2>/dev/null | jq -r '.session_token // empty')" || true
-    [ -n "$token" ] || { zz-log w "[vps-setup] Could not log in as '${email}' (password changed since?); skipping the template." && return 1; }
+    [ -n "$token" ] || { zz-log w "Could not log in as '${email}' (password changed since?); skipping the template." && return 1; }
 
     # the platform (devcontainer-builder + registry) is installed before the admin step;
     # its template is pushed only when it is up and the template repo ref is pinned
     if [ "${BUILDER_READY:-}" = "1" ]; then
         if printf '%s\n' "${CODER_DEVCONTAINER_BUILDER_REF:-}" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._/-]*$'; then
-            push_coder_template "$token" kubernetes-devcontainer || { zz-log w "[vps-setup] Pushing the kubernetes-devcontainer template failed (see above)." && return 1; }
+            push_coder_template "$token" kubernetes-devcontainer || { zz-log w "Pushing the kubernetes-devcontainer template failed (see above)." && return 1; }
             return 0
         fi
-        zz-log w "[vps-setup] devcontainer-builder is installed, but its template is third-party code and must be pinned: set CODER_DEVCONTAINER_BUILDER_REF (a tag or commit of github.com/DeepSpaceCartel/devcontainer-builder). Using the Envbuilder starter instead."
+        zz-log w "devcontainer-builder is installed, but its template is third-party code and must be pinned: set CODER_DEVCONTAINER_BUILDER_REF (a tag or commit of github.com/DeepSpaceCartel/devcontainer-builder). Using the Envbuilder starter instead."
     fi
-    push_coder_template "$token" envbuilder || { zz-log w "[vps-setup] Pushing the Envbuilder 'devcontainer' template failed (see above)." && return 1; }
-    zz-log i "[vps-setup] Template pushed."
+    push_coder_template "$token" envbuilder || { zz-log w "Pushing the Envbuilder 'devcontainer' template failed (see above)." && return 1; }
+    zz-log i "Template pushed."
 }
 
 # In-cluster registry for the built images (anonymous, plain HTTP, no TLS): registry:2 with a PVC, on
@@ -87,14 +87,14 @@ run_bootstrap_steps() {
 deploy_local_registry() {
     local addr="$1" cfg=/etc/rancher/k3s/registries.yaml registry_port="$REGISTRY_PORT" i
 
-    zz-log i "[vps-setup] Deploying the in-cluster image registry at ${addr}..."
+    zz-log i "Deploying the in-cluster image registry at ${addr}..."
     kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
     yaml-render "$HELM_DIR/registry.yaml" registry_port="$registry_port" | kubectl apply -n devcontainer-builder -f -
     kube-rollout devcontainer-builder registry
     vps-network reapply-guard
     if [ ! -f "$cfg" ]; then
-        zz-log i "[vps-setup] Letting containerd pull ${addr} over HTTP (${cfg}); restarting k3s (running pods keep running)..."
+        zz-log i "Letting containerd pull ${addr} over HTTP (${cfg}); restarting k3s (running pods keep running)..."
         printf 'mirrors:\n  "%s":\n    endpoint:\n      - "http://%s"\n' "$addr" "$addr" >"$cfg"
         systemctl restart k3s
         for i in $(seq 1 60); do
@@ -102,7 +102,7 @@ deploy_local_registry() {
             sleep 2
         done
     elif ! grep -qF "$addr" "$cfg"; then
-        zz-log w "[vps-setup] ${cfg} exists without ${addr}: add a mirror with endpoint http://${addr} yourself, then restart k3s, or workspaces cannot pull the built images."
+        zz-log w "${cfg} exists without ${addr}: add a mirror with endpoint http://${addr} yourself, then restart k3s, or workspaces cannot pull the built images."
     fi
 }
 
@@ -132,8 +132,8 @@ install_devcontainer_builder() {
 
     if [ -z "$version" ]; then
         version="$(helm show chart "$chart" 2>/dev/null | awk '/^version:/ {print $2; exit}')" || true
-        [ -n "$version" ] || { zz-log w "[vps-setup] Could not resolve the latest devcontainer-builder chart version." && return 1; }
-        zz-log w "[vps-setup] CODER_DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with CODER_DEVCONTAINER_BUILDER_VERSION=${version}."
+        [ -n "$version" ] || { zz-log w "Could not resolve the latest devcontainer-builder chart version." && return 1; }
+        zz-log w "CODER_DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with CODER_DEVCONTAINER_BUILDER_VERSION=${version}."
     fi
     if [ -n "${CODER_DEVCONTAINER_REGISTRY_TOKEN:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_USER:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_ORG:-}" ]; then
         registry="${CODER_DEVCONTAINER_REGISTRY:-ghcr.io}"
@@ -150,7 +150,7 @@ install_devcontainer_builder() {
         insecure_registries="$(jq -nc --arg r "$registry" '[$r]')"
         insecure_host="$registry"
     fi
-    zz-log i "[vps-setup] Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
+    zz-log i "Installing devcontainer-builder chart ${version} (images go to ${mapped})..."
     kubectl create namespace devcontainer-builder --dry-run=client -o yaml | kubectl apply -f -
     kubectl label namespace devcontainer-builder pod-security.kubernetes.io/enforce=privileged --overwrite
     deploy_buildkit "${insecure_host}" || return 1
@@ -188,18 +188,18 @@ push_coder_template() {
         # only the patched starter carries a revision; the third-party template is left alone
         [ "$kind" = "kubernetes-devcontainer" ] && rev="$TEMPLATE_REV"
         if [ "$cur" = "$WORKSPACE_NAMESPACE" ] && [ "$rev" = "$TEMPLATE_REV" ]; then
-            zz-log i "[vps-setup] Template '${name}' already exists (namespace ${cur}, ${rev}); leaving it as is."
+            zz-log i "Template '${name}' already exists (namespace ${cur}, ${rev}); leaving it as is."
             return 0
         fi
-        zz-log i "[vps-setup] Template '${name}' is namespace '${cur:-unknown}', revision '${rev:-unknown}' (wanted '${WORKSPACE_NAMESPACE}', ${TEMPLATE_REV}): pushing a new version."
+        zz-log i "Template '${name}' is namespace '${cur:-unknown}', revision '${rev:-unknown}' (wanted '${WORKSPACE_NAMESPACE}', ${TEMPLATE_REV}): pushing a new version."
     fi
-    zz-log i "[vps-setup] Creating the '${name}' template..."
+    zz-log i "Creating the '${name}' template..."
     if [ "$kind" = "kubernetes-devcontainer" ]; then
         # the template repo at the pinned tag/commit, not its default branch
         src="$(mktemp -d)"
         { git -C "$src" init -q && git -C "$src" fetch -q --depth 1 https://github.com/DeepSpaceCartel/devcontainer-builder.git "$CODER_DEVCONTAINER_BUILDER_REF" &&
             git -C "$src" checkout -q FETCH_HEAD; } >/dev/null 2>&1 ||
-            { rm -rf "$src" && zz-log w "[vps-setup] Could not fetch devcontainer-builder at ${CODER_DEVCONTAINER_BUILDER_REF}." && return 1; }
+            { rm -rf "$src" && zz-log w "Could not fetch devcontainer-builder at ${CODER_DEVCONTAINER_BUILDER_REF}." && return 1; }
         tar -C "$src/templates/coder-kubernetes" -cf - . |
             kubectl -n "$CODER_NAMESPACE" exec -i deploy/coder -- sh -c 'rm -rf /tmp/dcb && mkdir -p /tmp/dcb && tar -xf - -C /tmp/dcb'
         rm -rf "$src"
@@ -230,7 +230,7 @@ up() {
     eval "$(kube-require)"
 
     # --- repositories and namespace
-    zz-log i "[vps-setup] Adding the Helm repositories (Bitnami for PostgreSQL, Coder for the chart)..."
+    zz-log i "Adding the Helm repositories (Bitnami for PostgreSQL, Coder for the chart)..."
     helm-repo bitnami https://charts.bitnami.com/bitnami app-coder https://helm.coder.com/v2
 
     # --- PostgreSQL (helm/postgresql-values.yaml)
@@ -238,7 +238,7 @@ up() {
     db_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 CODER_DB_PASSWORD "${CODER_DB_PASSWORD:-}")"
     db_storage="${CODER_DB_STORAGE:-10Gi}"
 
-    zz-log i "[vps-setup] Installing PostgreSQL (coder-db)..."
+    zz-log i "Installing PostgreSQL (coder-db)..."
     db_values="$(mktemp)"
     yaml-render "$HELM_DIR/postgresql-values.yaml" db_password="$db_password" db_storage="$db_storage" >"$db_values"
     helm-install coder coder-db bitnami/postgresql --values "$db_values" --wait || { rm -f "$db_values" && exit 1; }
@@ -257,7 +257,7 @@ up() {
     # behind the internal-only middleware (internal network clients only). Plain HTTP either way.
     eval "$(vps-network access-route coder)"
     access="$route_access" middlewares="$route_middlewares" wildcard="$route_domain"
-    [ -n "$wildcard" ] || { zz-log e "[vps-setup] No domain for Coder: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
+    [ -n "$wildcard" ] || { zz-log e "No domain for Coder: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
     access_url="http://coder.${wildcard}"
     host="${access_url#*://}"
     host="${host%%[:/]*}"
@@ -271,19 +271,19 @@ up() {
     fi
     chart_version="${CODER_CHART_VERSION:+--version ${CODER_CHART_VERSION}}"
 
-    zz-log i "[vps-setup] Installing/upgrading Coder (access URL ${access_url})..."
+    zz-log i "Installing/upgrading Coder (access URL ${access_url})..."
     # shellcheck disable=SC2086
     helm-install "$CODER_NAMESPACE" coder app-coder/coder --values "$values_file" $chart_version ||
         { rm -f "$values_file" && exit 1; }
     rm -f "$values_file"
 
     kube-rollout -t 10m "$CODER_NAMESPACE" coder ||
-        { zz-log e "[vps-setup] Re-run: sudo vps-setup --only-app-coder" && exit 1; }
+        { zz-log e "Re-run: sudo vps-setup --only-app-coder" && exit 1; }
 
     ensure_workspace_namespace
 
     # charts first: the platform comes up even if the admin/template steps below only warn
-    install_devcontainer_builder || zz-log w "[vps-setup] devcontainer-builder / registry setup incomplete (see above); re-run: sudo vps-setup --only-app-coder"
+    install_devcontainer_builder || zz-log w "devcontainer-builder / registry setup incomplete (see above); re-run: sudo vps-setup --only-app-coder"
 
     # --- admin user and template
     admin_email="${CODER_ADMIN_EMAIL:-admin@${wildcard:-coder.local}}"
@@ -293,18 +293,18 @@ up() {
     zz-persist -s -f "$SYSTEM_SECRETS_FILE" CODER_ADMIN_USERNAME "$admin_user"
     bootstrap_coder "$admin_email" "$admin_user" "$admin_password"
 
-    zz-log s "[vps-setup] Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${SYSTEM_SECRETS_FILE}."
+    zz-log s "Coder installed: ${access_url} (via Traefik). Admin ${admin_email}; password saved to ${SYSTEM_SECRETS_FILE}."
 }
 
 down() {
     eval "$(kube-require -d)"
-    zz-log w "[vps-setup] Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
+    zz-log w "Removing the coder namespace also deletes the PostgreSQL volume: all Coder data is lost."
     kube-teardown "$CODER_NAMESPACE" coder
     zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_DB_PASSWORD
     zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_PASSWORD
     zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_EMAIL
     zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u CODER_ADMIN_USERNAME
-    zz-log s "[vps-setup] Coder removed."
+    zz-log s "Coder removed."
 }
 
 summary() {

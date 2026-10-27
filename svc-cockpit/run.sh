@@ -13,10 +13,10 @@ up() {
     http_port="$(vps-network port cockpit_http)"
     https_port="$(vps-network port cockpit_https)"
 
-    zz-log i "[vps-setup] Installing Cockpit..."
+    zz-log i "Installing Cockpit..."
     zz-install -m  cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files
 
-    zz-log i "[vps-setup] Configuring cockpit.socket to listen on ${http_port} and ${https_port}..."
+    zz-log i "Configuring cockpit.socket to listen on ${http_port} and ${https_port}..."
     mkdir -p /etc/systemd/system/cockpit.socket.d
     cat >/etc/systemd/system/cockpit.socket.d/override.conf <<EOF2
 [Socket]
@@ -29,17 +29,17 @@ EOF2
     systemctl enable --now cockpit.socket
     systemctl restart cockpit.socket
 
-    zz-log s "[vps-setup] Cockpit installed. Reachable at https://$(vps-network summary-host):${http_port} and :${https_port} (self-signed cert)."
+    zz-log s "Cockpit installed. Reachable at https://$(vps-network summary-host):${http_port} and :${https_port} (self-signed cert)."
 }
 
 down() {
-    zz-log i "[vps-setup] Disabling Cockpit..."
+    zz-log i "Disabling Cockpit..."
     systemctl disable --now cockpit.socket 2>/dev/null || true
     rm -rf /etc/systemd/system/cockpit.socket.d
     systemctl daemon-reload
-    zz-log i "[vps-setup] Removing Cockpit packages..."
+    zz-log i "Removing Cockpit packages..."
     zz-install -r cockpit cockpit-system cockpit-networkmanager cockpit-storaged cockpit-packagekit cockpit-files || true
-    zz-log s "[vps-setup] Cockpit removed."
+    zz-log s "Cockpit removed."
 }
 
 summary() {

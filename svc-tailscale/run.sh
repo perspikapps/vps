@@ -9,48 +9,48 @@ zz-use zz-colors zz-log zz-install
 
 up() {
     if command -v tailscale >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Tailscale already installed ($(tailscale --version | head -n1 || true))."
+        zz-log i "Tailscale already installed ($(tailscale --version | head -n1 || true))."
     else
-        zz-log i "[vps-setup] Installing Tailscale from the official repo..."
+        zz-log i "Installing Tailscale from the official repo..."
         # The official installer needs bash.
         zz-install -u https://tailscale.com/install.sh -x bash tailscale
     fi
 
-    zz-log i "[vps-setup] Enabling tailscaled as a systemd service..."
+    zz-log i "Enabling tailscaled as a systemd service..."
     systemctl enable --now tailscaled
-    systemctl is-active --quiet tailscaled || { zz-log e "[vps-setup] tailscaled is not active after 'systemctl enable --now tailscaled'." && exit 1; }
-    zz-log s "[vps-setup] tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
+    systemctl is-active --quiet tailscaled || { zz-log e "tailscaled is not active after 'systemctl enable --now tailscaled'." && exit 1; }
+    zz-log s "tailscaled is running as a service ($(systemctl is-enabled tailscaled))."
 
     # Tell the other steps which interface carries the internal network (ufw rules
     # for access:"private" ports, the final summary); see vps-network.
     vps-network set-internal-interface tailscale0 100.64.0.0/10
 
     if [ -z "${TAILSCALE_AUTHKEY:-}" ]; then
-        zz-log w "[vps-setup] TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-svc-tailscale"
+        zz-log w "TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet and authenticate, then re-run: sudo vps-setup --only-svc-tailscale"
         exit 0
     fi
 
-    zz-log i "[vps-setup] Joining tailnet..."
+    zz-log i "Joining tailnet..."
     # shellcheck disable=SC2086
     tailscale up --authkey="${TAILSCALE_AUTHKEY}" --ssh ${TAILSCALE_EXTRA_ARGS:-}
-    zz-log s "[vps-setup] Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
+    zz-log s "Tailscale is up: $(tailscale ip -4 2>/dev/null || echo 'pending')"
 }
 
 down() {
     if ! command -v tailscale >/dev/null 2>&1; then
-        zz-log w "[vps-setup] Tailscale not installed; nothing to do."
+        zz-log w "Tailscale not installed; nothing to do."
         return
     fi
-    zz-log i "[vps-setup] Logging out of the tailnet..."
+    zz-log i "Logging out of the tailnet..."
     tailscale logout || true
     systemctl disable --now tailscaled || true
     vps-network unset-internal-interface tailscale0
-    zz-log i "[vps-setup] Removing the tailscale package..."
+    zz-log i "Removing the tailscale package..."
     zz-install -r tailscale || true
-    zz-log w "[vps-setup] Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
+    zz-log w "Tailscale is disconnected. Cockpit, Rancher, the Traefik" \
         "dashboard, and the k3s API (all private-access) are now unreachable" \
         "until you re-run this step's 'up' action."
-    zz-log s "[vps-setup] Tailscale brought down."
+    zz-log s "Tailscale brought down."
 }
 
 summary() {

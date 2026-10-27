@@ -12,7 +12,7 @@ up() {
     local values llm_key
 
     llm_key="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s COGNEE_LLM_API_KEY "${COGNEE_LLM_API_KEY:-}")"
-    [ -n "$llm_key" ] || { zz-log e "[vps-setup] COGNEE_LLM_API_KEY is required: the container does not start without it." && exit 1; }
+    [ -n "$llm_key" ] || { zz-log e "COGNEE_LLM_API_KEY is required: the container does not start without it." && exit 1; }
     values="$(mktemp)"
     jq -n --arg k "$llm_key" '{llmApiKey: $k}' >"$values"
     app-helm up cognee --middlewares-key ingress.middlewares --values "$values" || { rm -f "$values" && exit 1; }

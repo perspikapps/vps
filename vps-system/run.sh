@@ -8,12 +8,12 @@ zz-use zz-colors zz-log zz-persist zz-install
 . zz-colors
 
 up() {
-    zz-log i "[vps-setup] Upgrading existing packages and installing base utilities..."
+    zz-log i "Upgrading existing packages and installing base utilities..."
     zz-install -f -m ca-certificates curl wget git jq unzip htop net-tools
     # Same tools, named differently outside Debian (gnupg2 on Amazon Linux, gpg2 on SUSE).
     zz-install -m gnupg dnf=gnupg2 zypper=gpg2
 
-    zz-log i "[vps-setup] Enabling unattended security upgrades..."
+    zz-log i "Enabling unattended security upgrades..."
     if command -v apt-get >/dev/null 2>&1; then
         zz-install -m lsb-release apt-transport-https software-properties-common unattended-upgrades
         dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
@@ -27,15 +27,15 @@ EOF2
         sed -i -e 's/^upgrade_type *=.*/upgrade_type = security/' -e 's/^apply_updates *=.*/apply_updates = yes/' /etc/dnf/automatic.conf
         systemctl enable --now dnf-automatic.timer
     else
-        zz-log w "[vps-setup] No unattended security upgrades on this distribution: run 'zypper patch' on your own schedule."
+        zz-log w "No unattended security upgrades on this distribution: run 'zypper patch' on your own schedule."
     fi
 
     if [ -n "${SYSTEM_TZ:-}" ]; then
-        zz-log i "[vps-setup] Setting timezone to ${SYSTEM_TZ}..."
-        timedatectl set-timezone "$SYSTEM_TZ" || zz-log w "[vps-setup] Could not set timezone ${SYSTEM_TZ}"
+        zz-log i "Setting timezone to ${SYSTEM_TZ}..."
+        timedatectl set-timezone "$SYSTEM_TZ" || zz-log w "Could not set timezone ${SYSTEM_TZ}"
     fi
 
-    zz-log s "[vps-setup] Base system is up to date."
+    zz-log s "Base system is up to date."
 }
 
 case "${1:-}" in

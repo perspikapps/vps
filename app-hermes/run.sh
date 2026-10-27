@@ -11,7 +11,7 @@ zz-use zz-colors zz-log
 up() {
     local values
 
-    [ -n "${HERMES_IMAGE_REPOSITORY:-}" ] || { zz-log e "[vps-setup] HERMES_IMAGE_REPOSITORY is required: no official Hermes image exists (build one, see charts/hermes/README.md)." && exit 1; }
+    [ -n "${HERMES_IMAGE_REPOSITORY:-}" ] || { zz-log e "HERMES_IMAGE_REPOSITORY is required: no official Hermes image exists (build one, see charts/hermes/README.md)." && exit 1; }
     values="$(mktemp)"
     jq -n --arg r "$HERMES_IMAGE_REPOSITORY" --arg t "${HERMES_IMAGE_TAG:-latest}" --arg s "${HERMES_ENV_SECRET:-}" \
         '{image: {repository: $r, tag: $t}, envFromSecretName: $s}' >"$values"

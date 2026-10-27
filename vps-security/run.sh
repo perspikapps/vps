@@ -38,21 +38,21 @@ up() {
 
     ssh_port="$(vps-network port system_ssh)"
 
-    zz-log i "[vps-setup] Installing ${firewall} and fail2ban..."
+    zz-log i "Installing ${firewall} and fail2ban..."
     zz-install -m "$firewall"
     # fail2ban is not in every distribution's repositories (Amazon Linux): optional there.
     if [ "$firewall" = ufw ]; then
         zz-install -m fail2ban
     else
-        zz-install -m fail2ban || zz-log w "[vps-setup] fail2ban is not available here: skipping the sshd jail."
+        zz-install -m fail2ban || zz-log w "fail2ban is not available here: skipping the sshd jail."
     fi
 
     # --- admin user and SSH key
     if [ -n "${SYSTEM_ADMIN_USER:-}" ]; then
         if id "$SYSTEM_ADMIN_USER" >/dev/null 2>&1; then
-            zz-log i "[vps-setup] User ${SYSTEM_ADMIN_USER} already exists."
+            zz-log i "User ${SYSTEM_ADMIN_USER} already exists."
         else
-            zz-log i "[vps-setup] Creating sudo user ${SYSTEM_ADMIN_USER}..."
+            zz-log i "Creating sudo user ${SYSTEM_ADMIN_USER}..."
             # sudo group on Debian, wheel on Amazon Linux and SUSE.
             useradd -m -s /bin/bash -G "$(getent group sudo >/dev/null && echo sudo || echo wheel)" "$SYSTEM_ADMIN_USER"
             passwd -l "$SYSTEM_ADMIN_USER" >/dev/null
@@ -79,14 +79,14 @@ up() {
     cockpit_password="$(zz-persist -f "$SYSTEM_SECRETS_FILE" -s -g 24 COCKPIT_ADMIN_PASSWORD "${SYSTEM_ADMIN_PASSWORD:-}")"
     echo "${cockpit_user}:${cockpit_password}" | chpasswd
     zz-persist -s -f "$SYSTEM_SECRETS_FILE" COCKPIT_ADMIN_USER "$cockpit_user"
-    zz-log s "[vps-setup] Cockpit login set: user=${cockpit_user} (password saved to ${SYSTEM_SECRETS_FILE})."
+    zz-log s "Cockpit login set: user=${cockpit_user} (password saved to ${SYSTEM_SECRETS_FILE})."
 
     for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
         if [ -s "$f" ]; then has_key=1; fi
     done
 
     # --- sshd
-    zz-log i "[vps-setup] Hardening sshd_config..."
+    zz-log i "Hardening sshd_config..."
     sshd_dropin=/etc/ssh/sshd_config.d/99-vps-setup.conf
     {
         echo "Port ${ssh_port}"
@@ -97,22 +97,22 @@ up() {
 
     if [ "$has_key" -eq 1 ]; then
         echo "PasswordAuthentication no" >>"$sshd_dropin"
-        zz-log s "[vps-setup] SSH key detected: disabling password authentication."
+        zz-log s "SSH key detected: disabling password authentication."
     else
-        zz-log w "[vps-setup] No SSH key provided (SYSTEM_ADMIN_SSH_KEY unset): leaving password authentication enabled."
+        zz-log w "No SSH key provided (SYSTEM_ADMIN_SSH_KEY unset): leaving password authentication enabled."
     fi
 
     sshd -t -f /etc/ssh/sshd_config
     if systemctl is-active --quiet "$ssh_unit".service; then
         systemctl reload "$ssh_unit"
-        zz-log s "[vps-setup] sshd hardened and reloaded."
+        zz-log s "sshd hardened and reloaded."
     else
-        zz-log w "[vps-setup] ${ssh_unit}.service is not active: sshd config written but not reloaded (it applies on next start)."
+        zz-log w "${ssh_unit}.service is not active: sshd config written but not reloaded (it applies on next start)."
     fi
 
     # --- fail2ban
     if command -v fail2ban-client >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Enabling fail2ban for sshd..."
+        zz-log i "Enabling fail2ban for sshd..."
         cat >/etc/fail2ban/jail.d/sshd.local <<EOF
 [sshd]
 enabled = true
@@ -126,7 +126,7 @@ EOF
     fi
 
     # --- firewall
-    zz-log i "[vps-setup] Configuring ${firewall} from every feature's package.json..."
+    zz-log i "Configuring ${firewall} from every feature's package.json..."
     # Upsert, no window without rules: every rule goes through fw(), which records its
     # spec; rules recorded by the previous run but not wanted now are deleted after the
     # new ones are in. No record yet (first run, or a host set up by an older version
@@ -151,9 +151,9 @@ EOF
         [ -z "$internal_iface" ] || firewall-cmd -q --permanent --zone=internal --change-interface="$internal_iface"
     fi
     if [ -z "$internal_iface" ]; then
-        zz-log w "[vps-setup] No internal interface (SYSTEM_INTERNAL_INTERFACE unset, and no step persisted one): private-access ports stay closed."
+        zz-log w "No internal interface (SYSTEM_INTERNAL_INTERFACE unset, and no step persisted one): private-access ports stay closed."
     elif [ -z "$internal_ip" ]; then
-        zz-log w "[vps-setup] ${internal_iface} has no IPv4 address yet: private-access ports stay closed."
+        zz-log w "${internal_iface} has no IPv4 address yet: private-access ports stay closed."
     fi
 
     tab="$(printf '\t')"
@@ -166,7 +166,7 @@ EOF
                 [ -z "$internal_ip" ] || if [ "$firewall" = firewalld ]; then fw_d internal "${port}/tcp"; else fw in on "$internal_iface" to "$internal_ip" port "$port" proto tcp comment "vps-setup: private-only (${name})"; fi || true
                 ;;
             *)
-                zz-log w "[vps-setup] unknown access '${access}' for port '${name}' - skipping."
+                zz-log w "unknown access '${access}' for port '${name}' - skipping."
                 ;;
         esac
     done <<EOF
@@ -187,7 +187,7 @@ EOF
     mv "$wanted" "$ufw_state"
 
     if [ "$firewall" = ufw ]; then ufw --force enable; else firewall-cmd -q --reload; fi
-    zz-log s "[vps-setup] ${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${internal_ip:-<no internal address>} (${internal_iface:-no internal interface})."
+    zz-log s "${firewall} enabled from every feature's package.json: public ports open to everyone, private ports reachable only on ${internal_ip:-<no internal address>} (${internal_iface:-no internal interface})."
 
     # The guard calls iptables and ip; minimal images (Amazon Linux, SUSE) may lack them.
     zz-install -m iptables
@@ -240,7 +240,7 @@ UNIT
 
 down() {
     if [ -f "$GUARD_UNIT" ]; then
-        zz-log i "[vps-setup] Removing the private-ports FORWARD guard..."
+        zz-log i "Removing the private-ports FORWARD guard..."
         # The rules are in iptables, not in the unit: delete them with the ports the unit added.
         # shellcheck disable=SC2046
         "$GUARD_BIN" del - $(sed -n 's/^ExecStart=[^ ]* add [^ ]* //p' "$GUARD_UNIT") || true
@@ -249,32 +249,32 @@ down() {
         systemctl daemon-reload
     fi
 
-    zz-log i "[vps-setup] Disabling fail2ban's sshd jail..."
+    zz-log i "Disabling fail2ban's sshd jail..."
     rm -f /etc/fail2ban/jail.d/sshd.local
     systemctl disable --now fail2ban 2>/dev/null || true
 
-    zz-log i "[vps-setup] Restoring sshd to its distro default config..."
+    zz-log i "Restoring sshd to its distro default config..."
     rm -f /etc/ssh/sshd_config.d/99-vps-setup.conf
     if sshd -t 2>/dev/null; then
         if systemctl is-active --quiet "$ssh_unit".service; then
             systemctl reload "$ssh_unit"
         else
-            zz-log w "[vps-setup] ${ssh_unit}.service is not active: nothing to reload."
+            zz-log w "${ssh_unit}.service is not active: nothing to reload."
         fi
     else
-        zz-log w "[vps-setup] sshd -t failed after removing the drop-in; reload it manually once sshd_config is valid again."
+        zz-log w "sshd -t failed after removing the drop-in; reload it manually once sshd_config is valid again."
     fi
 
-    zz-log i "[vps-setup] Disabling ${firewall}..."
+    zz-log i "Disabling ${firewall}..."
     if [ "$firewall" = ufw ]; then ufw --force disable || true; else systemctl disable --now firewalld || true; fi
     rm -f /var/lib/vps-security-ufw.rules
 
-    zz-log w "[vps-setup] Security hardening reverted: the firewall is disabled (no firewall at all) and" \
+    zz-log w "Security hardening reverted: the firewall is disabled (no firewall at all) and" \
         "sshd/fail2ban are back to distro defaults. The admin user/password" \
         "created by 'up' (if any) were left in place. Re-run this step's" \
         "'up' action, or configure your own firewall, before exposing this" \
         "VPS again."
-    zz-log s "[vps-setup] Security hardening removed."
+    zz-log s "Security hardening removed."
 }
 
 summary() {

@@ -22,7 +22,7 @@ up() {
     # behind the internal-only middleware (internal network clients only, default certificate).
     eval "$(vps-network access-route rancher)"
     access="$route_access" middlewares="$route_middlewares" certresolver="$route_certresolver"
-    [ -n "$route_domain" ] || { zz-log e "[vps-setup] No domain for Rancher: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
+    [ -n "$route_domain" ] || { zz-log e "No domain for Rancher: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
     ingress_host="rancher.${route_domain}"
     # Rancher's server URL is that host.
     host="$ingress_host"
@@ -34,7 +34,7 @@ up() {
     # another, e.g. SUSE Rancher Prime (https://charts.rancher.com/server-charts/prime).
     # Bitnami charts (e.g. the databases some apps depend on) resolve from their alias.
     RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
-    zz-log i "[vps-setup] Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
+    zz-log i "Using the Rancher chart repository ${RANCHER_CHART_REPO_URL}"
     helm-repo app-rancher "$RANCHER_CHART_REPO_URL" bitnami https://charts.bitnami.com/bitnami
 
     "$app_cert_manager"
@@ -43,7 +43,7 @@ up() {
     # shortcut: the unquoted version splits on spaces, a chart version has none.
     chart_version="${RANCHER_CHART_VERSION:+--version ${RANCHER_CHART_VERSION}}"
 
-    zz-log i "[vps-setup] Installing/upgrading Rancher (hostname=${host}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
+    zz-log i "Installing/upgrading Rancher (hostname=${host}); this usually takes 3-8 minutes (images are pulled), status every ${PROGRESS_INTERVAL:-15}s..."
     # hostname and bootstrapPassword go through a values file with JSON-quoted
     # strings, not --set: helm parses --set bootstrapPassword=12345678 as an
     # integer and the chart's b64enc then fails ("wrong type for value; expected
@@ -55,7 +55,7 @@ up() {
     # chart's ports and the API rejects the duplicate names: remove it so helm recreates
     # it as ClusterIP. Pods keep running.
     if kubectl -n cattle-system get service rancher -o jsonpath='{.spec.type}' 2>/dev/null | grep -q LoadBalancer; then
-        zz-log i "[vps-setup] Removing the old LoadBalancer rancher Service so helm can recreate it..."
+        zz-log i "Removing the old LoadBalancer rancher Service so helm can recreate it..."
         kubectl -n cattle-system delete service rancher --wait=true
     fi
     # No --wait: the rollout wait below does the waiting, with progress.
@@ -67,24 +67,24 @@ up() {
     rm -f "$values_file"
 
     # --- rollout
-    zz-log i "[vps-setup] Waiting for Rancher pods to be ready..."
+    zz-log i "Waiting for Rancher pods to be ready..."
     kube-rollout -t 10m cattle-system rancher ||
-        { zz-log e "[vps-setup] Re-run: sudo vps-setup --only-app-rancher" && exit 1; }
+        { zz-log e "Re-run: sudo vps-setup --only-app-rancher" && exit 1; }
 
     # --- dashboard route, through k3s's Traefik (see ingress.yaml)
-    zz-log i "[vps-setup] Exposing Rancher through Traefik at ${ingress_host} (${access})..."
+    zz-log i "Exposing Rancher through Traefik at ${ingress_host} (${access})..."
     yaml-render "${dir}/helm/ingress.yaml" INGRESS_HOST="$ingress_host" MIDDLEWARES="$middlewares" HTTP_MIDDLEWARES="${middlewares:+$middlewares,}kube-system-redirect-https@kubernetescrd" CERTRESOLVER="$certresolver" | kubectl apply -f -
 
-    zz-log s "[vps-setup] Rancher installed."
-    zz-log s "[vps-setup] UI: https://${ingress_host} (via Traefik, ${access})"
-    zz-log s "[vps-setup] Bootstrap password saved to ${SYSTEM_SECRETS_FILE}: ${password}"
+    zz-log s "Rancher installed."
+    zz-log s "UI: https://${ingress_host} (via Traefik, ${access})"
+    zz-log s "Bootstrap password saved to ${SYSTEM_SECRETS_FILE}: ${password}"
 }
 
 down() {
     eval "$(kube-require -d)"
     kube-teardown cattle-system rancher
     zz-persist -q -f "$SYSTEM_SECRETS_FILE" -u RANCHER_BOOTSTRAP_PASSWORD
-    zz-log s "[vps-setup] Rancher removed."
+    zz-log s "Rancher removed."
 }
 
 summary() {

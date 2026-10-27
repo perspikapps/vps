@@ -40,29 +40,29 @@ up() {
     local access domain values
 
     eval "$(kube-require)"
-    [ -f "$chart/Chart.yaml" ] || { zz-log e "[vps-setup] No chart at ${chart}." && exit 1; }
+    [ -f "$chart/Chart.yaml" ] || { zz-log e "No chart at ${chart}." && exit 1; }
 
     eval "$(vps-network access-route "$app")"
     access="$route_access" domain="$route_domain"
-    [ -n "$domain" ] || { zz-log e "[vps-setup] No ${access} domain for ${app}: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
+    [ -n "$domain" ] || { zz-log e "No ${access} domain for ${app}: set SYSTEM_EXTERNAL_DOMAIN / SYSTEM_INTERNAL_DOMAIN (or install a network)." && exit 1; }
 
     # the shared domain (apps are <app>.<domain>) and, where the chart takes one, the route middlewares
     values="$(mktemp)"
     jq -n --arg d "$domain" --arg m "$route_middlewares" --arg k "$middlewares_key" \
         '{global: {domain: $d}} | if $k != "" and $m != "" then setpath($k | split("."); $m) else . end' >"$values"
 
-    zz-log i "[vps-setup] Installing ${app} (${access}, *.${domain}) from ${chart}..."
+    zz-log i "Installing ${app} (${access}, *.${domain}) from ${chart}..."
     helm dependency update "$chart" >/dev/null ||
-        { rm -f "$values" && zz-log e "[vps-setup] Could not fetch the dependencies of ${app}." && exit 1; }
+        { rm -f "$values" && zz-log e "Could not fetch the dependencies of ${app}." && exit 1; }
     helm-install "$ns" "$app" "$chart" --values "$values" "$@" || { rm -f "$values" && exit 1; }
     rm -f "$values"
-    zz-log s "[vps-setup] ${app} installed in namespace ${ns}."
+    zz-log s "${app} installed in namespace ${ns}."
 }
 
 down() {
     eval "$(kube-require -d)"
     kube-teardown "$ns" "$app"
-    zz-log s "[vps-setup] ${app} removed."
+    zz-log s "${app} removed."
 }
 
 summary() {

@@ -32,7 +32,7 @@ EOF
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
         if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
-            zz-log w "[vps-setup] ${key}: no internal address (install svc-tailscale or svc-cloudflare); keeping it public."
+            zz-log w "${key}: no internal address (install svc-tailscale or svc-cloudflare); keeping it public."
             state=public
         fi
         vps-network set-visibility "$key" "$state"
@@ -54,14 +54,14 @@ confirm_domain() {
     domain="${domain:-$fallback}"
     resolved="$(getent hosts "vps-access-check.${domain}" 2>/dev/null | awk '{print $1; exit}' || true)"
     if [ "$resolved" != "$ip" ]; then
-        zz-log w "[vps-setup] *.${domain} does not resolve to ${ip} (got '${resolved:-nothing}')."
+        zz-log w "*.${domain} does not resolve to ${ip} (got '${resolved:-nothing}')."
         if ask && [ "$(zz-menu -t "${label}: ${domain} is not ready" "keep=Keep ${domain}" "fallback=Use ${fallback}")" = "fallback" ]; then
             domain="$fallback"
         fi
     fi
     # A fallback nothing custom replaced is not saved: it follows the address if it changes.
     [ "$domain" = "$fallback" ] && [ "$initial" = "$fallback" ] || vps-network "$persist" "$domain"
-    zz-log i "[vps-setup] ${label} DNS: *.${domain} -> ${ip}"
+    zz-log i "${label} DNS: *.${domain} -> ${ip}"
 }
 
 # hosts: one line per service, with the domain it is reached on.
@@ -83,7 +83,7 @@ validate_external() {
     [ -n "${SYSTEM_EXTERNAL_DOMAIN:-}" ] || return 0
     domain="${SYSTEM_EXTERNAL_DOMAIN#\*.}"
     printf '%s\n' "$domain" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' ||
-        { zz-log e "[vps-setup] SYSTEM_EXTERNAL_DOMAIN must be a bare domain like apps.example.com (got '${SYSTEM_EXTERNAL_DOMAIN}')." && exit 1; }
+        { zz-log e "SYSTEM_EXTERNAL_DOMAIN must be a bare domain like apps.example.com (got '${SYSTEM_EXTERNAL_DOMAIN}')." && exit 1; }
     vps-network set-external-domain "$domain"
 }
 
@@ -92,13 +92,13 @@ up() {
     confirm_visibility
     confirm_domain External "$(vps-network external-domain)" "$(vps-network public-ip)" set-external-domain
     confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain
-    zz-log s "[vps-setup] Access confirmed:"
-    hosts | while IFS= read -r line; do zz-log s "[vps-setup]   ${line}"; done
+    zz-log s "Access confirmed:"
+    hosts | while IFS= read -r line; do zz-log s "  ${line}"; done
 }
 
 down() {
     vps-network unset-access
-    zz-log s "[vps-setup] Access choices forgotten (visibility back to each step's default)."
+    zz-log s "Access choices forgotten (visibility back to each step's default)."
 }
 
 # domain_line <label> <domain> <ip>: the domain, where it comes from and whether DNS answers.

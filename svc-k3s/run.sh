@@ -12,10 +12,10 @@ up() {
 
     # --- k3s
     if command -v k3s >/dev/null 2>&1; then
-        zz-log i "[vps-setup] k3s already installed ($(k3s --version | head -n1))."
+        zz-log i "k3s already installed ($(k3s --version | head -n1))."
         need_install=0
         if [ -f "$service_file" ] && grep -Pzoq -- "(?s)--disable.{0,80}traefik" "$service_file"; then
-            zz-log w "[vps-setup] Existing k3s install has Traefik disabled (from an older version of" \
+            zz-log w "Existing k3s install has Traefik disabled (from an older version of" \
                 "this script that ran with --disable traefik) - reinstalling to" \
                 "re-enable it as the public ingress..."
             need_install=1
@@ -23,7 +23,7 @@ up() {
     fi
 
     if [ "$need_install" -eq 1 ]; then
-        zz-log i "[vps-setup] Installing k3s..."
+        zz-log i "Installing k3s..."
         INSTALL_K3S_EXEC="server ${K3S_EXTRA_ARGS:-}"
         export INSTALL_K3S_EXEC
         [ -z "${K3S_VERSION:-}" ] || export INSTALL_K3S_VERSION="$K3S_VERSION"
@@ -32,7 +32,7 @@ up() {
 
     systemctl enable --now k3s
 
-    zz-log i "[vps-setup] Waiting for k3s node to become Ready..."
+    zz-log i "Waiting for k3s node to become Ready..."
     for i in $(seq 1 30); do
         if k3s kubectl get nodes 2>/dev/null | grep -q ' Ready'; then
             break
@@ -53,13 +53,13 @@ up() {
 
     # --- helm
     if command -v helm >/dev/null 2>&1; then
-        zz-log i "[vps-setup] Helm already installed ($(helm version --short))."
+        zz-log i "Helm already installed ($(helm version --short))."
     else
-        zz-log i "[vps-setup] Installing Helm..."
+        zz-log i "Installing Helm..."
         zz-use helm
     fi
 
-    zz-log s "[vps-setup] k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
+    zz-log s "k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
 
     # --- Traefik
     K3S_TRAEFIK_ACME_EMAIL="${K3S_TRAEFIK_ACME_EMAIL:-admin@example.com}"
@@ -67,12 +67,12 @@ up() {
     K3S_TRAEFIK_DASHBOARD_PORT="$(vps-network port k3s_traefik_dashboard)"
 
     if [ "$K3S_TRAEFIK_ACME_EMAIL" = "admin@example.com" ]; then
-        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
+        zz-log w "K3S_TRAEFIK_ACME_EMAIL not set - using a placeholder. Let's Encrypt will" \
             "still issue certs with it, but you won't get expiry/problem notices." \
             "Set K3S_TRAEFIK_ACME_EMAIL to a real address you control."
     fi
     if [ "$K3S_TRAEFIK_ACME_STAGING" = "true" ]; then
-        zz-log w "[vps-setup] K3S_TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
+        zz-log w "K3S_TRAEFIK_ACME_STAGING=true (default): Let's Encrypt's staging" \
             "environment issues untrusted certs (browsers will warn) but has no" \
             "rate limit - safe to test against repeatedly. Set" \
             "K3S_TRAEFIK_ACME_STAGING=false for real, trusted certs once ready" \
@@ -86,10 +86,10 @@ up() {
         TRAEFIK_ACME_CASERVER="https://acme-staging-v02.api.letsencrypt.org/directory"
     fi
 
-    zz-log i "[vps-setup] Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
+    zz-log i "Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
     yaml-render "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" | kubectl apply -f -
 
-    zz-log i "[vps-setup] Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
+    zz-log i "Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
         kubectl -n kube-system get deploy traefik >/dev/null 2>&1 && break
         sleep 5
@@ -97,31 +97,31 @@ up() {
     kube-rollout -w kube-system traefik
 
     kubectl apply -f "$(dirname "$0")/helm/redirect-middleware.yaml" ||
-        zz-log w "[vps-setup] Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run svc-k3s."
+        zz-log w "Could not create the redirect-https middleware (Traefik CRDs not ready?): re-run svc-k3s."
 
     # The middleware every internal route uses: only the internal network's clients get through.
     INTERNAL_RANGE="$(vps-network internal-range | sed 's/[^,][^,]*/"&"/g; s/,/, /g')"
     if [ -n "$INTERNAL_RANGE" ]; then
         yaml-render "$(dirname "$0")/helm/internal-middleware.yaml" INTERNAL_RANGE="$INTERNAL_RANGE" | kubectl apply -f - ||
-            zz-log w "[vps-setup] Could not create the internal-only middleware (Traefik CRDs not ready?): re-run svc-k3s."
+            zz-log w "Could not create the internal-only middleware (Traefik CRDs not ready?): re-run svc-k3s."
     else
-        zz-log w "[vps-setup] No internal network yet: internal routes would have no source limit, so none is created (run svc-tailscale or svc-cloudflare, then re-run svc-k3s)."
+        zz-log w "No internal network yet: internal routes would have no source limit, so none is created (run svc-tailscale or svc-cloudflare, then re-run svc-k3s)."
     fi
 
     vps-network reapply-guard
 
-    zz-log s "[vps-setup] Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT} (private access only)."
+    zz-log s "Traefik configured: HTTP/HTTPS public on 80/443, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT} (private access only)."
 }
 
 down() {
     if [ -x /usr/local/bin/k3s-uninstall.sh ]; then
-        zz-log i "[vps-setup] Uninstalling k3s (this also removes everything deployed on it: Rancher, the app-* apps, etc.)..."
+        zz-log i "Uninstalling k3s (this also removes everything deployed on it: Rancher, the app-* apps, etc.)..."
         /usr/local/bin/k3s-uninstall.sh
     else
-        zz-log w "[vps-setup] k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."
+        zz-log w "k3s uninstall script not found (/usr/local/bin/k3s-uninstall.sh); k3s may not be installed."
     fi
     rm -f /usr/local/bin/kubectl /etc/profile.d/k3s-kubeconfig.sh
-    zz-log s "[vps-setup] k3s removed."
+    zz-log s "k3s removed."
 }
 
 summary() {
