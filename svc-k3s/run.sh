@@ -3,7 +3,7 @@
 
 set -eu
 export DEBIAN_FRONTEND=noninteractive
-zz-use zz-colors zz-log zz-persist zz-install kube-apply kube-rollout systemd-service kube-progress kube-diagnose yaml-render zz-step
+zz-use zz-colors zz-log zz-persist zz-install kube-require kube-apply kube-rollout systemd-service kube-progress kube-diagnose yaml-render zz-step
 # shellcheck disable=SC1091
 . zz-colors
 
@@ -53,11 +53,13 @@ up() {
     export KUBECONFIG="$kubeconfig_path"
 
     # --- helm
-    if command -v helm >/dev/null 2>&1; then
+    if kube-require -H; then
         zz-log i "Helm already installed ($(helm version --short))."
     else
+        # missing, or older than the upstream charts need: a copy of the right one comes first on PATH
         zz-log i "Installing Helm..."
         zz-use helm
+        command -v helm >/dev/null 2>&1 && kube-require -H || zz-log w "helm is older than 3.17 and was not replaced: remove it ($(command -v helm)) and re-run this step."
     fi
 
     zz-log s "k3s, kubectl and helm are installed. KUBECONFIG=${kubeconfig_path}"
