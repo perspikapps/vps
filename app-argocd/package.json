@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-argocd",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "ArgoCD (GitOps continuous delivery) installed with helm from this repo's chart",
   "bin": {
     "app-argocd": "run.sh"

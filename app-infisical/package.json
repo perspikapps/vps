@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-infisical",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "Infisical (secrets management) installed with helm from this repo's chart",
   "bin": {
     "app-infisical": "run.sh"
