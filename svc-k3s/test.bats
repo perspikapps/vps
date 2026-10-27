@@ -65,3 +65,7 @@ DIR="$REPO_ROOT/svc-k3s"
     grep -q 'redirectScheme' "$DIR/helm/redirect-middleware.yaml"
     grep -q 'kube-apply "\$(dirname "\$0")/helm/internal-middleware.yaml"' "$DIR/run.sh"
 }
+@test "the kubeconfig is owner-only (it holds the cluster admin credentials)" {
+    grep -q 'chmod 600 "\$kubeconfig_path"' "$DIR/run.sh"
+    ! grep -q 'chmod 6[4-7][0-7] "\$kubeconfig_path"' "$DIR/run.sh"
+}

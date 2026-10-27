@@ -46,7 +46,8 @@ up() {
     fi
 
     mkdir -p /etc/rancher/k3s
-    chmod 644 "$kubeconfig_path"
+    # owner-only: the admin credentials of the cluster (k3s default; the steps run as root)
+    chmod 600 "$kubeconfig_path"
     zz-persist -l -f /etc/profile.d/k3s-kubeconfig.sh "export KUBECONFIG=${kubeconfig_path}"
     chmod 644 /etc/profile.d/k3s-kubeconfig.sh
     export KUBECONFIG="$kubeconfig_path"
