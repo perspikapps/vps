@@ -41,10 +41,12 @@ $out
 EOF
 }
 
-# confirm_domain <label> <domain> <ip> <persist command>: ask for the domain (empty or
-# unresolved: fall back to <ip>.nip.io, which always resolves), then save it.
+# confirm_domain <label> <domain> <ip> <persist command> [<default domain>]: ask for the domain
+# (empty or unresolved: fall back to <ip>.nip.io, which always resolves), then save it. A
+# domain left at the default (the internal one defaults to the external one) is not checked
+# against this address nor saved: it follows the default.
 confirm_domain() {
-    local label="$1" domain="$2" ip="$3" persist="$4" initial="$2" fallback resolved
+    local label="$1" domain="$2" ip="$3" persist="$4" default="${5:-}" initial="$2" fallback resolved
 
     [ -n "$ip" ] || return 0
     fallback="$(printf '%s' "$ip" | tr . -).nip.io"
@@ -52,6 +54,10 @@ confirm_domain() {
         domain="$(zz-prompt "${label} DNS domain (empty = ${fallback})" "$domain")"
     fi
     domain="${domain:-$fallback}"
+    if [ -n "$default" ] && [ "$domain" = "$default" ]; then
+        zz-log i "${label} DNS: *.${domain} (the external domain, by default)"
+        return 0
+    fi
     resolved="$(getent hosts "vps-access-check.${domain}" 2>/dev/null | awk '{print $1; exit}' || true)"
     if [ "$resolved" != "$ip" ]; then
         zz-log w "*.${domain} does not resolve to ${ip} (got '${resolved:-nothing}')."
@@ -91,7 +97,7 @@ up() {
     validate_external
     confirm_visibility
     confirm_domain External "$(vps-network external-domain)" "$(vps-network public-ip)" set-external-domain
-    confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain
+    confirm_domain Internal "$(vps-network internal-domain)" "$(vps-network internal-address)" set-internal-domain "$(vps-network external-domain)"
     zz-log s "Access confirmed:"
     hosts | while IFS= read -r line; do zz-log s "  ${line}"; done
 }
@@ -112,6 +118,10 @@ domain_line() {
     [ -n "$ip" ] || ip="<address unknown>"
     fallback="$(printf '%s' "$ip" | tr . -).nip.io"
     [ "$domain" = "$fallback" ] && how="fallback (nip.io)" || how="custom"
+    # the internal domain defaults to the external one, which answers with the public address
+    if [ -n "${4:-}" ] && [ "$domain" = "$4" ]; then
+        how="default (the external domain)" ip="${5:-$ip}"
+    fi
     resolved="$(getent hosts "vps-access-check.${domain}" 2>/dev/null | awk '{print $1; exit}' || true)"
     [ "$resolved" = "$ip" ] && resolved="resolves to ${ip}" || resolved="does NOT resolve to ${ip}"
     printf '   %-16s *.%s - %s, %s\n' "$label" "$domain" "$how" "$resolved"
@@ -149,7 +159,7 @@ summary() {
         "${int:+$int - HTTP/HTTPS 80/443 on ${int_ip:-<internal-ip>}, clients of the internal network only (source range $(vps-network internal-range || true))}" \
         "private ports, closed to the internet, on the VPS and its internal address: $(local_ports)" \
         "$(domain_line "External domain:" "$(vps-network external-domain)" "$ext_ip" | sed 's/^   //')" \
-        "$(domain_line "Internal domain:" "$(vps-network internal-domain)" "$int_ip" | sed 's/^   //')" \
+        "$(domain_line "Internal domain:" "$(vps-network internal-domain)" "$int_ip" "$(vps-network external-domain)" "$ext_ip" | sed 's/^   //')" \
         "(change: sudo vps-setup --only-vps-access, then re-run the service step)"
 }
 

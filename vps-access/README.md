@@ -36,7 +36,7 @@ Two prompts confirm the domains, each with a fallback:
 | Domain   | Set with                                | Fallback                 |
 | -------- | --------------------------------------- | ------------------------ |
 | external | `SYSTEM_EXTERNAL_DOMAIN` (`vps-system`)        | `<public-ip>.nip.io`     |
-| internal | `SYSTEM_INTERNAL_DOMAIN`                       | `<internal-ip>.nip.io`    |
+| internal | `SYSTEM_INTERNAL_DOMAIN`                       | the external domain      |
 
 An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
 
@@ -49,10 +49,10 @@ Every step summary has the same paragraph (`vps-network summary-block`): a `Publ
 ```text
  Access (each service is public OR internal, never both):
    Public:    coder (coder.apps.example.com) - HTTP/HTTPS 80/443 on 203.0.113.7, from the internet
-   Internal:  rancher (rancher.100-64-0-1.nip.io) - HTTP/HTTPS 80/443 on 100.64.0.1, clients of the internal network only (source range 100.64.0.0/10)
+   Internal:  rancher (rancher.203-0-113-9.nip.io) - HTTP/HTTPS 80/443 on 100.64.0.1, clients of the internal network only (source range 100.64.0.0/10)
    Local:     private ports, closed to the internet, on the VPS and its internal address: cockpit_http 9080, ...
    External domain: *.apps.example.com - custom, resolves to 203.0.113.7
-   Internal domain: *.100-64-0-1.nip.io - fallback (nip.io), resolves to 100.64.0.1
+   Internal domain: *.203-0-113-9.nip.io - default (the external domain), resolves to 203.0.113.9
 ```
 
 ## Removing (`down`)

@@ -45,3 +45,8 @@ DIR="$REPO_ROOT/vps-access"
     run node -e "const i = require('$DIR/package.json').config.inputs.SYSTEM_EXTERNAL_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
+
+@test "the internal domain left at its default (the external one) is neither resolved against the internal address nor saved" {
+    grep -q 'the external domain, by default' "$DIR/run.sh"
+    grep -q 'default (the external domain)' "$DIR/run.sh"
+}
