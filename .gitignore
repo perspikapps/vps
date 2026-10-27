@@ -39,3 +39,7 @@ Homestead.yaml
 /public/hot
 /public/css
 /public/js
+
+## Helm dependencies fetched by `helm dependency update` (charts/<app>/charts)
+charts/*/charts/
+charts/*/Chart.lock

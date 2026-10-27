@@ -33,7 +33,7 @@ docker push <your-registry>/hermes-agent:<tag>
 ## Installing from Rancher
 
 1. Add this repo's catalog under **Apps & Marketplace → Repositories**
-   if you haven't already (`https://perspikapps.github.io/vps/`).
+   if you haven't already (`https://tomgrv.github.io/vps/`).
 2. Create the credentials `Secret` referenced by `envFromSecretName`
    above, in the same namespace you're about to install into.
 3. **Apps & Marketplace → Charts**, pick **hermes**, fill in

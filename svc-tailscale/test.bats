@@ -1,0 +1,63 @@
+#!/usr/bin/env bats
+# Static checks for svc-tailscale/run.sh and package.json - a live install
+# needs a real root Ubuntu box, so this stops at syntax + shape (see
+# this folder's README's "Tests" section, and ../tests/ for repo-wide checks).
+
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+DIR="$REPO_ROOT/svc-tailscale"
+
+@test "run.sh parses as POSIX sh" {
+    run dash -n "$DIR/run.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
+    grep -q '^\. zz-colors$' "$DIR/run.sh"
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -Ev '\. zz-(colors|step)$')" ]
+}
+
+@test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
+    ! grep -q 'command -v zz-use' "$DIR/run.sh"
+    ! grep -q 'curl -fsSL.*setup\.sh.*| sh$' "$DIR/run.sh"
+}
+
+@test "defines up() and dispatches its action" {
+    grep -q '^up() {' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
+    ! grep -q 'dispatch_action' "$DIR/run.sh"
+}
+
+@test "defines down()" {
+    grep -q '^down() {' "$DIR/run.sh"
+}
+
+@test "package.json bin entry matches the folder name" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.bin['svc-tailscale'] === 'run.sh' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+@test "package.json declares vps.order as a number" {
+    run node -e "const p = require('$DIR/package.json'); process.exit(typeof p.config.order === 'number' ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}
+
+
+@test "package.json bin name is not the bare 'tailscale'" {
+    # This folder is named svc-tailscale/, not tailscale/, specifically so
+    # zz-use (which always installs <name>/run.sh under the literal folder
+    # name requested) never shadows the real tailscale CLI this run.sh
+    # calls internally - see the README's "Usage" section.
+    run node -e "const p = require('$DIR/package.json'); process.exit('tailscale' in p.bin ? 1 : 0)"
+    [ "$status" -eq 0 ]
+}
+
+
+@test "run.sh persists the internal interface for the other steps, and forgets it on down" {
+    grep -q 'vps-network set-internal-interface tailscale0 100.64.0.0/10' "$DIR/run.sh"
+    grep -q 'vps-network unset-internal-interface tailscale0' "$DIR/run.sh"
+}
+
+@test "vps.order puts tailscale before the firewall step that reads the persisted interface" {
+    run node -e "const t = require('$DIR/package.json').config.order, s = require('$REPO_ROOT/vps-security/package.json').config.order; process.exit(t < s ? 0 : 1)"
+    [ "$status" -eq 0 ]
+}

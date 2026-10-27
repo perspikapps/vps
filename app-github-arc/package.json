@@ -1,0 +1,56 @@
+{
+  "name": "@tomgrv/app-github-arc",
+  "version": "4.7.0",
+  "description": "GitHub Actions Runner Controller and a runner scale set installed with helm from this repo's chart",
+  "bin": {
+    "app-github-arc": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/svc-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "default": false,
+    "inputs": {
+      "GITHUB_ARC_CONFIG_URL": {
+        "description": "Org or repo URL the runners register against (e.g. https://github.com/<org>)",
+        "required": true,
+        "default": ""
+      },
+      "GITHUB_ARC_APP_ID": {
+        "description": "GitHub App id used to register the runners",
+        "required": true,
+        "default": ""
+      },
+      "GITHUB_ARC_APP_INSTALLATION_ID": {
+        "description": "Installation id of that GitHub App",
+        "required": true,
+        "default": ""
+      },
+      "GITHUB_ARC_APP_PRIVATE_KEY": {
+        "description": "Private key of that GitHub App (PEM contents)",
+        "required": true,
+        "default": "",
+        "secret": true
+      },
+      "ZZ_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
+      }
+    },
+    "order": 13,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

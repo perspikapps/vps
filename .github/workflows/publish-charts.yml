@@ -63,7 +63,10 @@ jobs:
           CR_OWNER: '${{ github.repository_owner }}'
           CR_GIT_REPO: '${{ github.event.repository.name }}'
         run: |
-          for chart in charts/*/; do cr package "$chart"; done
+          # charts/_lib is a library chart (helpers for the others, vendored by dependency build): not released
+          for chart in charts/*/; do
+            [ "$chart" = charts/_lib/ ] || cr package "$chart"
+          done
           cr upload --skip-existing
           # cr index writes a temp file in .cr-index/ without creating it (chart-releaser 1.7.0)
           mkdir -p .cr-index

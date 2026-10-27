@@ -1,0 +1,46 @@
+{
+  "name": "@tomgrv/app-hermes",
+  "version": "4.7.0",
+  "description": "Hermes Agent (self-improving AI agent harness) installed with helm from this repo's chart",
+  "bin": {
+    "app-hermes": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/svc-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "visibility": "public",
+    "default": false,
+    "inputs": {
+      "HERMES_IMAGE_REPOSITORY": {
+        "description": "Image repository of the Hermes Agent image you built and pushed (no official image exists)",
+        "required": true,
+        "default": ""
+      },
+      "HERMES_IMAGE_TAG": {
+        "description": "Image tag",
+        "required": false,
+        "default": "latest"
+      },
+      "HERMES_ENV_SECRET": {
+        "description": "Name of a Secret (namespace hermes) whose keys become the container environment: LLM provider and chat tokens",
+        "required": false,
+        "default": ""
+      }
+    },
+    "order": 11,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

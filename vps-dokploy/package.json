@@ -14,48 +14,43 @@
   },
   "config": {
     "conflicts": [
-      "vps-k3s"
+      "svc-k3s"
     ],
     "default": false,
     "inputs": {
-      "ADVERTISE_ADDR": {
+      "SYSTEM_DOKPLOY_ADVERTISE_ADDR": {
         "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",
         "required": false,
         "default": ""
       },
-      "DOCKER_SWARM_INIT_ARGS": {
+      "SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS": {
         "description": "Extra 'docker swarm init' flags, e.g. --default-addr-pool 172.20.0.0/16 to avoid clashing with a VPC",
         "required": false,
         "default": ""
       },
-      "DOKPLOY_VERSION": {
+      "SYSTEM_DOKPLOY_VERSION": {
         "description": "Dokploy release tag to install (e.g. v0.26.6, canary); empty = latest stable",
         "required": false,
         "default": ""
-      },
-      "REMOVE_DOCKER": {
-        "description": "Also remove Docker itself on down (true/false)",
-        "required": false,
-        "default": "false"
       }
     },
     "order": 6,
     "outputs": {},
     "ports": [
       {
-        "name": "dokploy_http",
+        "name": "system_dokploy_http",
         "port": 80,
         "access": "public",
         "note": "Dokploy Traefik HTTP, also required for the Lets Encrypt HTTP-01 challenge (fixed by the installer)"
       },
       {
-        "name": "dokploy_https",
+        "name": "system_dokploy_https",
         "port": 443,
         "access": "public",
         "note": "Dokploy Traefik HTTPS (fixed by the installer)"
       },
       {
-        "name": "dokploy_ui",
+        "name": "system_dokploy_ui",
         "port": 3000,
         "access": "private",
         "note": "Dokploy admin UI (fixed by the installer)"

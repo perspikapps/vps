@@ -43,8 +43,8 @@ teardown() {
 
 @test "legacy flags are translated to zz-setup lists" {
     run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE=/nonexistent sh "$DIR/run.sh" -h \
-        --skip-vps-rancher --skip-vps-k3s --with-vps-cockpit --only-vps-system --down-vps-marketplace --force-down
-    [[ "$output" == *"-F -s vps-rancher,vps-k3s -w vps-cockpit -o vps-system -d vps-marketplace"* ]]
+        --skip-app-rancher --skip-svc-k3s --with-svc-cockpit --only-vps-system --down-app-argocd --force-down
+    [[ "$output" == *"-F -s app-rancher,svc-k3s -w svc-cockpit -o vps-system -d app-argocd"* ]]
 }
 
 @test "a full local checkout is used in place" {
@@ -57,7 +57,7 @@ teardown() {
     cp "$DIR/run.sh" "$STUBS/copy.sh"
     run env PATH="$STUBS:$PATH" VPS_SETUP_ENV_FILE="$STUBS/env" ZZ_SETUP_REF=feat \
         bash -c 'sed "s#^script_dir=.*#script_dir=/nonexistent#" "$0" > "$1" && sh "$1" -h; echo "foo=$FOO_FROM_FILE"' "$DIR/run.sh" "$STUBS/run2.sh"
-    [[ "$output" == *"zz-setup perspikapps/vps@feat -h"* ]]
+    [[ "$output" == *"zz-setup tomgrv/vps@feat -h"* ]]
     [[ "$output" == *"foo=a b"* ]]
 }
 

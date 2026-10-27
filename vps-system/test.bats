@@ -13,7 +13,7 @@ DIR="$REPO_ROOT/vps-system"
 
 @test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
     grep -q '^\. zz-colors$' "$DIR/run.sh"
-    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -Ev '\. zz-(colors|step)$')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -23,8 +23,8 @@ DIR="$REPO_ROOT/vps-system"
 
 @test "defines up() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
-    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
+    ! grep -q 'dispatch_action' "$DIR/run.sh"
 }
 
 @test "has no down() - a one-shot upgrade, nothing to undo" {
@@ -42,13 +42,6 @@ DIR="$REPO_ROOT/vps-system"
 }
 
 
-
-@test "WILDCARD_DOMAIN is validated, persisted for vps-network's wildcard-domain, and optional" {
-    grep -q '"\$vps_network" set-wildcard-domain' "$DIR/run.sh"
-    grep -q 'nip.io' "$DIR/run.sh"
-    run node -e "const i = require('$DIR/package.json').config.inputs.WILDCARD_DOMAIN; process.exit(i && i.required === false ? 0 : 1)"
-    [ "$status" -eq 0 ]
-}
 
 @test "upgrades and unattended security upgrades cover apt, dnf and zypper" {
     grep -q 'zz-install -f -m' "$DIR/run.sh"

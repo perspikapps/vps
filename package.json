@@ -148,18 +148,25 @@
     "pattern": "^(main|develop){1}$|^(feature|bugfix|release|hotfix|support|copilot|claude)/.+$"
   },
   "workspaces": [
-    "vps-cert-manager",
-    "vps-cloudflare",
-    "vps-cockpit",
-    "vps-coder",
+    "app-argocd",
+    "app-cert-manager",
+    "app-coder",
+    "app-cognee",
+    "app-epinio",
+    "app-github-arc",
+    "app-helm",
+    "app-hermes",
+    "app-infisical",
+    "app-rancher",
+    "svc-cloudflare",
+    "svc-cockpit",
+    "svc-k3s",
+    "svc-tailscale",
+    "vps-access",
     "vps-dokploy",
-    "vps-k3s",
-    "vps-marketplace",
     "vps-network",
-    "vps-rancher",
     "vps-security",
     "vps-setup",
-    "vps-system",
-    "vps-tailscale"
+    "vps-system"
   ]
 }

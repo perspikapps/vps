@@ -1,0 +1,42 @@
+{
+  "name": "@tomgrv/app-cognee",
+  "version": "4.7.0",
+  "description": "Cognee (AI memory engine) installed with helm from this repo's chart",
+  "bin": {
+    "app-cognee": "run.sh"
+  },
+  "dependencies": {
+    "@tomgrv/svc-k3s": "*"
+  },
+  "private": true,
+  "scripts": {
+    "test": "bats test.bats"
+  },
+  "engines": {
+    "zz-setup": "*"
+  },
+  "config": {
+    "visibility": "public",
+    "default": false,
+    "inputs": {
+      "COGNEE_LLM_API_KEY": {
+        "description": "LLM provider API key Cognee needs to start (OpenAI by default)",
+        "required": true,
+        "default": "",
+        "secret": true
+      },
+      "ZZ_SECRETS_FILE": {
+        "description": "Owner-only env file holding the credentials the steps generate",
+        "required": false,
+        "default": "/root/.vps-secrets.env"
+      }
+    },
+    "order": 10,
+    "outputs": {},
+    "requires": {
+      "root": true,
+      "os": "ubuntu"
+    },
+    "summary": true
+  }
+}

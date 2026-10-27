@@ -13,7 +13,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 @test "run.sh sources nothing but zz-colors and calls the vps scripts instead" {
     grep -q '^\. zz-colors$' "$DIR/run.sh"
-    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -v '\. zz-colors')" ]
+    [ -z "$(grep -E '^\s*(\.|source) ' "$DIR/run.sh" | grep -Ev '\. zz-(colors|step)$')" ]
 }
 
 @test "run.sh does not bootstrap zz-use itself (assumes setup.sh already ran)" {
@@ -23,8 +23,8 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 @test "defines up() and dispatches its action" {
     grep -q '^up() {' "$DIR/run.sh"
-    grep -q '^case "\${1:-}" in' "$DIR/run.sh"
-    ! grep -q 'dispatch_action\|zz-step' "$DIR/run.sh"
+    grep -q '^\. zz-step$' "$DIR/run.sh"
+    ! grep -q 'dispatch_action' "$DIR/run.sh"
 }
 
 @test "defines down()" {
@@ -43,7 +43,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 
 @test "the admin port is guarded by vps-security's shared FORWARD guard, not a copy of it" {
-    grep -q '^    "\$vps_network" reapply-guard$' "$DIR/run.sh"
+    grep -q '^    vps-network reapply-guard$' "$DIR/run.sh"
     ! grep -qE '^[[:space:]]*iptables ' "$DIR/run.sh"
 }
 
@@ -59,7 +59,7 @@ DIR="$REPO_ROOT/vps-dokploy"
 
 
 @test "package.json declares the k3s conflict, so zz-setup aborts before any step runs" {
-    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.conflicts.includes('vps-k3s') ? 0 : 1)"
+    run node -e "const p = require('$DIR/package.json'); process.exit(p.config.conflicts.includes('svc-k3s') ? 0 : 1)"
     [ "$status" -eq 0 ]
 }
 
@@ -71,7 +71,13 @@ DIR="$REPO_ROOT/vps-dokploy"
 @test "package.json keeps the admin UI private and the ingress public" {
     run node -e "
         const ports = Object.fromEntries(require('$DIR/package.json').config.ports.map(p => [p.name, p]));
-        process.exit(ports.dokploy_ui.access === 'private' && ports.dokploy_ui.port === 3000
-            && ports.dokploy_http.access === 'public' && ports.dokploy_https.access === 'public' ? 0 : 1)"
+        process.exit(ports.system_dokploy_ui.access === 'private' && ports.system_dokploy_ui.port === 3000
+            && ports.system_dokploy_http.access === 'public' && ports.system_dokploy_https.access === 'public' ? 0 : 1)"
     [ "$status" -eq 0 ]
+}
+
+@test "the installer gets its own variable names (ADVERTISE_ADDR, DOKPLOY_VERSION, DOCKER_SWARM_INIT_ARGS) from the SYSTEM_ inputs" {
+    grep -q 'export ADVERTISE_ADDR="\${SYSTEM_DOKPLOY_ADVERTISE_ADDR' "$DIR/run.sh"
+    grep -q 'export DOKPLOY_VERSION="\${SYSTEM_DOKPLOY_VERSION' "$DIR/run.sh"
+    grep -q 'DOCKER_SWARM_INIT_ARGS="\${SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS' "$DIR/run.sh"
 }

@@ -1,0 +1,82 @@
+<!-- @format -->
+
+# vps-access
+
+Confirms which services are **public** or **internal**, and the DNS domains they are reached on.
+
+Part of [`vps`](https://github.com/tomgrv/vps) · order 3.5 · on by default · needs root · [how steps work](../README.md#contributing).
+
+## Usage
+
+```bash
+sudo vps-setup --only-vps-access      # just this step (it is on by default)
+sudo vps-setup --skip-vps-access      # leave it out of a full run
+sudo vps-setup --down-vps-access      # remove it
+sudo zz-setup ./ -o vps-access         # without vps-setup, from a checkout
+```
+
+It runs after the internal network (`svc-tailscale`/`svc-cloudflare`) and before `svc-k3s`, so the steps that expose something (`app-rancher`, `app-coder`) read its answers.
+
+## Visibility
+
+A service that exposes a route declares its default in `config.visibility` of its `package.json` (`public` or `internal`). A service is **public** (server IP, Traefik 80/443) or **internal** (a host on the internal domain, same Traefik 80/443, behind the `internal-only` middleware: only clients of the internal network get through), never both; the private (local) ports are unaffected.
+
+On a terminal, a menu lists every such service: a number cycles it between `public` and `internal`, Enter confirms. An `internal` choice without a internal address is kept `public` with a warning. Answers are saved to `/etc/vps-network.env`; `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` (for unattended runs) win over them. There is no per-app access, host or hostname variable: the apps read the system config.
+
+## Internal interface
+
+When no step declared the internal interface and `SYSTEM_INTERNAL_INTERFACE` is not set, a menu lists the host's real interfaces with their IPv4 address (container and cluster plumbing such as `docker0`, `veth*`, `cni*`, `flannel*` is hidden; the default-route one is marked as the public side; `0` leaves the internal network off) and saves the choice with `vps-network set-internal-interface`. Without a terminal nothing is asked.
+
+## DNS
+
+Two prompts confirm the domains, each with a fallback:
+
+| Domain   | Set with                                | Fallback             |
+| -------- | --------------------------------------- | -------------------- |
+| external | `SYSTEM_EXTERNAL_DOMAIN` (`vps-system`) | `<public-ip>.nip.io` |
+| internal | `SYSTEM_INTERNAL_DOMAIN`                | the external domain  |
+
+An empty answer uses the fallback. A domain whose `*.<domain>` does not resolve to the expected address is flagged, and the menu offers to keep it or use the fallback. The step then prints the host each service will be reached on.
+
+Without a terminal (or with `ZZ_INTERACTIVE=0`, or the older `SYSTEM_ACCESS_MENU=false`) nothing is asked: saved or default choices are kept, and the same checks are only logged.
+
+## Summary
+
+Every step summary has the same paragraph (`vps-network summary-block`): a `Public:`, `Internal:` and `Local:` line with the URLs and what to know for each, then notes (credentials, DNS). Public is the server IP on 80/443, internal is the same 80/443 for internal-network clients only, local is the private ports (closed to the internet). The `vps-access` one lists which services are in which scope and the DNS state:
+
+```text
+ Access (each service is public OR internal, never both):
+   Public:    coder (coder.apps.example.com) - HTTP/HTTPS 80/443 on 203.0.113.7, from the internet
+   Internal:  rancher (rancher.203-0-113-9.nip.io) - HTTP/HTTPS 80/443 on 100.64.0.1, clients of the internal network only (source range 100.64.0.0/10)
+   Local:     private ports, closed to the internet, on the VPS and its internal address: cockpit_http 9080, ...
+   External domain: *.apps.example.com - custom, resolves to 203.0.113.7
+   Internal domain: *.203-0-113-9.nip.io - default (the external domain), resolves to 203.0.113.9
+```
+
+## Environment variables
+
+| Variable                 | Required | Default   | Description                                                                                                                                                          |
+| ------------------------ | -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SYSTEM_INTERNAL_APPS`   | no       | _(unset)_ | Comma list of the apps served on the internal network only (e.g. `rancher,coder`); overrides the menu and each app's default                                         |
+| `SYSTEM_PUBLIC_APPS`     | no       | _(unset)_ | Comma list of the apps served on the server IP; overrides the menu and each app's default                                                                            |
+| `SYSTEM_EXTERNAL_DOMAIN` | no       | _(unset)_ | Wildcard DNS domain pointing at this VPS (e.g. `apps.example.com` for `*.apps.example.com`); empty = `<public-ip>.nip.io` fallback. Validated and saved by this step |
+| `SYSTEM_INTERNAL_DOMAIN` | no       | _(unset)_ | Domain pointing at the internal address, for internal services; empty = the external domain                                                                          |
+| `SYSTEM_ACCESS_MENU`     | no       | `true`    | `false` skips the menus and keeps the saved or default choices (same as `ZZ_INTERACTIVE=0`, which also silences every other prompt)                                  |
+
+## Removing (`down`)
+
+`down` forgets the saved choices (each service goes back to its `config.visibility` default).
+
+```bash
+sudo vps-setup --down-vps-access
+```
+
+## Dependencies
+
+No other step is required.
+
+## Tests
+
+```bash
+bats test.bats
+```

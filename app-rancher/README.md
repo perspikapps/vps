@@ -1,0 +1,110 @@
+<!-- @format -->
+
+# app-rancher
+
+Rancher install.
+
+Part of [`vps`](https://github.com/tomgrv/vps) · order 5 · on by default · needs root, Ubuntu · needs step `svc-k3s` · [how steps work](../README.md#contributing).
+
+## Usage
+
+```bash
+sudo vps-setup --only-app-rancher      # just this step (it is on by default)
+sudo vps-setup --skip-app-rancher      # leave it out of a full run
+sudo vps-setup --down-app-rancher      # remove it
+sudo zz-setup ./ -o app-rancher         # without vps-setup, from a checkout
+```
+
+## Public dashboard through Traefik
+
+The dashboard is served by k3s's Traefik at `https://rancher.<domain>` (Let's Encrypt via
+the `letsencrypt` resolver; staging certs until `K3S_TRAEFIK_ACME_STAGING=false`). `<domain>` is
+the system's external domain, else `<public-ip>.nip.io`. There is no host, hostname or access variable here: the system config (`vps-access`, see `SYSTEM_EXTERNAL_DOMAIN`, `SYSTEM_INTERNAL_DOMAIN`, `SYSTEM_INTERNAL_APPS`) decides where the route is served, **public or internal, never both**: `public` (default) is the server IP on 80/443; `internal` is `rancher.<internal-ip>.nip.io` on the same 80/443, behind the `internal-only` Traefik middleware (see `svc-k3s`): only clients of the internal network (Tailscale/Cloudflare) get through, with Traefik's default certificate. Plain HTTP only redirects to HTTPS (a second route, `rancher-traefik-http`, through the `redirect-https` middleware of `svc-k3s`), and both routes have priority 1000 so a `*.<domain>` catch-all such as Coder's never answers `rancher.<domain>`. Rancher has no port of its own: its Service is a `ClusterIP`, reached only through Traefik. Rancher's server URL is the route's host. A public route makes the admin UI reachable from the internet, so change the bootstrap password on first login.
+
+## Installing from SUSE Rancher Prime
+
+Set `RANCHER_CHART_REPO_URL` to the Prime chart repository, then run the step:
+
+```bash
+sudo RANCHER_CHART_REPO_URL=https://charts.rancher.com/server-charts/prime vps-setup --only-app-rancher
+```
+
+The URL must be an `http(s)` Helm repository; a bad URL or an unreachable index stops
+the step before anything is installed. Pin a release with `RANCHER_CHART_VERSION`. Prime's
+images and any subscription requirements are SUSE's: this step only changes where the
+chart comes from. Switching an already-running community Rancher over by re-running the
+step is an in-place `helm upgrade` to the Prime chart; check SUSE's upgrade notes for the
+versions involved first.
+
+## Chart files
+
+The Helm values and the Traefik Ingress are YAML files in the `helm/` subfolder, not heredocs:
+`helm/values.yaml` (fixed chart values, passed with `--values`; `hostname` and
+`bootstrapPassword` still go in a generated second values file) and `helm/ingress.yaml`
+(`${INGRESS_HOST}` is filled in by [`yaml-render`](https://github.com/tomgrv/scripts/tree/main/yaml-render)).
+
+## Progress
+
+The install is mostly waiting (chart download, then Rancher's images being pulled,
+typically 3-8 minutes), and `helm --wait` itself prints nothing. While it waits,
+the step logs a line every `PROGRESS_INTERVAL` seconds, for example:
+
+```
+Rancher install: 45s, 1/2 pods ready - waiting: rancher-2=ContainerCreating
+```
+
+(`no pod in cattle-system yet` before the first pod exists.) The same helper,
+`kube-progress` (tomgrv/scripts), also covers the cert-manager install, this
+step's final rollout wait and the Traefik rollout in `svc-k3s`.
+
+## If the install fails or hangs
+
+Rancher's Service is a `ClusterIP` (older runs left a `LoadBalancer` on private ports; the step removes it so helm recreates it). The step creates the release **without** `helm --wait` and waits for the rollout itself, with progress. When a wait still fails,
+the step prints diagnostics before exiting: pods and services, recent events,
+the `svclb-*` pods in `kube-system` and why each unready pod is not running.
+Re-running `sudo vps-setup --only-app-rancher` is safe: `helm upgrade --install`
+replaces a failed release, and a Service left rebound by a previous run is removed
+first so helm recreates it (merging the chart's ports 80/443 into the rebound ones
+would give duplicate port names). Rancher's pods keep running meanwhile; only the
+Service is briefly gone.
+
+## Environment variables
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `ZZ_SECRETS_FILE` | no | `/root/.vps-secrets.env` | Owner-only env file holding the credentials the steps generate |
+| `RANCHER_CERT_MANAGER_VERSION` | no | _(unset)_ | Pin cert-manager's chart version |
+| `RANCHER_BOOTSTRAP_PASSWORD` | no | _(unset)_ | Initial admin password |
+| `RANCHER_CHART_REPO_URL` | no | `https://releases.rancher.com/server-charts/latest` | Helm repository to install Rancher from; `https://charts.rancher.com/server-charts/prime` for SUSE Rancher Prime |
+| `RANCHER_CHART_VERSION` | no | _(unset)_ | Pin a chart version |
+| `PROGRESS_INTERVAL` | no | `15` | Seconds between progress lines during the long waits |
+
+## Ports and access
+
+The route is **public** by default (`public` = the server IP on 80/443, `internal` = the internal network only); `vps-access` or `SYSTEM_INTERNAL_APPS` / `SYSTEM_PUBLIC_APPS` change it.
+
+## Outputs
+
+| Output | Description |
+| --- | --- |
+| `RANCHER_BOOTSTRAP_PASSWORD_FILE` | Owner-only env file (`/root/.vps-secrets.env`) holding `RANCHER_BOOTSTRAP_PASSWORD` (older hosts: `/root/.rancher-bootstrap-password`, migrated on the next run) |
+
+## Removing (`down`)
+
+`down` removes the Helm release and its namespace. Leaves cert-manager in place (shared with the apps that need certificates).
+
+```bash
+sudo vps-setup --down-app-rancher
+```
+
+## Dependencies
+
+Step dependency: `svc-k3s` - `vps-setup` auto-enables it when this step is enabled (see the root README's [Steps](../README.md#steps)).
+
+## Tests
+
+```sh
+bats test.bats
+```
+
+Covers `run.sh`'s syntax and static shape (the `zz-use` line, the `up`/`down` dispatch, and that nothing but `zz-colors` is sourced) plus the `package.json` `bin`/`engines`/`config` shape. The install itself needs a live root Ubuntu box, so it has no automated coverage - see the root README's [Tests](../README.md#contributing).
