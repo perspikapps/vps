@@ -28,8 +28,8 @@ confirm_interface() {
         set -- "$@" "${iface}=${iface}${addr:+ ($addr)}$([ "$iface" != "$default" ] || printf ' - default route, public')"
     done
     [ "$#" -gt 0 ] || return 0
-    choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" -z "none=None (no internal network)" \
-        -f "  Number picks the interface; 0 for none; q keeps it unset." "$@")" || return 0
+    choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" \
+        -f "  Number picks the interface (or none); q keeps it unset." "$@" "none=None (no internal network)")" || return 0
     [ -n "$choice" ] && [ "$choice" != none ] || return 0
     vps-network set-internal-interface "$choice"
     zz-log i "Internal interface: ${choice}"
