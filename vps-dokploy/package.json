@@ -19,7 +19,7 @@
     "default": false,
     "inputs": {
       "SYSTEM_DOKPLOY_ADVERTISE_ADDR": {
-        "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",
+        "description": "Address Docker Swarm advertises (empty = the host's first IPv4 address)",
         "required": false,
         "default": ""
       },
@@ -29,7 +29,7 @@
         "default": ""
       },
       "SYSTEM_DOKPLOY_VERSION": {
-        "description": "Dokploy release tag to install (e.g. v0.26.6, canary); empty = latest stable",
+        "description": "Dokploy release tag to pin (e.g. v0.26.6, canary; empty = latest stable)",
         "required": false,
         "default": ""
       }

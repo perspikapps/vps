@@ -32,7 +32,7 @@
         "default": ""
       },
       "SYSTEM_ADMIN_USER": {
-        "description": "Optional non-root sudo user to create",
+        "description": "Non-root sudo user to create (empty = none)",
         "required": false,
         "default": ""
       },

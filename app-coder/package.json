@@ -20,12 +20,12 @@
     "default": false,
     "inputs": {
       "CODER_ADMIN_EMAIL": {
-        "description": "Email of the first Coder admin (default: admin@<wildcard domain>)",
+        "description": "Email of the first Coder admin (empty = admin@<wildcard domain>)",
         "required": false,
         "default": ""
       },
       "CODER_ADMIN_PASSWORD": {
-        "description": "Password of the first Coder admin (default: generated and saved)",
+        "description": "Password of the first Coder admin (empty = generated and saved)",
         "required": false,
         "default": "",
         "secret": true
@@ -36,12 +36,12 @@
         "default": "admin"
       },
       "CODER_CHART_VERSION": {
-        "description": "Pin the Coder chart version (e.g. 2.37.4 stable); empty = latest",
+        "description": "Coder chart version to pin (e.g. 2.37.4; empty = latest)",
         "required": false,
         "default": ""
       },
       "CODER_DB_PASSWORD": {
-        "description": "PostgreSQL password for Coder (default: generated and saved)",
+        "description": "PostgreSQL password for Coder (empty = generated and saved)",
         "required": false,
         "default": "",
         "secret": true
@@ -57,22 +57,22 @@
         "default": "coder-workspaces"
       },
       "CODER_DEVCONTAINER_BUILDER_REF": {
-        "description": "Pinned tag/commit of devcontainer-builder's Coder template (needed to push it)",
+        "description": "devcontainer-builder tag/commit whose Coder template is pushed (empty = starter)",
         "required": false,
         "default": ""
       },
       "CODER_DEVCONTAINER_BUILDER_VERSION": {
-        "description": "devcontainer-builder chart version (empty = latest, logged so you can pin it)",
+        "description": "devcontainer-builder chart version to pin (empty = latest, logged)",
         "required": false,
         "default": ""
       },
       "CODER_DEVCONTAINER_REGISTRY": {
-        "description": "External registry host (with the token, user and org); default ghcr.io",
+        "description": "External registry host (used with the user, org and token)",
         "required": false,
         "default": "ghcr.io"
       },
       "CODER_DEVCONTAINER_REGISTRY_ORG": {
-        "description": "Registry org/user images are pushed under",
+        "description": "External registry org/user the images are pushed under",
         "required": false,
         "default": ""
       },
@@ -83,7 +83,7 @@
         "secret": true
       },
       "CODER_DEVCONTAINER_REGISTRY_USER": {
-        "description": "Registry username for the token",
+        "description": "External registry username for the token",
         "required": false,
         "default": ""
       },

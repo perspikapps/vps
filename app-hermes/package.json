@@ -25,12 +25,12 @@
         "default": ""
       },
       "HERMES_IMAGE_TAG": {
-        "description": "Image tag",
+        "description": "Hermes Agent image tag",
         "required": false,
         "default": "latest"
       },
       "HERMES_ENV_SECRET": {
-        "description": "Secret (namespace hermes) whose keys become the container environment",
+        "description": "Secret in namespace hermes whose keys become the pod environment (empty = none)",
         "required": false,
         "default": ""
       }

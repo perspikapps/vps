@@ -19,7 +19,7 @@
     "default": false,
     "inputs": {
       "EPINIO_ADMIN_PASSWORD": {
-        "description": "Epinio admin password (generated and saved when empty)",
+        "description": "Epinio admin password (empty = generated and saved)",
         "required": false,
         "default": "",
         "secret": true

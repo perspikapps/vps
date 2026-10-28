@@ -16,7 +16,7 @@
     "default": true,
     "inputs": {
       "SYSTEM_TZ": {
-        "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
+        "description": "Timezone to set on the VPS (e.g. Europe/Paris; empty = unchanged)",
         "required": false,
         "default": ""
       }

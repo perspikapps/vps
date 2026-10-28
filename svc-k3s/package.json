@@ -21,7 +21,7 @@
         "default": ""
       },
       "K3S_VERSION": {
-        "description": "Pin a k3s version",
+        "description": "k3s version to pin (empty = latest stable)",
         "required": false,
         "default": ""
       },

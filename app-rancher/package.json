@@ -20,12 +20,12 @@
     "default": true,
     "inputs": {
       "RANCHER_CERT_MANAGER_VERSION": {
-        "description": "Pin cert-manager's chart version",
+        "description": "cert-manager chart version to pin (empty = latest)",
         "required": false,
         "default": ""
       },
       "RANCHER_BOOTSTRAP_PASSWORD": {
-        "description": "Initial admin password",
+        "description": "Initial Rancher admin password (empty = generated and saved)",
         "required": false,
         "default": "",
         "secret": true
@@ -36,7 +36,7 @@
         "default": "https://releases.rancher.com/server-charts/latest"
       },
       "RANCHER_CHART_VERSION": {
-        "description": "Pin a chart version",
+        "description": "Rancher chart version to pin (empty = latest)",
         "required": false,
         "default": ""
       },

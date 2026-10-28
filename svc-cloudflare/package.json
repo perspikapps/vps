@@ -30,7 +30,7 @@
         "secret": true
       },
       "CLOUDFLARE_VERSION": {
-        "description": "cloudflared release to install, e.g. 2025.1.0 (empty = latest)",
+        "description": "cloudflared release to pin, e.g. 2025.1.0 (empty = latest)",
         "required": false,
         "default": ""
       },
