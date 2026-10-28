@@ -5,7 +5,7 @@
 A Helm **library chart** (not installable) with the helpers every app chart of this catalog shares:
 
 - `vps-lib.host`: the Ingress host `<app>.<domain>` (`ingress.host`, else `global.domain`, else the domain of Rancher's `global.cattle.url`).
-- `vps-lib.ingress`: a Traefik Ingress (class, host, backend service and port, optional TLS secret). Its `middlewares` value (empty = public) sets the route's Traefik middlewares, e.g. `kube-system-internal-only@kubernetescrd` for an internal route; `annotations` and `tlsIssuer` add the rest.
+- `vps-lib.ingress`: a Traefik Ingress (class, host, backend service and port, optional TLS secret). Its `middlewares` value (empty = public) sets the route's Traefik middlewares, e.g. `kube-system-internal-only@kubernetescrd` for an internal route; Its `certresolver` value (set by `app-helm` for a public route: `letsencrypt`) adds `router.tls.certresolver`, serves the route on `websecure` only and adds the host's `tls` section; `annotations` and `tlsIssuer` add the rest.
 
 An app chart depends on it (`repository: file://../_lib`) and its `templates/ingress.yaml` is one `include`:
 

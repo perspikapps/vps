@@ -23,6 +23,8 @@ ingress:
     # internal route use kube-system-internal-only@kubernetescrd (created by svc-k3s) and an internal
     # host (global.domain or host): clients of the internal network only.
     middlewares: ''
+    # Traefik ACME resolver (annotation router.tls.certresolver), set by app-helm for a public route.
+    certresolver: ''
     # Override the generated <app>.<domain> host.
     host: ''
 

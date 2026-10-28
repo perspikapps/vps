@@ -23,9 +23,9 @@ setup() {
     chmod +x "$stubs"/*
 }
 
-# stub_route <access> <domain> <middlewares>
+# stub_route <access> <domain> <middlewares> [certresolver]
 stub_route() {
-    printf '#!/bin/sh\ncase "$1" in\naccess-route) printf "route_access=%s\\nroute_domain=%s\\nroute_middlewares=%s\\nroute_certresolver=\\n" "%s" "%s" "%s" ;;\nsummary-block) shift; echo "block $*" ;;\nvisibility) echo %s ;;\nesac\n' "'$1'" "'$2'" "'$3'" "$1" "$2" "$3" "$1" >"$stubs/vps-network"
+    printf '#!/bin/sh\ncase "$1" in\naccess-route) printf "route_access=%s\\nroute_domain=%s\\nroute_middlewares=%s\\nroute_certresolver=%s\\n" "%s" "%s" "%s" "%s" ;;\nsummary-block) shift; echo "block $*" ;;\nvisibility) echo %s ;;\nesac\n' "'$1'" "'$2'" "'$3'" "'$4'" "$1" "$2" "$3" "$4" "$1" >"$stubs/vps-network"
     chmod +x "$stubs/vps-network"
 }
 
@@ -55,6 +55,13 @@ run_app() {
     run_app up demo --middlewares-key dashboard.ingress.middlewares
     [ "$status" -eq 0 ]
     grep -q '"middlewares": "kube-system-internal-only@kubernetescrd"' "$calls"
+}
+
+@test "up sets the chart's certresolver value for a public route with a resolver" {
+    stub_route public apps.example.com "" letsencrypt
+    run_app up demo --middlewares-key dashboard.ingress.middlewares
+    [ "$status" -eq 0 ]
+    grep -q '"certresolver": "letsencrypt"' "$calls"
 }
 
 @test "up fails without a chart, and down tears the release and namespace down" {
