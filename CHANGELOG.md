@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.9.0 (2026-10-28)
+
+*Commits from: v4.8.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.8.0' into develop
+### 📦 vps-access changes
+
+#### Features
+
+- ✨ menus on the common row grammar, coherent input descriptions (#66)
+
 ## 4.8.0 (2026-10-27)
 
 *Commits from: v4.7.0..HEAD*
@@ -519,5 +534,6 @@
 
 
 
+
 ---
-*Generated on 2026-10-27 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*
+*Generated on 2026-10-28 by [tomgrv/devcontainer-features](https://github.com/tomgrv/devcontainer-features)*

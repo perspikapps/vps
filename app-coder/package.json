@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-coder",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Coder (remote development environments) with in-cluster PostgreSQL",
   "bin": {
     "app-coder": "run.sh"
