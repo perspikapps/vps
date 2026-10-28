@@ -43,8 +43,8 @@ confirm_visibility() {
     tab="$(printf '\t')"
     set --
     while IFS="$tab" read -r name vis src dflt; do
-        # number [state] source name (default), the same shape in every menu
-        [ -z "$name" ] || set -- "$@" "${name}:${vis}=${src}${tab}${name} (${dflt})"
+        # number [state] source name (default), the same shape in every menu; the name on 20 characters at least
+        [ -z "$name" ] || set -- "$@" "${name}:${vis}=${src}${tab}$(printf '%-20s' "$name")${tab}(${dflt})"
     done <<EOF
 $(vps-network visibilities)
 EOF
