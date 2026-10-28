@@ -84,6 +84,19 @@ setup() {
     [ "$output" = "saved.example.com" ]
 }
 
+@test "registry-url: none by default, then the environment, then the persisted one" {
+    run sh "$SCRIPT" registry-url
+    [ "$output" = "none" ]
+    sh "$SCRIPT" set-registry-url 10.0.0.1:5000 >/dev/null 2>&1
+    run sh "$SCRIPT" registry-url
+    [ "$output" = "10.0.0.1:5000" ]
+    SYSTEM_REGISTRY_URL=r.example.com:5000 run sh "$SCRIPT" registry-url
+    [ "$output" = "r.example.com:5000" ]
+    sh "$SCRIPT" unset-registry-url >/dev/null 2>&1
+    run sh "$SCRIPT" registry-url
+    [ "$output" = "none" ]
+}
+
 @test "internal-domain: defaults to the external domain" {
     SYSTEM_EXTERNAL_DOMAIN=apps.example.com run sh "$SCRIPT" internal-domain
     [ "$output" = "apps.example.com" ]

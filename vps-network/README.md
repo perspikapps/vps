@@ -36,6 +36,9 @@ vps-network <command> [args...]
 | `set-internal-interface <iface> [<range>]`                    | persist the internal interface, and the source CIDRs of its clients when given, to `/etc/vps-network.env` (`svc-tailscale`, `svc-cloudflare`)                                                                                                                        |
 | `unset-internal-interface <iface>`                            | forget it again, when it is still `<iface>`                                                                                                                                                                                                                          |
 | `set-external-domain <domain>`                                | persist the external domain to `/etc/vps-network.env` (`vps-system`)                                                                                                                                                                                                 |
+| `registry-url` | `SYSTEM_REGISTRY_URL`, else the persisted one, else `none`: the `host:port` of the local image registry, `none` when no step installed one |
+| `set-registry-url <host:port>` | persist it to `/etc/vps-network.env` (`app-coder`) |
+| `unset-registry-url` | forget it again (back to `none`) |
 | `reapply-guard`                                               | restart `vps-private-ports-guard.service` so its FORWARD rule is ahead of k3s's and Docker's again (best effort)                                                                                                                                                     |
 
 ## Environment
