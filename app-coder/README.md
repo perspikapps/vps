@@ -69,7 +69,9 @@ Right after Coder is ready (before the admin and template steps, so it comes up 
 
 **Registry.** By default an **in-cluster registry** (`registry:2`, 20Gi volume, anonymous, plain HTTP) is deployed in that namespace on host port 5000, reachable as `<node ip>:5000` by BuildKit (pods) and by containerd (which cannot resolve cluster DNS names). Port 5000 is declared `private` (`coder_registry`), so ufw and the FORWARD guard keep it off the internet. The builder maps `github.com` repos to `<node ip>:5000/devcontainers` and lists that host in `insecureRegistries`; if `/etc/rancher/k3s/registries.yaml` does not exist, the step creates it with an HTTP mirror for the registry and **restarts k3s once** (running pods keep running; an existing file is never edited, a warning says what to add). The final summary shows the registry address.
 
-To use an **external registry** instead, set `CODER_DEVCONTAINER_REGISTRY_USER`, `CODER_DEVCONTAINER_REGISTRY_ORG` and `CODER_DEVCONTAINER_REGISTRY_TOKEN` (and optionally `CODER_DEVCONTAINER_REGISTRY`, default `ghcr.io`; the token needs to push and pull, GHCR `write:packages`); nothing in-cluster is deployed then.
+To use an **external registry** instead, set `CODER_DEVCONTAINER_REGISTRY_USER`, `CODER_DEVCONTAINER_REGISTRY_ORG` and `CODER_DEVCONTAINER_REGISTRY_TOKEN` and `CODER_DEVCONTAINER_REGISTRY` (the host, e.g. `ghcr.io`; no default, the token needs to push and pull, GHCR `write:packages`); nothing in-cluster is deployed then. Without all four the local registry is used.
+
+The local registry's `host:port` is recorded as `SYSTEM_REGISTRY_URL` in `/etc/vps-network.env` (`vps-network registry-url`, `none` until a step installs one) and reused on re-runs.
 
 **Chart version.** devcontainer-builder is third-party. With `CODER_DEVCONTAINER_BUILDER_VERSION` unset the latest chart is installed and its version is **logged** (`Pin it with CODER_DEVCONTAINER_BUILDER_VERSION=...`); set it to pin.
 
@@ -113,7 +115,7 @@ Private repositories need a Coder external auth provider with the ID `github` an
 | `CODER_CHART_VERSION` | no | _(latest)_ | Pin the Coder chart version (e.g. `2.37.4` stable) |
 | `CODER_DEVCONTAINER_BUILDER_REF` | no | _(unset)_ | Pinned tag/commit of devcontainer-builder's Coder template (required to push that template; else the Envbuilder starter) |
 | `CODER_DEVCONTAINER_BUILDER_VERSION` | no | _(latest, logged)_ | devcontainer-builder chart version |
-| `CODER_DEVCONTAINER_REGISTRY` | no | `ghcr.io` | External registry host (used with the user, org and token) |
+| `CODER_DEVCONTAINER_REGISTRY` | no | _(unset)_ | External registry host (required with the user, org and token; no default) |
 | `CODER_DEVCONTAINER_REGISTRY_ORG` | no | _(unset)_ | External registry org/user images are pushed under |
 | `CODER_DEVCONTAINER_REGISTRY_TOKEN` | no | _(unset)_ | External registry token able to push and pull; with user and org it replaces the in-cluster registry |
 | `CODER_DEVCONTAINER_REGISTRY_USER` | no | _(unset)_ | Registry username for the token |

@@ -135,18 +135,22 @@ install_devcontainer_builder() {
         [ -n "$version" ] || { zz-log w "Could not resolve the latest devcontainer-builder chart version." && return 1; }
         zz-log w "CODER_DEVCONTAINER_BUILDER_VERSION not set: installing the latest chart, ${version}. Pin it with CODER_DEVCONTAINER_BUILDER_VERSION=${version}."
     fi
-    if [ -n "${CODER_DEVCONTAINER_REGISTRY_TOKEN:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_USER:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_ORG:-}" ]; then
-        registry="${CODER_DEVCONTAINER_REGISTRY:-ghcr.io}"
+    # no default registry host: an external one is used only when named (with user, org and token)
+    if [ -n "${CODER_DEVCONTAINER_REGISTRY_TOKEN:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_USER:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY_ORG:-}" ] && [ -n "${CODER_DEVCONTAINER_REGISTRY:-}" ]; then
+        registry="$CODER_DEVCONTAINER_REGISTRY"
         mapped="${registry}/${CODER_DEVCONTAINER_REGISTRY_ORG}"
         auth_user="$CODER_DEVCONTAINER_REGISTRY_USER"
         auth_pw="$CODER_DEVCONTAINER_REGISTRY_TOKEN"
     else
-        node_ip="$(hostname -I | awk '{print $1}')"
-        registry="${node_ip}:${REGISTRY_PORT}"
+        [ -z "${CODER_DEVCONTAINER_REGISTRY_TOKEN:-}" ] || zz-log w "CODER_DEVCONTAINER_REGISTRY_TOKEN is set without CODER_DEVCONTAINER_REGISTRY (host), USER and ORG: using the local registry."
+        # the local registry, as recorded by vps-network (system_registry_url), else this node's
+        registry="$(vps-network registry-url)"
+        [ "$registry" != none ] || registry="$(hostname -I | awk '{print $1}'):${REGISTRY_PORT}"
         mapped="${registry}/devcontainers"
         auth_user=""
         auth_pw=""
         deploy_local_registry "$registry" || return 1
+        vps-network set-registry-url "$registry"
         insecure_registries="$(jq -nc --arg r "$registry" '[$r]')"
         insecure_host="$registry"
     fi

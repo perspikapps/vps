@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-rancher",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Rancher install",
   "bin": {
     "app-rancher": "run.sh"

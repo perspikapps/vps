@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-dokploy",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Dokploy install (Docker Swarm + Traefik PaaS)",
   "bin": {
     "vps-dokploy": "run.sh"

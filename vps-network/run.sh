@@ -22,6 +22,9 @@
 #   set-internal-domain <domain>    persist the internal domain (vps-access)
 #   unset-access                    forget every access choice
 #   set-external-domain <domain>    persist the external domain (vps-system)
+#   registry-url                    host:port of the local image registry (SYSTEM_REGISTRY_URL, else the saved one, else "none")
+#   set-registry-url <host:port>    persist it (the step that installs a local registry)
+#   unset-registry-url              forget it again (back to "none")
 #   verify <public-ip>              run from ANOTHER machine: every private port must be closed
 #   reapply-guard                   re-insert the FORWARD guard of vps-security's private ports
 
@@ -33,7 +36,7 @@ zz-use zz-colors zz-log zz-args zz-persist ws-list
 # --- arguments
 eval "$(
     zz-args "Network facts and state of this VPS" "$0" "$@" <<help
-- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard
+- command command public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, registry-url, set-registry-url, unset-registry-url, verify, reapply-guard
 # params params Arguments of the command
 help
 )"
@@ -122,6 +125,16 @@ get_internal_domain() {
     fi
     [ -n "$domain" ] || domain="$(get_external_domain)"
     printf '%s' "$domain"
+}
+
+# get_registry_url: the local registry's host:port (SYSTEM_REGISTRY_URL, else the persisted one), else "none".
+get_registry_url() {
+    local url="${SYSTEM_REGISTRY_URL:-}"
+
+    if [ -z "$url" ] && [ -f "$state_file" ]; then
+        url="$(zz-persist -f "$state_file" -r SYSTEM_REGISTRY_URL)"
+    fi
+    printf '%s' "${url:-none}"
 }
 
 # in_list <name> <comma list>: whether the name is in the list.
@@ -336,6 +349,9 @@ unset-access)
     [ ! -f "$access_file" ] || zz-persist -q -f "$access_file" -u "SYSTEM_INTERNAL_DOMAIN $(sed -n 's/^\(SYSTEM_ACCESS_[A-Z0-9_]*\)=.*/\1/p' "$access_file" | tr '\n' ' ')"
     ;;
 set-external-domain) zz-persist -f "$external_file" SYSTEM_EXTERNAL_DOMAIN "${1:?usage: vps-network set-external-domain <domain>}" ;;
+registry-url) get_registry_url ;;
+set-registry-url) zz-persist -f "$state_file" SYSTEM_REGISTRY_URL "${1:?usage: vps-network set-registry-url <host:port>}" ;;
+unset-registry-url) zz-persist -q -f "$state_file" -u SYSTEM_REGISTRY_URL ;;
 verify) verify_ports "${1:?usage: vps-network verify <public-ip> (from another machine)}" ;;
 reapply-guard)
     # ufw only filters INPUT; the guard unit of vps-security re-inserts its FORWARD rule
@@ -344,7 +360,7 @@ reapply-guard)
     systemctl restart vps-private-ports-guard.service 2>/dev/null || true
     ;;
 *)
-    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, verify, reapply-guard)"
+    zz-log e "Unknown command '$command' (public-ip, internal-interface, internal-address, summary-host, external-domain, access-domain, internal-domain, internal-range, access-route, summary-block, visibility, visibilities, set-visibility, set-internal-domain, unset-access, port, ports, set-internal-interface, unset-internal-interface, set-external-domain, registry-url, set-registry-url, unset-registry-url, verify, reapply-guard)"
     exit 1
     ;;
 esac
