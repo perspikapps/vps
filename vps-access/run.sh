@@ -37,18 +37,19 @@ confirm_interface() {
 
 # confirm_visibility: public or internal for every service declaring config.visibility.
 confirm_visibility() {
-    local name vis out key state tab
+    local name vis src dflt out key state tab
 
     ask || return 0
     tab="$(printf '\t')"
     set --
-    while IFS="$tab" read -r name vis; do
-        [ -z "$name" ] || set -- "$@" "${name}:${vis}=${name}"
+    while IFS="$tab" read -r name vis src dflt; do
+        # number [state] source name (default), the same shape in every menu
+        [ -z "$name" ] || set -- "$@" "${name}:${vis}=${src}${tab}${name} (${dflt})"
     done <<EOF
 $(vps-network visibilities)
 EOF
     [ "$#" -gt 0 ] || return 0
-    out="$(zz-menu -t "Visibility" -f " Number cycles public/internal; <enter> validates; q quits." -c public,internal "$@")" || return 0
+    out="$(zz-menu -t "Visibility" -f " Number cycles public/internal (e env, f chosen, d default; default in brackets); <enter> validates; q quits." -c public,internal "$@")" || return 0
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
         if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
@@ -99,7 +100,7 @@ hosts() {
     local name vis tab
 
     tab="$(printf '\t')"
-    while IFS="$tab" read -r name vis; do
+    while IFS="$tab" read -r name vis _; do
         [ -z "$name" ] || printf '%s: %s.%s (%s)\n' "$name" "$name" "$(vps-network access-domain "$vis" 2>/dev/null || echo '<no internal address>')" "$vis"
     done <<EOF
 $(vps-network visibilities)
@@ -157,7 +158,7 @@ scope_services() {
     local name vis tab domain out=""
 
     tab="$(printf '\t')"
-    while IFS="$tab" read -r name vis; do
+    while IFS="$tab" read -r name vis _; do
         [ "$vis" = "$1" ] || continue
         domain="$(vps-network access-domain "$vis" 2>/dev/null || true)"
         out="${out:+$out, }${name} (${name}.${domain:-<no domain yet>})"
