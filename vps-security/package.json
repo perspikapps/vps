@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-security",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Firewall / SSH / fail2ban hardening",
   "bin": {
     "vps-security": "run.sh"
@@ -27,7 +27,7 @@
         "default": ""
       },
       "SYSTEM_INTERNAL_INTERFACE": {
-        "description": "Interface carrying the internal network (private-port services) (set by svc-tailscale; give wg0, a LAN NIC... to use another network)",
+        "description": "Internal network interface (set by svc-tailscale; wg0 or a LAN NIC to override)",
         "required": false,
         "default": ""
       },

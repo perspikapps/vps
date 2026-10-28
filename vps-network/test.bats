@@ -147,7 +147,19 @@ setup() {
     echo '{"name":"@x/vps-gamma","bin":{"vps-gamma":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/vps-gamma/package.json"
     run sh "$SCRIPT" visibilities
     [ "$status" -eq 0 ]
-    [ "$output" = "$(printf 'gamma\tinternal')" ]
+    [ "$output" = "$(printf 'gamma\tinternal\td\tinternal')" ]
+}
+
+@test "visibilities: the source is e from SYSTEM_PUBLIC_APPS / SYSTEM_INTERNAL_APPS, f once vps-access persisted a choice, else d" {
+    mkdir -p "$work/vps-gamma"
+    : >"$work/vps-gamma/run.sh"
+    echo '{"workspaces":["vps-gamma"]}' >"$work/package.json"
+    echo '{"name":"@x/vps-gamma","bin":{"vps-gamma":"run.sh"},"engines":{"zz-setup":"*"},"config":{"visibility":"internal"}}' >"$work/vps-gamma/package.json"
+    SYSTEM_PUBLIC_APPS=gamma run sh "$SCRIPT" visibilities
+    [ "$output" = "$(printf 'gamma\tpublic\te\tinternal')" ]
+    sh "$SCRIPT" set-visibility gamma public
+    run sh "$SCRIPT" visibilities
+    [ "$output" = "$(printf 'gamma\tpublic\tf\tinternal')" ]
 }
 
 @test "visibilities: under zz-setup, only the services this run brings up (ZZ_SETUP_UP)" {
@@ -158,7 +170,7 @@ setup() {
     ZZ_SETUP_UP=" alpha beta " run sh "$SCRIPT" visibilities
     [ -z "$output" ]
     ZZ_SETUP_UP=" alpha vps-gamma " run sh "$SCRIPT" visibilities
-    [ "$output" = "$(printf 'gamma\tinternal')" ]
+    [ "$output" = "$(printf 'gamma\tinternal\td\tinternal')" ]
 }
 
 @test "access-route: the route of a service for eval, public with Let's Encrypt, internal behind the internal-only middleware" {
