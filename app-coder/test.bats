@@ -171,3 +171,8 @@ DIR="$REPO_ROOT/app-coder"
     grep -q '^TEMPLATE_REV=' "$DIR/run.sh"
     grep -q -- '--name '"'"'"\$TEMPLATE_REV"'"'"'' "$DIR/run.sh"
 }
+
+@test "no ghcr.io default: an external registry needs its host; the local one is recorded with vps-network" {
+    ! grep -q 'REGISTRY:-ghcr.io' "$DIR/run.sh"
+    grep -q 'vps-network set-registry-url' "$DIR/run.sh"
+}
