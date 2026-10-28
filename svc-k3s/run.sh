@@ -89,8 +89,12 @@ up() {
         TRAEFIK_ACME_CASERVER="https://acme-staging-v02.api.letsencrypt.org/directory"
     fi
 
+    # The tailscale certResolver needs Traefik >= 3.5 and tailscaled; --accesslog=false is a no-op.
+    TRAEFIK_TAILSCALE_ARG="--accesslog=false"
+    [ "$(vps-network internal-interface)" != "tailscale0" ] || TRAEFIK_TAILSCALE_ARG="--certificatesresolvers.tailscale.tailscale=true"
+
     zz-log i "Configuring Traefik (public ingress on 80/443, Let's Encrypt, dashboard on ${K3S_TRAEFIK_DASHBOARD_PORT})..."
-    kube-apply "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER"
+    kube-apply "$(dirname "$0")/helm/traefik-config.yaml" K3S_TRAEFIK_DASHBOARD_PORT="$K3S_TRAEFIK_DASHBOARD_PORT" K3S_TRAEFIK_ACME_EMAIL="$K3S_TRAEFIK_ACME_EMAIL" TRAEFIK_ACME_CASERVER="$TRAEFIK_ACME_CASERVER" TRAEFIK_TAILSCALE_ARG="$TRAEFIK_TAILSCALE_ARG"
 
     zz-log i "Waiting for k3s's helm-controller to apply the Traefik config (creates/updates the job)..."
     for i in $(seq 1 30); do
@@ -135,7 +139,7 @@ summary() {
         "http://${host:-<public-ip>} and https://${host:-<public-ip>} (web/websecure, 80/443; Let's Encrypt resolver \"letsencrypt\")" \
         "the same 80/443 on $(vps-network summary-host), for internal hosts only (internal-only middleware: sources $(vps-network internal-range || true))" \
         "dashboard http://localhost:$(vps-network port k3s_traefik_dashboard)/dashboard/ (on the VPS, no login; also on the internal address)" \
-        "A \"letsencrypt\" certResolver is ready: it issues nothing until your Ingress has the router.tls.certresolver annotation (see README)." \
+        "certResolvers \"letsencrypt\" (and \"tailscale\" with a Tailscale internal network) are ready: public app routes carry router.tls.certresolver, your own Ingress needs the annotation (see README)." \
         "kubectl / helm: KUBECONFIG=/etc/rancher/k3s/k3s.yaml (exported via /etc/profile.d/k3s-kubeconfig.sh for new shells)"
 }
 
