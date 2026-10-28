@@ -35,7 +35,7 @@
         "default": ""
       },
       "CLOUDFLARE_SHA256": {
-        "description": "sha256 of that binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
+        "description": "sha256 of that binary, or a JSON object keyed <os>_<arch> (not checked if unset)",
         "required": false,
         "default": ""
       }

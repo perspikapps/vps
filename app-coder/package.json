@@ -57,7 +57,7 @@
         "default": "coder-workspaces"
       },
       "CODER_DEVCONTAINER_BUILDER_REF": {
-        "description": "devcontainer-builder tag/commit whose Coder template is pushed (empty = starter)",
+        "description": "devcontainer-builder tag/commit of the Coder template to push (else the starter)",
         "required": false,
         "default": ""
       },

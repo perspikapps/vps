@@ -30,7 +30,7 @@
         "default": "latest"
       },
       "HERMES_ENV_SECRET": {
-        "description": "Secret in namespace hermes whose keys become the pod environment (empty = none)",
+        "description": "Secret in namespace hermes whose keys become the pod environment",
         "required": false,
         "default": ""
       }
