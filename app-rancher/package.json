@@ -31,7 +31,7 @@
         "secret": true
       },
       "RANCHER_CHART_REPO_URL": {
-        "description": "Helm repository to install Rancher from (e.g. https://charts.rancher.com/server-charts/prime for SUSE Rancher Prime)",
+        "description": "Helm repository to install Rancher from (e.g. the SUSE Rancher Prime one)",
         "required": false,
         "default": "https://releases.rancher.com/server-charts/latest"
       },

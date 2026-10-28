@@ -1,7 +1,7 @@
 {
   "name": "@tomgrv/vps-access",
   "version": "4.8.0",
-  "description": "Confirm which services are public or internal, and the DNS names they are reached on",
+  "description": "Confirm which services are public or internal, and the DNS names they use",
   "bin": {
     "vps-access": "run.sh"
   },
@@ -16,27 +16,27 @@
     "default": true,
     "inputs": {
       "SYSTEM_EXTERNAL_DOMAIN": {
-        "description": "Wildcard DNS domain pointing at this VPS (e.g. apps.example.com for *.apps.example.com); empty = <public-ip>.nip.io fallback",
+        "description": "Wildcard DNS domain pointing at this VPS (empty = <public-ip>.nip.io fallback)",
         "required": false,
         "default": ""
       },
       "SYSTEM_INTERNAL_DOMAIN": {
-        "description": "DNS domain pointing at this VPS's internal (Tailscale/Cloudflare) address, for services set to internal; empty = the external domain",
+        "description": "DNS domain of the internal address, for internal services (empty = external)",
         "required": false,
         "default": ""
       },
       "SYSTEM_ACCESS_MENU": {
-        "description": "Ask to confirm visibilities and DNS (true/false); false keeps the saved or default choices",
+        "description": "Ask to confirm visibilities and DNS (true/false); false keeps saved or defaults",
         "required": false,
         "default": "true"
       },
       "SYSTEM_INTERNAL_APPS": {
-        "description": "Comma list of the apps served on the internal network only (e.g. rancher,coder); overrides the menu and each app's default",
+        "description": "Comma list of apps served on the internal network only (e.g. rancher,coder)",
         "required": false,
         "default": ""
       },
       "SYSTEM_PUBLIC_APPS": {
-        "description": "Comma list of the apps served on the server IP; overrides the menu and each app's default",
+        "description": "Comma list of apps served on the server IP; overrides the menu and defaults",
         "required": false,
         "default": ""
       }

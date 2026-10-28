@@ -52,17 +52,17 @@
         "default": "10Gi"
       },
       "CODER_WORKSPACE_NAMESPACE": {
-        "description": "Namespace workspaces run in (created, with rights for Coder's service account; used by the templates and the pull secret)",
+        "description": "Namespace workspaces run in (created; Coder's service account gets rights there)",
         "required": false,
         "default": "coder-workspaces"
       },
       "CODER_DEVCONTAINER_BUILDER_REF": {
-        "description": "Pinned tag/commit of github.com/DeepSpaceCartel/devcontainer-builder whose Coder template is pushed (required for that template)",
+        "description": "Pinned tag/commit of devcontainer-builder's Coder template (needed to push it)",
         "required": false,
         "default": ""
       },
       "CODER_DEVCONTAINER_BUILDER_VERSION": {
-        "description": "devcontainer-builder Helm chart version (empty = latest, logged so you can pin it)",
+        "description": "devcontainer-builder chart version (empty = latest, logged so you can pin it)",
         "required": false,
         "default": ""
       },
@@ -77,7 +77,7 @@
         "default": ""
       },
       "CODER_DEVCONTAINER_REGISTRY_TOKEN": {
-        "description": "External registry token able to push and pull (GHCR: write:packages); with user and org it replaces the in-cluster registry",
+        "description": "External registry token able to push and pull (GHCR: write:packages)",
         "required": false,
         "default": "",
         "secret": true

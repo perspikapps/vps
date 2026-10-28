@@ -24,7 +24,7 @@
         "default": ""
       },
       "SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS": {
-        "description": "Extra 'docker swarm init' flags, e.g. --default-addr-pool 172.20.0.0/16 to avoid clashing with a VPC",
+        "description": "Extra 'docker swarm init' flags (e.g. --default-addr-pool 172.20.0.0/16)",
         "required": false,
         "default": ""
       },

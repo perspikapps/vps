@@ -19,7 +19,7 @@
     "default": false,
     "inputs": {
       "CLOUDFLARE_INTERNAL_IP": {
-        "description": "Address WARP clients use to reach this VPS through the tunnel (a /32 on a dummy interface)",
+        "description": "Address WARP clients use to reach this VPS (a /32 on a dummy interface)",
         "required": false,
         "default": "10.254.254.1"
       },
@@ -35,7 +35,7 @@
         "default": ""
       },
       "CLOUDFLARE_SHA256": {
-        "description": "sha256 of that release's binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
+        "description": "sha256 of that binary, or a JSON object keyed <os>_<arch> (empty = not checked)",
         "required": false,
         "default": ""
       }
