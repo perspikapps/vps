@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.10.0 (2026-10-28)
+
+*Commits from: v4.9.0..HEAD*
+
+### 📂 Unscoped changes
+
+#### Other changes
+
+- Merge tag 'v4.9.0' into develop
+### 📦 app-coder changes
+
+#### Features
+
+- ✨ track local registry as SYSTEM_REGISTRY_URL, drop ghcr.io default (#67)
+
+### 📦 vps-setup changes
+
+#### Other changes
+
+- 📚️ 📝 refresh deployed hosts with zz-use -f, zz-update is removed (#69)
+
 ## 4.9.0 (2026-10-28)
 
 *Commits from: v4.8.0..HEAD*
@@ -508,6 +529,7 @@
 #### Features
 
 - add GitHub Actions Runner Controller via Helm (#3)
+
 
 
 
