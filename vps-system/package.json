@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-system",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Base system update & essentials",
   "bin": {
     "vps-system": "run.sh"
@@ -16,7 +16,7 @@
     "default": true,
     "inputs": {
       "SYSTEM_TZ": {
-        "description": "Timezone to set on the VPS (e.g. Europe/Paris)",
+        "description": "Timezone to set on the VPS (e.g. Europe/Paris); left unchanged if unset",
         "required": false,
         "default": ""
       }

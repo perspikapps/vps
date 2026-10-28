@@ -287,6 +287,12 @@ fails on something already gone; helpers (`systemd-service`, `kube-apply`,
 `helm-install`, `zz-persist -S`) come from [`tomgrv/scripts`](https://github.com/tomgrv/scripts)
 and are listed in the `zz-use` line at the top of `run.sh`.
 
+Inputs read the same way in every menu: the `description` is one line of 80
+characters or less, shown under the name. A fallback that is a fixed value is the
+input's `default` (the menu shows it next to the name) and is not repeated in the
+description; `(empty = ...)` is only for a fallback computed when the step runs
+(`generated and saved`, `latest`, `admin@<wildcard domain>`).
+
 Run it:
 
 ```sh

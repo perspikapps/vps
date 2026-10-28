@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-dokploy",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Dokploy install (Docker Swarm + Traefik PaaS)",
   "bin": {
     "vps-dokploy": "run.sh"
@@ -19,17 +19,17 @@
     "default": false,
     "inputs": {
       "SYSTEM_DOKPLOY_ADVERTISE_ADDR": {
-        "description": "Address Docker Swarm advertises (default: the host's first IPv4 address)",
+        "description": "Address Docker Swarm advertises (empty = the host's first IPv4 address)",
         "required": false,
         "default": ""
       },
       "SYSTEM_DOKPLOY_DOCKER_SWARM_INIT_ARGS": {
-        "description": "Extra 'docker swarm init' flags, e.g. --default-addr-pool 172.20.0.0/16 to avoid clashing with a VPC",
+        "description": "Extra 'docker swarm init' flags (e.g. --default-addr-pool 172.20.0.0/16)",
         "required": false,
         "default": ""
       },
       "SYSTEM_DOKPLOY_VERSION": {
-        "description": "Dokploy release tag to install (e.g. v0.26.6, canary); empty = latest stable",
+        "description": "Dokploy release tag to pin (e.g. v0.26.6, canary; empty = latest stable)",
         "required": false,
         "default": ""
       }
