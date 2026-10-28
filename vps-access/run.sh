@@ -29,7 +29,7 @@ confirm_interface() {
     done
     [ "$#" -gt 0 ] || return 0
     choice="$(zz-menu -t "Internal interface (SYSTEM_INTERNAL_INTERFACE is not set)" \
-        -f "  Number picks the interface (or none); q keeps it unset." "$@" "none=None (no internal network)")" || return 0
+        -f " Number picks the interface (or none); q quits, leaving it unset." "$@" "none=None (no internal network)")" || return 0
     [ -n "$choice" ] && [ "$choice" != none ] || return 0
     vps-network set-internal-interface "$choice"
     zz-log i "Internal interface: ${choice}"
@@ -48,7 +48,7 @@ confirm_visibility() {
 $(vps-network visibilities)
 EOF
     [ "$#" -gt 0 ] || return 0
-    out="$(zz-menu -t "Visibility" -f "  Number cycles public/internal; <enter> confirms; q keeps." -c public,internal "$@")" || return 0
+    out="$(zz-menu -t "Visibility" -f " Number cycles public/internal; <enter> validates; q quits." -c public,internal "$@")" || return 0
     while IFS== read -r key state; do
         [ -n "$key" ] || continue
         if [ "$state" = "internal" ] && [ -z "$(vps-network internal-address)" ]; then
