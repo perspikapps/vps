@@ -32,6 +32,24 @@ Coder's own `CODER_ACCESS_URL` and `CODER_WILDCARD_ACCESS_URL` are set from that
 
 **Public mode:** Traefik's 80/443 are the VPS's public ingress, so Coder is reachable from the internet like any ingress app (the step has no private port). Plain HTTP only unless you front it with TLS and terminate TLS in front of it; Let's Encrypt cannot issue a certificate for a nip.io name or a wildcard over HTTP-01.
 
+## Self-signed certificate: VS Code extension and agent
+
+This step serves plain HTTP (see the public mode above). If you front Coder with TLS using a **self-signed certificate**, both the Coder VS Code extension and the workspace agent (which downloads its binary from the Coder URL) fail on the certificate error ([coder/vscode-coder#349](https://github.com/coder/vscode-coder/issues/349)). Workarounds from that thread:
+
+- **VS Code extension:** set `Settings > Extensions > Coder > Insecure` (`coder.insecure`) to `true`. If it still fails, VS Code's own proxy agent is the cause (the option only takes effect with it disabled): also set `http.proxySupport` to `off` (or `fallback`).
+
+  ```json
+  {
+    "coder.insecure": true,
+    "http.proxySupport": "off"
+  }
+  ```
+
+- **Trust the certificate instead** (the maintainers' recommendation; `insecure` is "not particularly recommended"): install it on the machine running VS Code **and** on the server running Coder.
+- **Workspace agent:** the agent has no option to skip verification (tracked in [coder/coder#14500](https://github.com/coder/coder/issues/14500)); make it trust the certificate by baking it into the workspace image or mounting it into the pod through the template.
+
+A certificate from a public CA (or Let's Encrypt on a real domain, see above) needs none of this.
+
 The catalog's [`charts/coder`](../charts/coder/README.md) is the Rancher-UI route to the same upstream chart; do not install both.
 
 ## Workspace templates: use Kubernetes, not Docker
@@ -80,6 +98,7 @@ Private repositories need a Coder external auth provider with the ID `github` an
 - The admin and template bootstrap: the `/users/first` and `/users/login` API shapes, the `kubernetes-devcontainer` id, the `use_kubeconfig`/`namespace` variable names, and whether the template needs more (such as a cache repository).
 - The guide's `bitnamilegacy/postgresql` image override needs `global.security.allowInsecureImages=true` on recent Bitnami charts (set here).
 - The chart's `ingress.enable`/`className`/`host`/`wildcardHost` value names.
+- The self-signed certificate workarounds above, taken from the linked issue thread, not tried here (the `http.proxySupport` part was suggested there, not confirmed).
 - That the login cookie error was fully explained by the host/wildcard mismatch: inferred from Coder's wildcard docs, not reproduced.
 
 ## Environment variables
