@@ -1,7 +1,7 @@
 {
   "name": "@tomgrv/app-hermes",
   "version": "4.8.0",
-  "description": "Hermes Agent (self-improving AI agent harness) installed with helm from this repo's chart",
+  "description": "Hermes Agent (self-improving AI agent harness), installed with helm",
   "bin": {
     "app-hermes": "run.sh"
   },
@@ -20,17 +20,17 @@
     "default": false,
     "inputs": {
       "HERMES_IMAGE_REPOSITORY": {
-        "description": "Image repository of the Hermes Agent image you built and pushed (no official image exists)",
+        "description": "Image repository of the Hermes Agent image you built (no official image exists)",
         "required": true,
         "default": ""
       },
       "HERMES_IMAGE_TAG": {
-        "description": "Image tag",
+        "description": "Hermes Agent image tag",
         "required": false,
         "default": "latest"
       },
       "HERMES_ENV_SECRET": {
-        "description": "Name of a Secret (namespace hermes) whose keys become the container environment: LLM provider and chat tokens",
+        "description": "Secret in namespace hermes whose keys become the pod environment",
         "required": false,
         "default": ""
       }

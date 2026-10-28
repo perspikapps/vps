@@ -17,7 +17,7 @@
 #   internal-range                  source CIDRs of the internal network's clients: what the provider declared, else the internal address and loopback
 #   internal-domain                 SYSTEM_INTERNAL_DOMAIN, else the saved one, else the external domain
 #   visibility <service>            public or internal: env, persisted choice, config.visibility, else public
-#   visibilities                    every service declaring config.visibility, as TSV: name, visibility
+#   visibilities                    every service declaring config.visibility, as TSV: name, visibility, source (e/f/d), default
 #   set-visibility <service> <v>    persist a choice (vps-access)
 #   set-internal-domain <domain>    persist the internal domain (vps-access)
 #   unset-access                    forget every access choice
@@ -152,7 +152,22 @@ get_visibility() {
     printf '%s' "${value:-public}"
 }
 
-# list_visibilities: every service that declares config.visibility, as TSV: name, visibility.
+# get_visibility_source <service>: where get_visibility takes its value - e (SYSTEM_INTERNAL_APPS /
+# SYSTEM_PUBLIC_APPS), f (the choice vps-access persisted) or d (the package's config.visibility, else public).
+get_visibility_source() {
+    local name="$1"
+
+    if in_list "$name" "${SYSTEM_INTERNAL_APPS:-}" || in_list "$name" "${SYSTEM_PUBLIC_APPS:-}"; then
+        echo e
+    elif [ -f "$access_file" ] && [ -n "$(zz-persist -f "$access_file" -r "SYSTEM_ACCESS_$(printf '%s' "$name" | tr '[:lower:]-' '[:upper:]_')")" ]; then
+        echo f
+    else
+        echo d
+    fi
+}
+
+# list_visibilities: every service that declares config.visibility, as TSV: name, visibility, source
+# (e/f/d, see get_visibility_source), default (the package's config.visibility).
 list_visibilities() {
     local dir name
 
@@ -164,7 +179,7 @@ list_visibilities() {
         name="${name#vps-}"
         name="${name#app-}"
         name="${name#svc-}"
-        printf '%s\t%s\n' "$name" "$(get_visibility "$name")"
+        printf '%s\t%s\t%s\t%s\n' "$name" "$(get_visibility "$name")" "$(get_visibility_source "$name")" "$(jq -r '.config.visibility // "public"' "$root/$dir/package.json")"
     done
 }
 
