@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/app-epinio",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Epinio (deploy apps from source) installed with helm from this repo's chart",
   "bin": {
     "app-epinio": "run.sh"

@@ -1,6 +1,6 @@
 {
   "name": "@tomgrv/vps-access",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Confirm which services are public or internal, and the DNS names they use",
   "bin": {
     "vps-access": "run.sh"
