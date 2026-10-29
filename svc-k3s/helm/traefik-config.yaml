@@ -2,6 +2,9 @@
 # Let's Encrypt, and the dashboard on a private port. Internal services differ only by
 # host and by the "internal-only" middleware (internal-middleware.yaml). The client address
 # must reach Traefik for that middleware to work, hence externalTrafficPolicy: Local.
+# The "tailscale" resolver (Traefik >= 3.5) gets its certificates from the host's tailscaled
+# through the mounted socket; ${TRAEFIK_TAILSCALE_ARG} enables it (run.sh: only when Tailscale is
+# the internal network, else the harmless --accesslog=false).
 # ${K3S_TRAEFIK_DASHBOARD_PORT}, ${K3S_TRAEFIK_ACME_EMAIL} and ${TRAEFIK_ACME_CASERVER} are filled in by run.sh.
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
@@ -22,6 +25,15 @@ spec:
         api:
           dashboard: true
           insecure: true
+        deployment:
+          additionalVolumes:
+            - name: tailscale
+              hostPath:
+                path: /var/run/tailscale
+                type: DirectoryOrCreate
+        additionalVolumeMounts:
+          - name: tailscale
+            mountPath: /var/run/tailscale
         persistence:
           enabled: true
           size: 128Mi
@@ -31,3 +43,4 @@ spec:
           - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
           - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
           - "--certificatesresolvers.letsencrypt.acme.caserver=${TRAEFIK_ACME_CASERVER}"
+          - "${TRAEFIK_TAILSCALE_ARG}"

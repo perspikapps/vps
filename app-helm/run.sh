@@ -1,7 +1,8 @@
 #!/bin/sh
 # app-helm up|down|summary <app> [options] [helm args...] - installs charts/<app> of this
 # checkout with helm (a script shared by the app-* steps, not a step). Options:
-#   --middlewares-key <dotted.path>   the chart value that takes the Traefik middlewares of the route (set for internal)
+#   --middlewares-key <dotted.path>   the chart value that takes the Traefik middlewares of the route (set for internal);
+#                                     the router.tls.certresolver value (public) sits next to it, under <same path>.certresolver
 #   --note <text>                a line added to the summary (repeatable)
 #   --values-stdin               extra chart values (JSON or YAML) read from stdin, kept in a private temp file
 # Every other argument goes to `helm upgrade --install` (e.g. --set, --values).
@@ -50,8 +51,10 @@ up() {
 
     # the shared domain (apps are <app>.<domain>) and, where the chart takes one, the route middlewares
     values="$(mktemp)"
-    jq -n --arg d "$domain" --arg m "$route_middlewares" --arg k "$middlewares_key" \
-        '{global: {domain: $d}} | if $k != "" and $m != "" then setpath($k | split("."); $m) else . end' >"$values"
+    jq -n --arg d "$domain" --arg m "$route_middlewares" --arg k "$middlewares_key" --arg r "$route_certresolver" \
+        '{global: {domain: $d}}
+        | if $k != "" and $m != "" then setpath($k | split("."); $m) else . end
+        | if $k != "" and $r != "" then setpath(($k | sub("middlewares$"; "certresolver") | split(".")); $r) else . end' >"$values"
 
     # read before anything else: stdin is the caller's pipe
     if [ -n "$values_stdin" ]; then
@@ -85,6 +88,7 @@ summary() {
         pub="no ingress found in namespace ${ns}"
     else
         url="http://${host}"
+        [ -z "$(kubectl -n "$ns" get ingress -o jsonpath='{.items[0].spec.tls[0].hosts[0]}' 2>/dev/null || true)" ] || url="https://${host}"
         if [ "$access" = "internal" ]; then int="${url} (80/443, internal network clients only)"; else pub="${url} (through Traefik, 80/443)"; fi
     fi
     set --

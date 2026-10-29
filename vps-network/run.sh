@@ -246,7 +246,8 @@ summary_block() {
 
 # get_access_route <service>: shell to eval, the route of a service from its public/internal
 # choice: route_access, route_domain, route_middlewares (the internal-only Traefik middleware
-# for internal, else empty) and route_certresolver (Let's Encrypt for public, none for internal).
+# for internal, else empty) and route_certresolver (Let's Encrypt for public; for internal the Tailscale one when the
+# internal network is Tailscale and the domain is a *.ts.net name, else none).
 # On an invalid choice or a missing domain it logs and prints "exit 1" for the caller.
 get_access_route() {
     local access domain middlewares certresolver
@@ -258,6 +259,7 @@ get_access_route() {
         *) echo "vps-network: $1 must be public or internal (got '${access}')" >&2 && echo 'exit 1' && return 0 ;;
     esac
     domain="$(get_access_domain "$access")" || { echo 'exit 1' && return 0; }
+    case "$access:$(get_internal_interface):$domain" in internal:tailscale0:*.ts.net) certresolver="tailscale" ;; esac
     printf "route_access='%s'\nroute_domain='%s'\nroute_middlewares='%s'\nroute_certresolver='%s'\n" "$access" "$domain" "$middlewares" "$certresolver"
 }
 

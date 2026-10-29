@@ -187,6 +187,13 @@ setup() {
     [[ "$output" == *"route_certresolver=''"* ]]
 }
 
+@test "access-route: an internal *.ts.net host on Tailscale gets the tailscale certresolver" {
+    SYSTEM_INTERNAL_APPS=alpha SYSTEM_INTERNAL_DOMAIN=vps.tail1234.ts.net SYSTEM_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" access-route alpha
+    [[ "$output" == *"route_certresolver='tailscale'"* ]]
+    SYSTEM_INTERNAL_APPS=alpha SYSTEM_INTERNAL_DOMAIN=in.example.com SYSTEM_INTERNAL_INTERFACE=tailscale0 run sh "$SCRIPT" access-route alpha
+    [[ "$output" == *"route_certresolver=''"* ]]
+}
+
 @test "access-route makes the caller exit 1 on a missing domain, and ignores a per-app ACCESS variable" {
     ALPHA_ACCESS=sideways run sh "$SCRIPT" access-route alpha
     [[ "$output" == *"route_access='public'"* ]]

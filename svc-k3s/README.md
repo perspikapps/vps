@@ -19,6 +19,8 @@ sudo zz-setup ./ -o svc-k3s         # without vps-setup, from a checkout
 
 Public and internal services share Traefik's 80/443. An internal route has the internal domain as its host and the `internal-only` middleware (`kube-system-internal-only@kubernetescrd`, an `ipAllowList` created by this step from `vps-network internal-range`), so only clients of the internal network get through; the server IP answers them with 403. `externalTrafficPolicy: Local` keeps the client address visible to Traefik, and `allowCrossNamespace` lets any namespace use the middleware. Needs Traefik v3 (`traefik.io/v1alpha1`, `ipAllowList`). After the internal network changes, re-run this step.
 
+When Tailscale is the internal network (`svc-tailscale`), Traefik also gets a `tailscale` certResolver (Traefik >= 3.5; the host's `/var/run/tailscale` socket is mounted into the pod). `vps-network access-route` then returns `route_certresolver=tailscale` for an internal host under `*.ts.net`, and the app's route carries `router.tls.certresolver: tailscale`.
+
 ## Environment variables
 
 | Variable | Required | Default | Description |
