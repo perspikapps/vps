@@ -1,0 +1,45 @@
+---
+- name: Check for vps-setup
+  ansible.builtin.shell: command -v vps-setup
+  register: vps_found
+  changed_when: false
+  failed_when: false
+
+- name: Install zz-* and vps-setup
+  ansible.builtin.shell: |
+    set -e
+    curl -fsSL {{ vps_bootstrap_url | quote }} | sh
+    zz-use tomgrv/vps/vps-setup
+  when: vps_found.rc != 0
+  changed_when: true
+
+- name: Write the vps-setup settings
+  ansible.builtin.copy:
+    dest: /etc/vps-setup.env
+    content: |
+      {% for k, v in vps_env.items() %}
+      {{ k }}={{ v | string | quote }}
+      {% endfor %}
+    owner: root
+    mode: "0600"
+  no_log: true
+
+- name: Run vps-setup
+  ansible.builtin.command:
+    argv: >-
+      {{ ['vps-setup']
+         + vps_skip | map('regex_replace', '^', '--skip-') | list
+         + vps_with | map('regex_replace', '^', '--with-') | list
+         + vps_only | map('regex_replace', '^', '--only-') | list
+         + vps_down | map('regex_replace', '^', '--down-') | list }}
+  environment:
+    ZZ_INTERACTIVE: "0"
+    ZZ_SETUP_REF: "{{ vps_ref }}"
+  register: vps_run
+  # Steps are idempotent but report nothing machine-readable: always "changed".
+  changed_when: true
+
+- name: Show the connection summary
+  ansible.builtin.debug:
+    msg: "{{ vps_run.stdout_lines[-40:] }}"
+  no_log: "{{ 'TAILSCALE_AUTHKEY' in vps_env or 'SYSTEM_ADMIN_PASSWORD' in vps_env }}"

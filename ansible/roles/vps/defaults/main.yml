@@ -1,0 +1,13 @@
+---
+# Inputs of the steps (README "Inputs"), e.g. SYSTEM_ADMIN_USER, TAILSCALE_AUTHKEY.
+vps_env: {}
+
+# Step names as in `vps-setup --skip-<step>` etc., e.g. [svc-cockpit].
+vps_skip: []
+vps_with: []
+vps_only: []
+vps_down: []
+
+# Pin the repos fetched on the host (branch, tag or commit).
+vps_ref: main
+vps_bootstrap_url: https://raw.githubusercontent.com/tomgrv/scripts/main/setup.sh

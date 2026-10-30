@@ -1,0 +1,6 @@
+---
+- name: Turn a fresh Ubuntu VPS into a secured management box
+  hosts: vps
+  become: true
+  roles:
+    - vps

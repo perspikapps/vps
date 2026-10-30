@@ -1,0 +1,8 @@
+---
+# Native roles, in the order of the shell steps' `order`. Steps not yet ported
+# still run through the legacy `vps` role (playbook.yml) until parity.
+- name: Turn a fresh VPS into a secured management box
+  hosts: vps
+  become: true
+  roles:
+    - role: vps_system

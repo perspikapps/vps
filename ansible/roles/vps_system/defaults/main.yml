@@ -1,0 +1,10 @@
+---
+# Timezone (e.g. Europe/Paris); left unchanged when empty. Was SYSTEM_TZ.
+vps_system_tz: "{{ lookup('env', 'SYSTEM_TZ') }}"
+
+# Upgrade every installed package, as `zz-install -f` did.
+vps_system_upgrade: true
+
+vps_system_packages: [ca-certificates, curl, wget, git, jq, unzip, htop, net-tools]
+# Same tool, named differently outside Debian.
+vps_system_gnupg: "{{ {'RedHat': 'gnupg2', 'Suse': 'gpg2'}[ansible_os_family] | default('gnupg') }}"

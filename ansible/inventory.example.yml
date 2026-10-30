@@ -1,0 +1,14 @@
+---
+all:
+  children:
+    vps:
+      hosts:
+        my-vps:
+          ansible_host: 203.0.113.10
+      vars:
+        vps_env:
+          SYSTEM_ADMIN_USER: ops
+          SYSTEM_ADMIN_SSH_KEY: "ssh-ed25519 AAAA... you@laptop"
+          TAILSCALE_AUTHKEY: "{{ lookup('env', 'TAILSCALE_AUTHKEY') }}"
+          SYSTEM_INTERNAL_APPS: rancher
+        vps_with: [app-coder]
