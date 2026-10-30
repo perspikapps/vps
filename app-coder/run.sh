@@ -252,7 +252,7 @@ up() {
         --from-literal=url="postgres://coder:${db_password}@coder-db-postgresql.${CODER_NAMESPACE}.svc.cluster.local:5432/coder?sslmode=disable" \
         --dry-run=client -o yaml | kubectl apply -f -
 
-    # --- Coder (helm/coder-values.yaml, or coder-values-wildcard.yaml)
+    # --- Coder (helm/coder-values-wildcard.yaml)
     # Exposed through k3s's Traefik (ingress class traefik, ports 80/443). The cookie
     # Coder sets is scoped to the wildcard domain, so the dashboard host must sit
     # under it: both come from one domain (vps-system's SYSTEM_EXTERNAL_DOMAIN, else nip.io).
@@ -266,13 +266,9 @@ up() {
     host="${access_url#*://}"
     host="${host%%[:/]*}"
     values_file="$(mktemp)"
-    if [ -n "$wildcard" ]; then
-        wildcard_host="*.${wildcard}"
-        wildcard_url="$wildcard_host"
-        yaml-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" wildcard_url="$wildcard_url" middlewares="$middlewares" >"$values_file"
-    else
-        yaml-render "$HELM_DIR/coder-values.yaml" access_url="$access_url" host="$host" middlewares="$middlewares" >"$values_file"
-    fi
+    wildcard_host="*.${wildcard}"
+    wildcard_url="$wildcard_host"
+    yaml-render "$HELM_DIR/coder-values-wildcard.yaml" access_url="$access_url" host="$host" wildcard_host="$wildcard_host" wildcard_url="$wildcard_url" middlewares="$middlewares" >"$values_file"
     chart_version="${CODER_CHART_VERSION:+--version ${CODER_CHART_VERSION}}"
 
     zz-log i "Installing/upgrading Coder (access URL ${access_url})..."
