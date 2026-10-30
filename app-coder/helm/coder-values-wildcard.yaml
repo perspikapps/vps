@@ -1,4 +1,4 @@
-# coder-values.yaml plus workspace apps on subdomains. The cookie Coder sets is
+# Coder chart values, exposed through k3s's Traefik, with workspace apps on subdomains. The cookie Coder sets is
 # scoped to the wildcard domain, so the dashboard host sits under it. ${access_url},
 # ${host}, ${wildcard_host} (*.<domain>), ${wildcard_url} (the same),
 # and ${middlewares} (the internal-only middleware for internal access, else empty) are filled in by run.sh.

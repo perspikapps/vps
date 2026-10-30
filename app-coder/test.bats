@@ -26,7 +26,7 @@ DIR="$REPO_ROOT/app-coder"
     grep -q 'bitnami/postgresql' "$DIR/run.sh"
     grep -q 'coder-db-url' "$DIR/run.sh"
     grep -q 'https://helm.coder.com/v2' "$DIR/run.sh"
-    grep -q 'CODER_PG_CONNECTION_URL' "$DIR/helm/coder-values.yaml"
+    grep -q 'CODER_PG_CONNECTION_URL' "$DIR/helm/coder-values-wildcard.yaml"
 }
 
 @test "the database password is generated and stored, never a fixed value or a --set argument" {
@@ -43,7 +43,7 @@ DIR="$REPO_ROOT/app-coder"
 }
 
 @test "exposed through the Traefik ingress, access URL and wildcard from the same domain (cookie scope)" {
-    grep -q 'className: traefik' "$DIR/helm/coder-values.yaml"
+    grep -q 'className: traefik' "$DIR/helm/coder-values-wildcard.yaml"
     grep -q 'wildcardHost' "$DIR/helm/coder-values-wildcard.yaml"
     grep -q 'http://coder.${wildcard}' "$DIR/run.sh"
     grep -q '\*\.${wildcard}' "$DIR/run.sh"
@@ -158,7 +158,6 @@ DIR="$REPO_ROOT/app-coder"
     grep -q 'vps-network access-route coder' "$DIR/run.sh"
     grep -q 'middlewares="\$route_middlewares"' "$DIR/run.sh"
     ! grep -q 'kube-system-internal-only' "$DIR/run.sh"
-    grep -q 'router.middlewares' "$DIR/helm/coder-values.yaml"
     grep -q 'router.middlewares' "$DIR/helm/coder-values-wildcard.yaml"
 }
 

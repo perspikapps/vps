@@ -23,6 +23,9 @@ ingress:
     middlewares: ''
     # Override the generated <app>.<domain> host.
     host: ''
+    # Also route *.<domain> to Coder (workspace apps on subdomains). Set CODER_WILDCARD_ACCESS_URL
+    # below to "*.<domain>" too, with CODER_ACCESS_URL under that domain.
+    wildcard: true
 
 coder:
     coder:
@@ -42,6 +45,8 @@ coder:
             # unset, Coder opens a public tunnel instead:
             # - name: CODER_ACCESS_URL
             #   value: "http://coder.example.com"
+            # - name: CODER_WILDCARD_ACCESS_URL
+            #   value: "*.example.com"
 
         service:
             # Exposed through this chart's own Ingress (see top of file).
