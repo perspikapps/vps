@@ -1,0 +1,123 @@
+---
+- name: Install the firewall, fail2ban and the guard's tools
+  ansible.builtin.package:
+    name: "{{ item.name }}"
+    state: present
+  loop:
+    - {name: "{{ 'ufw' if ansible_os_family == 'Debian' else 'firewalld' }}"}
+    - {name: fail2ban}
+    - {name: iptables}
+    - {name: "{{ 'iproute' if ansible_os_family == 'RedHat' else 'iproute2' }}"}
+  register: vps_security_pkgs
+  # fail2ban is not in every distribution's repositories (Amazon Linux): optional there.
+  ignore_errors: "{{ item.name == 'fail2ban' and ansible_os_family != 'Debian' }}"
+
+- name: Find existing authorized keys
+  ansible.builtin.find:
+    paths: [/root/.ssh, /home]
+    patterns: authorized_keys
+    recurse: true
+    depth: 2
+    size: "1"
+  register: vps_security_keys
+
+- name: Remember whether an SSH key is available
+  ansible.builtin.set_fact:
+    vps_security_has_ssh_key: "{{ (vps_security_keys.matched | int > 0) or (vps_admin_ssh_key | length > 0) }}"
+
+- name: Changes that can cut the SSH connection are verified, else undone by a timer
+  block:
+    - name: Install the rollback script
+      ansible.builtin.template:
+        src: vps-security-revert.sh.j2
+        dest: /usr/local/sbin/vps-security-revert
+        owner: root
+        mode: "0755"
+
+    - name: Disarm a previous rollback timer
+      ansible.builtin.systemd:
+        name: vps-security-revert.timer
+        state: stopped
+      failed_when: false
+      when: not ansible_check_mode
+
+    - name: Arm the rollback timer
+      ansible.builtin.command: >-
+        systemd-run --unit=vps-security-revert --on-active={{ vps_security_rollback_seconds }}s
+        /usr/local/sbin/vps-security-revert
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Create the admin user
+      ansible.builtin.user:
+        name: "{{ vps_admin_user }}"
+        shell: /bin/bash
+        groups: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+        append: true
+        create_home: true
+      when: vps_admin_user | length > 0
+
+    - name: Authorize the SSH key for the admin user
+      ansible.posix.authorized_key:
+        user: "{{ vps_admin_user }}"
+        key: "{{ vps_admin_ssh_key }}"
+      when: vps_admin_user | length > 0 and vps_admin_ssh_key | length > 0
+
+    - name: Authorize the SSH key for root while root login stays open
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ vps_admin_ssh_key }}"
+      when: vps_admin_ssh_key | length > 0 and vps_security_permit_root_login != 'no'
+
+    - name: Cockpit/console login
+      ansible.builtin.include_tasks: login.yml
+
+    - name: Harden sshd
+      ansible.builtin.template:
+        src: sshd.conf.j2
+        dest: /etc/ssh/sshd_config.d/00-vps-hardening.conf
+        owner: root
+        mode: "0644"
+        validate: sshd -t -f %s
+      notify: Reload sshd
+
+    # Superseded by 00-vps-hardening.conf, which sshd reads first.
+    - name: Remove the legacy sshd drop-in
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/99-vps-setup.conf
+        state: absent
+      notify: Reload sshd
+
+    - name: Enable the fail2ban sshd jail
+      ansible.builtin.template:
+        src: fail2ban-sshd.local.j2
+        dest: /etc/fail2ban/jail.d/sshd.local
+        owner: root
+        mode: "0644"
+      when: vps_security_pkgs.results | selectattr('item.name', 'eq', 'fail2ban') | rejectattr('failed') | list | length > 0
+      notify: Restart fail2ban
+
+    - name: Firewall
+      ansible.builtin.include_tasks: "{{ 'ufw.yml' if ansible_os_family == 'Debian' else 'firewalld.yml' }}"
+
+    - name: Apply the sshd change now
+      ansible.builtin.meta: flush_handlers
+
+    - name: Open a fresh connection to prove the host is still reachable
+      ansible.builtin.meta: reset_connection
+      when: not ansible_check_mode
+
+    - name: Wait for the fresh connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+      when: not ansible_check_mode
+      register: vps_security_verified
+  always:
+    - name: Disarm the rollback timer once the connection is verified
+      ansible.builtin.systemd:
+        name: vps-security-revert.timer
+        state: stopped
+      when: not ansible_check_mode and vps_security_verified is defined and vps_security_verified is succeeded
+
+- name: Private-ports FORWARD guard
+  ansible.builtin.include_tasks: guard.yml

@@ -6,3 +6,4 @@
   become: true
   roles:
     - role: vps_system
+    - role: vps_security

@@ -1,0 +1,19 @@
+---
+- name: Reload sshd
+  ansible.builtin.service:
+    name: "{{ vps_ssh_unit }}"
+    state: reloaded
+
+- name: Restart fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: restarted
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload private-ports guard
+  ansible.builtin.service:
+    name: vps-private-ports-guard
+    state: restarted

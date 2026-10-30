@@ -1,0 +1,29 @@
+---
+- name: Read the persisted network state
+  ansible.builtin.slurp:
+    src: "{{ vps_network_env_file }}"
+  register: vps_security_network_env
+  failed_when: false
+
+- name: Resolve the internal interface and address
+  ansible.builtin.set_fact:
+    vps_security_iface: >-
+      {{ vps_internal_interface
+         or (vps_security_network_env.content | default('') | b64decode
+             | regex_findall('(?m)^SYSTEM_INTERNAL_INTERFACE=(.*)$') | first | default('')
+             | regex_replace('[\'"]', '')) }}
+
+- name: Resolve the internal address
+  ansible.builtin.set_fact:
+    vps_security_ip: "{{ (ansible_facts[vps_security_iface | replace('-', '_')] | default({})).ipv4.address | default('') }}"
+
+- name: Compute the port lists
+  ansible.builtin.set_fact:
+    vps_security_all_ports: "{{ [{'name': 'system_ssh', 'port': vps_ssh_port, 'access': 'public', 'note': 'SSH'}] + vps_security_ports }}"
+    vps_security_wanted: >-
+      {{ ([{'name': 'system_ssh', 'port': vps_ssh_port, 'access': 'public', 'note': 'SSH'}]
+          + vps_security_ports | selectattr('access', 'eq', 'public') | list
+          + (vps_security_ports | selectattr('access', 'eq', 'private') | list
+             if (vps_security_ip if ansible_os_family == 'Debian' else vps_security_iface) | length > 0 else []))
+         | map('combine', {'iface': vps_security_iface, 'ip': vps_security_ip}) | list }}
+    vps_security_private_ports: "{{ vps_security_ports | selectattr('access', 'eq', 'private') | map(attribute='port') | unique | list }}"

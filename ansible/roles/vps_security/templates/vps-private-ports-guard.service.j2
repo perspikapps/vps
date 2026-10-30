@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep private-access ports off the public interface
+After=network-online.target docker.service k3s.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/vps-private-ports-guard add {{ vps_internal_interface | default('-', true) }} {{ private_ports | join(' ') }}
+
+[Install]
+WantedBy=multi-user.target

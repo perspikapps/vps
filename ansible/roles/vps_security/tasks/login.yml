@@ -1,0 +1,48 @@
+---
+- name: Read the saved credentials
+  ansible.builtin.slurp:
+    src: "{{ vps_security_secrets_file }}"
+  register: vps_security_saved
+  failed_when: false
+  no_log: true
+
+- name: Decide the login
+  ansible.builtin.set_fact:
+    vps_security_login_user: "{{ vps_admin_user | default('root', true) }}"
+    vps_security_saved_user: >-
+      {{ vps_security_saved.content | default('') | b64decode
+         | regex_findall('(?m)^COCKPIT_ADMIN_USER=(.*)$') | first | default('') | regex_replace("[\'\"]", '') }}
+    vps_security_saved_password: >-
+      {{ vps_security_saved.content | default('') | b64decode
+         | regex_findall('(?m)^COCKPIT_ADMIN_PASSWORD=(.*)$') | first | default('') | regex_replace("[\'\"]", '') }}
+  no_log: true
+
+- name: Pick the password (given, else saved, else generated)
+  ansible.builtin.set_fact:
+    vps_security_login_password: >-
+      {{ vps_admin_password or vps_security_saved_password
+         or lookup('ansible.builtin.password', '/dev/null', length=24, chars='ascii_letters,digits') }}
+  no_log: true
+
+- name: Set the login
+  when: vps_security_login_password != vps_security_saved_password or vps_security_login_user != vps_security_saved_user
+  no_log: true
+  block:
+    - name: Set the password
+      ansible.builtin.shell: set -o pipefail && echo "$LOGIN" | chpasswd
+      args:
+        executable: /bin/bash
+      environment:
+        LOGIN: "{{ vps_security_login_user }}:{{ vps_security_login_password }}"
+      changed_when: true
+    - name: Save the login to the owner-only secrets file
+      ansible.builtin.lineinfile:
+        path: "{{ vps_security_secrets_file }}"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value | quote }}"
+        create: true
+        owner: root
+        mode: "0600"
+      loop:
+        - {key: COCKPIT_ADMIN_USER, value: "{{ vps_security_login_user }}"}
+        - {key: COCKPIT_ADMIN_PASSWORD, value: "{{ vps_security_login_password }}"}

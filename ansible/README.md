@@ -27,6 +27,7 @@ the steps do not report whether they modified anything.
 | Step | Native role |
 |---|---|
 | `vps-system` | `vps_system` (apt, dnf, zypper) |
+| `vps-security` | `vps_security` (ufw or firewalld, sshd, fail2ban, private-ports guard) |
 
 ```bash
 ansible-playbook -i inventory.yml site.yml --check --diff   # preview
@@ -34,3 +35,15 @@ ansible-playbook -i inventory.yml site.yml
 ```
 
 Role inputs are plain variables with env-lookup defaults (e.g. `vps_system_tz` reads `SYSTEM_TZ`).
+
+Install the collections first: `ansible-galaxy collection install -r requirements.yml`.
+
+### `vps_security` safety net
+SSH and firewall changes are made under a rollback timer: if Ansible cannot open a fresh SSH connection afterwards, the host undoes them itself after `vps_security_rollback_seconds` (sshd drop-in removed, firewall disabled), so a bad change never locks you out. The timer is disarmed as soon as the new connection works.
+
+Differences from the shell step:
+- root login is closed (`PermitRootLogin no`) only when `vps_admin_user` and `vps_admin_ssh_key` are both set; otherwise it stays `prohibit-password`.
+- the sshd drop-in is `00-vps-hardening.conf` (sshd keeps the first value it reads, so the old `99-` file lost to cloud-init's `50-cloud-init.conf`); the old file is removed.
+- `MaxAuthTries 3`, `KbdInteractiveAuthentication no`, `ClientAliveInterval` added.
+- the firewall is never reset; rules from the old `/var/lib/vps-security-ufw.rules` are left as they are, new rules are tracked in `/var/lib/vps-security-ports.json`.
+- extend `vps_security_ports` for steps you enable (Dokploy: 80/443 public, 3000 private; app-coder: 5000 private).

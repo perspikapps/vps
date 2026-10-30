@@ -1,0 +1,53 @@
+---
+- name: Load the rules applied by the previous run
+  ansible.builtin.slurp:
+    src: /var/lib/vps-security-ports.json
+  register: vps_security_prev
+  failed_when: false
+
+# No reset: a fresh host has no rules, and a host from the shell steps keeps what it has
+# (stale rules recorded by the old /var/lib/vps-security-ufw.rules are not pruned).
+- name: Default policies
+  community.general.ufw:
+    default: "{{ item.policy }}"
+    direction: "{{ item.direction }}"
+  loop:
+    - {direction: incoming, policy: deny}
+    - {direction: outgoing, policy: allow}
+
+# SSH is in the wanted list, so it is allowed before the firewall is enabled.
+- name: Allow the wanted ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port | string }}"
+    proto: tcp
+    comment: "{{ item.note | default(item.name) if item.access == 'public' else 'vps-setup: private-only (' ~ item.name ~ ')' }}"
+    direction: "{{ 'in' if item.access == 'private' else omit }}"
+    interface: "{{ item.iface if item.access == 'private' else omit }}"
+    to_ip: "{{ item.ip if item.access == 'private' else omit }}"
+  loop: "{{ vps_security_wanted }}"
+
+- name: Delete rules the previous run opened and this one no longer wants
+  community.general.ufw:
+    rule: allow
+    delete: true
+    port: "{{ item.port | string }}"
+    proto: tcp
+    direction: "{{ 'in' if item.access == 'private' else omit }}"
+    interface: "{{ item.iface if item.access == 'private' else omit }}"
+    to_ip: "{{ item.ip if item.access == 'private' else omit }}"
+  loop: "{{ vps_security_prev.content | default('W10=') | b64decode | from_json }}"
+  when: >-
+    (item.access ~ ':' ~ item.port)
+    not in (vps_security_wanted | map(attribute='access') | zip(vps_security_wanted | map(attribute='port')) | map('join', ':') | list)
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+
+- name: Record the applied rules
+  ansible.builtin.copy:
+    dest: /var/lib/vps-security-ports.json
+    content: "{{ vps_security_wanted | to_json }}"
+    owner: root
+    mode: "0600"
