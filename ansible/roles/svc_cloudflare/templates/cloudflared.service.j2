@@ -1,0 +1,11 @@
+[Unit]
+Description=Cloudflare Tunnel
+After=network-online.target svc-cloudflare-private.service
+Wants=network-online.target
+[Service]
+EnvironmentFile={{ svc_cloudflare_env_file }}
+ExecStart={{ svc_cloudflare_bin }} --no-autoupdate tunnel run
+Restart=on-failure
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target

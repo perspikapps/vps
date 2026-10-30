@@ -1,0 +1,75 @@
+---
+- name: Install Tailscale from its apt repository
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Install python3-debian (for deb822_repository)
+      ansible.builtin.apt:
+        name: python3-debian
+        state: present
+    - name: Add the Tailscale repository
+      ansible.builtin.deb822_repository:
+        name: tailscale
+        types: deb
+        uris: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}"
+        suites: "{{ ansible_distribution_release }}"
+        components: main
+        signed_by: "https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }}/{{ ansible_distribution_release }}.noarmor.gpg"
+    - name: Install the package
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+# shortcut: the official installer (unpinned, run as root) off Debian, add per-family repos when needed
+- name: Install Tailscale with the official installer
+  when: ansible_os_family != 'Debian'
+  block:
+    - name: Download the installer
+      ansible.builtin.get_url:
+        url: https://tailscale.com/install.sh
+        dest: /usr/local/sbin/tailscale-install.sh
+        mode: "0755"
+    - name: Run it
+      ansible.builtin.command: /usr/local/sbin/tailscale-install.sh
+      args:
+        creates: /usr/bin/tailscale
+
+- name: Run tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+# Tells the other roles which interface carries the internal network (vps_security reads this).
+- name: Record the internal interface
+  ansible.builtin.lineinfile:
+    path: "{{ vps_network_env_file }}"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: true
+    owner: root
+    mode: "0644"
+  loop:
+    - {key: SYSTEM_INTERNAL_INTERFACE, value: tailscale0}
+    - {key: SYSTEM_INTERNAL_SOURCE_RANGE, value: 100.64.0.0/10}
+
+- name: Join the tailnet
+  when: svc_tailscale_authkey | length > 0
+  block:
+    - name: Check whether this node is already on a tailnet
+      ansible.builtin.command: tailscale ip -4
+      register: svc_tailscale_ip
+      changed_when: false
+      failed_when: false
+      check_mode: false
+    - name: Join
+      ansible.builtin.command:
+        argv: "{{ ['tailscale', 'up', '--authkey=' ~ svc_tailscale_authkey, '--ssh'] + svc_tailscale_extra_args.split() }}"
+      when: svc_tailscale_ip.rc != 0
+      changed_when: true
+      no_log: true
+
+- name: Warn that nothing joined the tailnet
+  ansible.builtin.debug:
+    msg: TAILSCALE_AUTHKEY not set. Run 'tailscale up' manually to join a tailnet, then re-run.
+  when: svc_tailscale_authkey | length == 0

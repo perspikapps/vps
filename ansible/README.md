@@ -27,6 +27,9 @@ the steps do not report whether they modified anything.
 | Step | Native role |
 |---|---|
 | `vps-system` | `vps_system` (apt, dnf, zypper) |
+| `svc-tailscale` | `svc_tailscale` (apt repo on Debian family, official installer elsewhere) |
+| `svc-cloudflare` | `svc_cloudflare` (opt-in: `vps_with: [svc-cloudflare]` and `vps_skip: [svc-tailscale]`) |
+| `svc-cockpit` | `svc_cockpit` |
 | `vps-security` | `vps_security` (ufw or firewalld, sshd, fail2ban, private-ports guard) |
 
 ```bash
@@ -47,3 +50,22 @@ Differences from the shell step:
 - `MaxAuthTries 3`, `KbdInteractiveAuthentication no`, `ClientAliveInterval` added.
 - the firewall is never reset; rules from the old `/var/lib/vps-security-ufw.rules` are left as they are, new rules are tracked in `/var/lib/vps-security-ports.json`.
 - extend `vps_security_ports` for steps you enable (Dokploy: 80/443 public, 3000 private; app-coder: 5000 private).
+
+## Adopting a host set up by `vps-setup`
+
+1. Install the collections and fill in `inventory.yml` (copy `inventory.example.yml`); export the secrets you used before (`TAILSCALE_AUTHKEY`, `SYSTEM_ADMIN_USER`, `SYSTEM_ADMIN_SSH_KEY`...).
+2. Preview. Nothing is applied; `command`/`shell` tasks are skipped in check mode, so the diff shows files, packages, users and firewall rules only:
+
+   ```bash
+   ansible-playbook -i inventory.yml site.yml --check --diff
+   ```
+
+3. What the diff should show on an adopted host, and what is expected:
+   - `00-vps-hardening.conf` created and `99-vps-setup.conf` removed (sshd rename). `PermitRootLogin` flips to `no` only if `vps_admin_user` and `vps_admin_ssh_key` are set.
+   - `/var/lib/vps-security-ports.json` created. The firewall rules themselves should report `ok`; the old `/var/lib/vps-security-ufw.rules` is left untouched.
+   - `/etc/vps-network.env` may report one change per key if the shell step stored the value quoted (`'tailscale0'`): the value is the same.
+   - The guard script/unit may report a change if whitespace differs, which restarts the guard (a few milliseconds without the DROP rule).
+   - Nothing should change in `/root/.vps-secrets.env`: the saved Cockpit password is read back and kept.
+   - Package upgrades appear as changes on `vps_system` whenever updates are pending.
+4. Keep a second SSH session open, then apply with `ansible-playbook -i inventory.yml site.yml`. If the new SSH config or firewall cut you off, the host reverts them after `vps_security_rollback_seconds`.
+5. Run it a second time: it should report `changed=0` (apart from pending package upgrades).

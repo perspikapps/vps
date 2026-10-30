@@ -4,6 +4,21 @@
 - name: Turn a fresh VPS into a secured management box
   hosts: vps
   become: true
+  pre_tasks:
+    - name: Tailscale and Cloudflare Tunnel are mutually exclusive
+      ansible.builtin.assert:
+        that: "'svc-cloudflare' not in vps_with or 'svc-tailscale' in vps_skip"
+        fail_msg: Enable svc-cloudflare together with skipping svc-tailscale (vps_skip).
+    - name: Services, to detect a conflicting internal network
+      ansible.builtin.service_facts:
   roles:
     - role: vps_system
+      when: "'vps-system' not in vps_skip"
+    - role: svc_tailscale
+      when: "'svc-tailscale' not in vps_skip"
+    - role: svc_cloudflare
+      when: "'svc-cloudflare' in vps_with"
     - role: vps_security
+      when: "'vps-security' not in vps_skip"
+    - role: svc_cockpit
+      when: "'svc-cockpit' not in vps_skip"

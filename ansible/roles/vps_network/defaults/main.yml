@@ -1,0 +1,5 @@
+---
+# State shared by the network roles (was /etc/vps-network.env, written by `vps-network`).
+vps_network_env_file: /etc/vps-network.env
+# Internal network interface; set by svc_tailscale / svc_cloudflare, or by hand (wg0, a LAN NIC).
+vps_internal_interface: "{{ lookup('env', 'SYSTEM_INTERNAL_INTERFACE') }}"

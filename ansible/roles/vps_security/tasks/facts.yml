@@ -1,4 +1,9 @@
 ---
+# The internal interface (tailscale0...) may have been created earlier in this play.
+- name: Refresh the network facts
+  ansible.builtin.setup:
+    gather_subset: [network]
+
 - name: Read the persisted network state
   ansible.builtin.slurp:
     src: "{{ vps_network_env_file }}"

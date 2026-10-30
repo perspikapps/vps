@@ -1,0 +1,4 @@
+---
+svc_cockpit_http_port: 9080
+svc_cockpit_https_port: 9083
+svc_cockpit_packages: [cockpit, cockpit-system, cockpit-networkmanager, cockpit-storaged, cockpit-packagekit, cockpit-files]

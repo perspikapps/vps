@@ -1,0 +1,27 @@
+---
+- name: Install Cockpit
+  ansible.builtin.package:
+    name: "{{ svc_cockpit_packages }}"
+    state: present
+
+- name: Create the socket drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/cockpit.socket.d
+    state: directory
+    owner: root
+    mode: "0755"
+
+- name: Listen on the private ports only
+  ansible.builtin.template:
+    src: override.conf.j2
+    dest: /etc/systemd/system/cockpit.socket.d/override.conf
+    owner: root
+    mode: "0644"
+  notify: Restart cockpit.socket
+
+- name: Enable cockpit.socket
+  ansible.builtin.systemd:
+    name: cockpit.socket
+    enabled: true
+    state: started
+    daemon_reload: true

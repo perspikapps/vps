@@ -1,0 +1,17 @@
+---
+- name: Disable Cockpit
+  ansible.builtin.systemd:
+    name: cockpit.socket
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Remove the socket drop-in
+  ansible.builtin.file:
+    path: /etc/systemd/system/cockpit.socket.d
+    state: absent
+
+- name: Remove Cockpit
+  ansible.builtin.package:
+    name: "{{ svc_cockpit_packages }}"
+    state: absent

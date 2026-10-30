@@ -1,0 +1,28 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2404}-ansible:latest"
+    command: ""
+    volumes: ["/sys/fs/cgroup:/sys/fs/cgroup:rw"]
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    groups: [vps]
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ../../roles
+  inventory:
+    group_vars:
+      vps:
+        # Only the host steps that run in a container.
+        vps_skip: [svc-tailscale, svc-cockpit]
+        vps_system_upgrade: false
+verifier:
+  name: ansible
