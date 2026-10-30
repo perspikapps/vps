@@ -1,0 +1,3 @@
+---
+- name: Tailscale
+  ansible.builtin.include_tasks: "{{ 'down.yml' if 'svc-tailscale' in vps_down else 'up.yml' }}"

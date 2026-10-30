@@ -1,0 +1,12 @@
+# Managed by Ansible (vps_security). Named 00- so it wins over later drop-ins such as
+# cloud-init's 50-cloud-init.conf: sshd keeps the first value it reads.
+Port {{ vps_ssh_port }}
+PermitRootLogin {{ vps_security_permit_root_login }}
+X11Forwarding no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+KbdInteractiveAuthentication no
+{% if vps_security_has_ssh_key %}
+PasswordAuthentication no
+{% endif %}

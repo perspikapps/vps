@@ -1,0 +1,82 @@
+---
+# Guards only this run: a host a previous run set up with Tailscale is caught here.
+- name: Refuse to run next to Tailscale
+  ansible.builtin.assert:
+    that: vps_internal_interface != 'tailscale0' and ansible_facts.services['tailscaled.service'].state | default('') != 'running'
+    fail_msg: Tailscale is set up on this host and is mutually exclusive with svc_cloudflare. Run svc-tailscale down first.
+  when: ansible_facts.services is defined
+
+- name: Look for a saved tunnel token
+  ansible.builtin.stat:
+    path: "{{ svc_cloudflare_env_file }}"
+  register: svc_cloudflare_saved
+
+- name: Require a tunnel token
+  ansible.builtin.assert:
+    that: svc_cloudflare_token | length > 0 or svc_cloudflare_saved.stat.exists
+    fail_msg: CLOUDFLARE_TUNNEL_TOKEN not set.
+
+- name: Install cloudflared
+  ansible.builtin.get_url:
+    url: >-
+      {{ 'https://github.com/cloudflare/cloudflared/releases/download/' ~ svc_cloudflare_version
+         if svc_cloudflare_version | length > 0
+         else 'https://github.com/cloudflare/cloudflared/releases/latest/download' }}/cloudflared-linux-{{ svc_cloudflare_arch }}
+    dest: "{{ svc_cloudflare_bin }}"
+    checksum: "{{ 'sha256:' ~ svc_cloudflare_sha256 if svc_cloudflare_sha256 | length > 0 else omit }}"
+    owner: root
+    mode: "0755"
+
+- name: Internal interface unit
+  ansible.builtin.template:
+    src: svc-cloudflare-private.service.j2
+    dest: /etc/systemd/system/svc-cloudflare-private.service
+    owner: root
+    mode: "0644"
+  notify: Restart cloudflared
+
+# The token goes in an owner-only env file, not in the world-readable unit.
+- name: Token directory
+  ansible.builtin.file:
+    path: "{{ svc_cloudflare_env_file | dirname }}"
+    state: directory
+    owner: root
+    mode: "0700"
+
+- name: Save the tunnel token
+  ansible.builtin.copy:
+    dest: "{{ svc_cloudflare_env_file }}"
+    content: "TUNNEL_TOKEN={{ svc_cloudflare_token }}\n"
+    owner: root
+    mode: "0600"
+  when: svc_cloudflare_token | length > 0
+  no_log: true
+  notify: Restart cloudflared
+
+- name: Tunnel unit
+  ansible.builtin.template:
+    src: cloudflared.service.j2
+    dest: /etc/systemd/system/cloudflared.service
+    owner: root
+    mode: "0644"
+  notify: Restart cloudflared
+
+- name: Run the interface and the tunnel
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: [svc-cloudflare-private.service, cloudflared.service]
+
+- name: Record the internal interface
+  ansible.builtin.lineinfile:
+    path: "{{ vps_network_env_file }}"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: true
+    owner: root
+    mode: "0644"
+  loop:
+    - {key: SYSTEM_INTERNAL_INTERFACE, value: "{{ svc_cloudflare_iface }}"}
+    - {key: SYSTEM_INTERNAL_SOURCE_RANGE, value: "{{ svc_cloudflare_internal_ip }}/32,127.0.0.1/32"}

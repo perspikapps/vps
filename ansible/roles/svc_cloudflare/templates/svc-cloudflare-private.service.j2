@@ -1,0 +1,10 @@
+[Unit]
+Description=vps-setup internal interface for Cloudflare WARP routes
+Before=network.target cloudflared.service
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'ip link add {{ svc_cloudflare_iface }} type dummy 2>/dev/null || true; ip addr replace {{ svc_cloudflare_internal_ip }}/32 dev {{ svc_cloudflare_iface }}; ip link set {{ svc_cloudflare_iface }} up'
+ExecStop=/bin/sh -c 'ip link delete {{ svc_cloudflare_iface }} 2>/dev/null || true'
+[Install]
+WantedBy=multi-user.target

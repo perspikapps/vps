@@ -1,0 +1,26 @@
+---
+vps_ssh_port: 22
+vps_ssh_unit: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+
+# Optional non-root sudo user and the key authorized for it. Was SYSTEM_ADMIN_USER / SYSTEM_ADMIN_SSH_KEY.
+vps_admin_user: "{{ lookup('env', 'SYSTEM_ADMIN_USER') }}"
+vps_admin_ssh_key: "{{ lookup('env', 'SYSTEM_ADMIN_SSH_KEY') }}"
+# Cockpit/console login password; generated and saved to vps_security_secrets_file when empty.
+vps_admin_password: "{{ lookup('env', 'SYSTEM_ADMIN_PASSWORD') }}"
+vps_security_secrets_file: /root/.vps-secrets.env
+
+# Root login is closed only when a non-root user with a key exists to replace it (lockout-safe).
+vps_security_permit_root_login: "{{ 'no' if vps_admin_user | length > 0 and vps_admin_ssh_key | length > 0 else 'prohibit-password' }}"
+
+# Every step's package.json `config.ports`, for the steps enabled in the inventory. Extend per host
+# (vps-dokploy: 80/443 public, 3000 private; app-coder: 5000 private).
+vps_security_ports:
+  - {name: k3s_http, port: 80, access: public, note: HTTP Traefik ingress and Lets Encrypt HTTP-01}
+  - {name: k3s_https, port: 443, access: public, note: HTTPS Traefik ingress}
+  - {name: k3s_traefik_dashboard, port: 8088, access: private}
+  - {name: cockpit_http, port: 9080, access: private}
+  - {name: cockpit_https, port: 9083, access: private}
+
+# If Ansible cannot open a fresh SSH connection after the SSH/firewall changes, a timer undoes them
+# (sshd drop-in removed, firewall disabled) after this many seconds, so the host is never locked out.
+vps_security_rollback_seconds: 180

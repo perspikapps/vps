@@ -1,0 +1,24 @@
+---
+- name: Install the guard
+  ansible.builtin.template:
+    src: vps-private-ports-guard.sh.j2
+    dest: /usr/local/sbin/vps-private-ports-guard
+    owner: root
+    mode: "0755"
+
+- name: Install the guard unit
+  ansible.builtin.template:
+    src: vps-private-ports-guard.service.j2
+    dest: /etc/systemd/system/vps-private-ports-guard.service
+    owner: root
+    mode: "0644"
+  vars:
+    private_ports: "{{ vps_security_private_ports }}"
+  notify: [Reload systemd, Reload private-ports guard]
+
+# k3s and Docker must be (re)started before the rule is final: their roles notify this guard again.
+- name: Enable the guard
+  ansible.builtin.service:
+    name: vps-private-ports-guard
+    enabled: true
+    state: started

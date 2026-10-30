@@ -1,0 +1,6 @@
+---
+skip_list:
+  # vps_* variables are shared across roles on purpose (vps_ssh_port, vps_admin_user...).
+  - var-naming[no-role-prefix]
+exclude_paths:
+  - roles/vps  # legacy wrapper, removed once every step is ported

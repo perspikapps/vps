@@ -1,0 +1,28 @@
+---
+- name: Log out of the tailnet
+  ansible.builtin.command: tailscale logout
+  changed_when: true
+  failed_when: false
+
+- name: Stop tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Forget the internal interface
+  ansible.builtin.lineinfile:
+    path: "{{ vps_network_env_file }}"
+    regexp: "^{{ item }}="
+    state: absent
+  loop: [SYSTEM_INTERNAL_INTERFACE, SYSTEM_INTERNAL_SOURCE_RANGE]
+
+- name: Remove the package
+  ansible.builtin.package:
+    name: tailscale
+    state: absent
+
+- name: Warn
+  ansible.builtin.debug:
+    msg: Tailscale is disconnected. Private-access services are unreachable until you re-apply this role.

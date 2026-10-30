@@ -1,0 +1,78 @@
+---
+- name: Upgrade existing packages
+  when: vps_system_upgrade
+  block:
+    - name: Upgrade (apt)
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: true
+      when: ansible_os_family == 'Debian'
+    - name: Upgrade (dnf/zypper)
+      ansible.builtin.package:
+        name: "*"
+        state: latest  # noqa package-latest
+      when: ansible_os_family != 'Debian'
+
+- name: Install base utilities
+  ansible.builtin.package:
+    name: "{{ vps_system_packages + [vps_system_gnupg] }}"
+    state: present
+
+- name: Unattended security upgrades (apt)
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Install unattended-upgrades
+      ansible.builtin.apt:
+        name: [lsb-release, apt-transport-https, software-properties-common, unattended-upgrades]
+        state: present
+    - name: Enable periodic upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+        owner: root
+        mode: "0644"
+    - name: Never reboot automatically
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades-local
+        content: 'Unattended-Upgrade::Automatic-Reboot "false";'
+        owner: root
+        mode: "0644"
+
+- name: Unattended security upgrades (dnf)
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Install dnf-automatic
+      ansible.builtin.dnf:
+        name: dnf-automatic
+        state: present
+    - name: Apply security updates only
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/automatic.conf
+        regexp: '^{{ item.key }} *='
+        line: "{{ item.key }} = {{ item.value }}"
+      loop: "{{ {'upgrade_type': 'security', 'apply_updates': 'yes'} | dict2items }}"
+    - name: Enable the timer
+      ansible.builtin.systemd:
+        name: dnf-automatic.timer
+        enabled: true
+        state: started
+
+- name: No unattended upgrades on this distribution
+  ansible.builtin.debug:
+    msg: "Run 'zypper patch' on your own schedule."
+  when: ansible_os_family not in ['Debian', 'RedHat']
+
+- name: Set timezone
+  when: vps_system_tz | length > 0
+  block:
+    - name: Read current timezone
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: vps_system_current_tz
+      changed_when: false
+      check_mode: false
+    - name: Apply timezone
+      ansible.builtin.command: timedatectl set-timezone {{ vps_system_tz | quote }}
+      when: vps_system_current_tz.stdout != vps_system_tz
+      changed_when: true

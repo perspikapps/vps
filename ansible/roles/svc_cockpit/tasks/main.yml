@@ -1,0 +1,3 @@
+---
+- name: Cockpit
+  ansible.builtin.include_tasks: "{{ 'down.yml' if 'svc-cockpit' in vps_down else 'up.yml' }}"

@@ -1,0 +1,13 @@
+#!/bin/sh
+# usage: vps-private-ports-guard add|del <internal-interface|-> <port>...
+# ufw only filters INPUT: ports published by k3s ServiceLB or Docker are DNAT-ed through FORWARD and
+# accepted ahead of ufw. Drop DNAT-ed connections to private ports on the default-route interface.
+action="$1" private="$2"
+shift 2
+iface="$(ip -4 route show default | awk '{print $5; exit}')"
+[ -n "$iface" ] && [ "$iface" != "$private" ] || exit 0
+for port in "$@"; do
+  rule="-i $iface -p tcp -m conntrack --ctstate DNAT --ctorigdstport $port -j DROP"
+  while iptables -D FORWARD $rule 2>/dev/null; do :; done
+  if [ "$action" = add ]; then iptables -I FORWARD 1 $rule; fi
+done

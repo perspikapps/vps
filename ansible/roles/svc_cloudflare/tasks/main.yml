@@ -1,0 +1,3 @@
+---
+- name: Cloudflare Tunnel
+  ansible.builtin.include_tasks: "{{ 'down.yml' if 'svc-cloudflare' in vps_down else 'up.yml' }}"

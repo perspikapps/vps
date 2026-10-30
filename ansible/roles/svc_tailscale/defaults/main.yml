@@ -1,0 +1,4 @@
+---
+# Auth key to auto-join a tailnet; without it the role installs and starts tailscaled only.
+svc_tailscale_authkey: "{{ lookup('env', 'TAILSCALE_AUTHKEY') }}"
+svc_tailscale_extra_args: "{{ lookup('env', 'TAILSCALE_EXTRA_ARGS') }}"

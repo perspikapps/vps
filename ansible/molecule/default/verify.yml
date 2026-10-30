@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: vps
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Read the effective sshd settings
+      ansible.builtin.command: sshd -T
+      register: verify_sshd
+      changed_when: false
+    - name: Assert sshd is hardened
+      ansible.builtin.assert:
+        that:
+          - "'maxauthtries 3' in verify_sshd.stdout"
+          - "'x11forwarding no' in verify_sshd.stdout"
+    - name: Read the services
+      ansible.builtin.service_facts:
+    - name: Assert the rollback timer is disarmed and the guard enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['vps-security-revert.timer'].state | default('stopped') != 'running'
+          - ansible_facts.services['vps-private-ports-guard.service'].status == 'enabled'

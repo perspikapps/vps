@@ -1,0 +1,6 @@
+---
+- name: Facts shared by the tasks
+  ansible.builtin.include_tasks: facts.yml
+
+- name: "{{ 'Remove security hardening' if 'vps-security' in (vps_down | default([])) else 'Apply security hardening' }}"
+  ansible.builtin.include_tasks: "{{ 'down.yml' if 'vps-security' in (vps_down | default([])) else 'up.yml' }}"

@@ -1,0 +1,51 @@
+---
+- name: Start firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+# Only the ports below stay open: drop the zones' default services (ssh, cockpit...).
+- name: List the default services
+  ansible.builtin.command: firewall-cmd --permanent --zone={{ item }} --list-services
+  loop: [public, internal]
+  register: vps_security_services
+  changed_when: false
+  check_mode: false
+
+- name: Remove the default services
+  ansible.posix.firewalld:
+    zone: "{{ item.0.item }}"
+    service: "{{ item.1 }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  loop: "{{ vps_security_services.results | subelements('stdout_words') }}"
+
+- name: Bind the internal interface to the internal zone
+  ansible.posix.firewalld:
+    zone: internal
+    interface: "{{ vps_security_iface }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: vps_security_iface | length > 0
+
+- name: Open the wanted ports
+  ansible.posix.firewalld:
+    zone: "{{ 'public' if item.access == 'public' else 'internal' }}"
+    port: "{{ item.port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ vps_security_wanted }}"
+
+# SSH stays reachable on the internal network whatever its access.
+- name: Open SSH in the internal zone
+  ansible.posix.firewalld:
+    zone: internal
+    port: "{{ vps_ssh_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: vps_security_iface | length > 0

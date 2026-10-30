@@ -1,0 +1,9 @@
+#!/bin/sh
+# Run by a timer when Ansible could not reconnect after the SSH/firewall changes: back to a reachable host.
+rm -f /etc/ssh/sshd_config.d/00-vps-hardening.conf
+systemctl reload {{ vps_ssh_unit }} || true
+{% if ansible_os_family == 'Debian' %}
+ufw --force disable || true
+{% else %}
+systemctl stop firewalld || true
+{% endif %}

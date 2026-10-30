@@ -1,0 +1,55 @@
+---
+- name: Remove the private-ports FORWARD guard
+  block:
+    - name: Delete its iptables rules
+      ansible.builtin.command: /usr/local/sbin/vps-private-ports-guard del - {{ vps_security_private_ports | join(' ') }}
+      changed_when: true
+      failed_when: false
+    - name: Stop and remove it
+      ansible.builtin.service:
+        name: vps-private-ports-guard
+        state: stopped
+        enabled: false
+      failed_when: false
+    - name: Delete its files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/vps-private-ports-guard.service
+        - /usr/local/sbin/vps-private-ports-guard
+      notify: Reload systemd
+
+- name: Disable the fail2ban sshd jail
+  ansible.builtin.file:
+    path: /etc/fail2ban/jail.d/sshd.local
+    state: absent
+
+- name: Restore the distro sshd config
+  ansible.builtin.file:
+    path: "/etc/ssh/sshd_config.d/{{ item }}"
+    state: absent
+  loop: [00-vps-hardening.conf, 99-vps-setup.conf]
+  notify: Reload sshd
+
+- name: Disable ufw
+  community.general.ufw:
+    state: disabled
+  when: ansible_os_family == 'Debian'
+
+- name: Stop firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+  when: ansible_os_family != 'Debian'
+
+- name: Forget the recorded rules
+  ansible.builtin.file:
+    path: /var/lib/vps-security-ports.json
+    state: absent
+
+# Same as the shell step: no firewall, distro sshd, admin user and password left in place.
+- name: Warn
+  ansible.builtin.debug:
+    msg: Security hardening reverted, the firewall is disabled. Re-apply before exposing this VPS again.

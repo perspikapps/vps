@@ -1,0 +1,33 @@
+---
+- name: Stop the tunnel and the interface
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: [cloudflared.service, svc-cloudflare-private.service]
+  failed_when: false
+
+- name: Remove units, token and binary
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/cloudflared.service
+    - /etc/systemd/system/svc-cloudflare-private.service
+    - "{{ svc_cloudflare_env_file }}"
+    - "{{ svc_cloudflare_bin }}"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Forget the internal interface
+  ansible.builtin.lineinfile:
+    path: "{{ vps_network_env_file }}"
+    regexp: "^{{ item }}="
+    state: absent
+  loop: [SYSTEM_INTERNAL_INTERFACE, SYSTEM_INTERNAL_SOURCE_RANGE]
+
+- name: Warn
+  ansible.builtin.debug:
+    msg: The tunnel is disconnected. Private-access services are unreachable until you re-apply this role.
