@@ -1,4 +1,11 @@
 {{/* @format */}}
 {{- if .Values.ingress.enabled }}
 {{ include "vps-lib.ingress" (dict "ctx" . "app" "coder" "ingress" .Values.ingress "name" (printf "%s-coder" .Release.Name) "service" "coder" "port" 80 "className" .Values.ingress.className) }}
+{{- if .Values.ingress.wildcard }}
+---
+{{- /* workspace apps on *.<domain>: lowest priority so rancher., argocd., ... on the same domain win */}}
+{{- $host := include "vps-lib.host" (dict "ctx" . "app" "coder" "ingress" .Values.ingress) }}
+{{- $wild := dict "host" (printf "*.%s" (trimPrefix "coder." $host)) "middlewares" .Values.ingress.middlewares "annotations" (dict "traefik.ingress.kubernetes.io/router.priority" "1") }}
+{{ include "vps-lib.ingress" (dict "ctx" . "app" "coder" "ingress" $wild "name" (printf "%s-coder-wildcard" .Release.Name) "service" "coder" "port" 80 "className" .Values.ingress.className) }}
+{{- end }}
 {{- end }}

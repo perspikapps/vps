@@ -32,6 +32,10 @@ Postgres database to store its state:
   deployment. Set it to `http://coder.<server domain>` (the Ingress this
   chart creates) in `values.yaml` or Rancher's install UI; unset, Coder
   opens a public tunnel.
+- **`CODER_WILDCARD_ACCESS_URL`** (workspace apps on subdomains): set it
+  to `*.<server domain>`. The chart routes that wildcard to Coder too
+  (`ingress.wildcard`, on by default, lowest Traefik priority so other
+  `<app>.<domain>` hosts win).
 
 ## Server domain
 
